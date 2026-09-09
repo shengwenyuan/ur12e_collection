@@ -1,6 +1,6 @@
 # Development Environment and Repository Bootstrap
 
-Updated: 2026-09-09. This records the authorized environment setup and initial repository baseline. M01 implementation starts only after the next kickoff alignment; the collector package, custom image, CI pipeline, and hardware adapters are not implemented yet.
+Updated: 2026-09-09. This page preserves the initial bootstrap snapshot from before M01 implementation. For current code, image, dependency, and acceptance status, see the [M01 implementation plan](m01-runtime-deployment/plan.md) and [quickstart](m01-runtime-deployment/quickstart.md). The user subsequently authorized and began the foundation work.
 
 ## Engineering baseline
 

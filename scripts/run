@@ -1,0 +1,32 @@
+#!/bin/sh
+# Run only an already provisioned image. No implicit pull, build, or hardware start.
+set -eu
+cd "$(dirname "$0")/.."
+if [ -f manifest.json ]; then
+  UR12E_IMAGE=$(python3 -c 'import json; print(json.load(open("manifest.json"))["image_id"])')
+  export UR12E_IMAGE
+fi
+profile=${1:-dev}
+if [ "$#" -gt 0 ]; then shift; fi
+case "$profile" in
+  dev)
+    export UR12E_CONFIG_DIR=${UR12E_CONFIG_DIR:-"$PWD/config/local"}
+    export UR12E_DATA_DIR=${UR12E_DATA_DIR:-"$PWD/data"}
+    mkdir -p "$UR12E_CONFIG_DIR" "$UR12E_DATA_DIR"
+    ;;
+  station)
+    export UR12E_CONFIG_DIR=${UR12E_CONFIG_DIR:-/var/lib/ur12e-collection}
+    export UR12E_DATA_DIR=${UR12E_DATA_DIR:-/var/lib/ur12e-collection/data}
+    ;;
+  *) echo 'Usage: scripts/run [dev|station] [ur-collect arguments]' >&2; exit 2 ;;
+esac
+export UR12E_UID=${UR12E_UID:-$(id -u)}
+export UR12E_GID=${UR12E_GID:-$(id -g)}
+for directory in "$UR12E_CONFIG_DIR" "$UR12E_DATA_DIR"; do
+  if [ ! -d "$directory" ] || [ ! -w "$directory" ]; then
+    echo "Missing or unwritable mount: $directory" >&2
+    exit 1
+  fi
+done
+if [ "$#" -eq 0 ]; then set -- --help; fi
+exec docker compose --profile "$profile" run --rm --no-deps --pull never "$profile" "$@"

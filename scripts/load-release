@@ -1,0 +1,9 @@
+#!/bin/sh
+# Ubuntu bundle loader. Verify every delivered file before importing the image.
+set -eu
+cd "$(dirname "$0")/.."
+sha256sum -c checksums.sha256
+docker load -i image.tar
+image=$(python3 -c 'import json; print(json.load(open("manifest.json"))["image_id"])')
+docker image inspect "$image" >/dev/null
+echo 'Image verified and loaded. Run: ./scripts/run station doctor --backend hardware --require-mounts'

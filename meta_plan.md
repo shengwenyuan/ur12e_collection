@@ -1,6 +1,6 @@
 # UR12e + Robotiq Hand-E Collection: Module Plan
 
-Status: requirements alignment; no implementation or hardware acceptance completed.
+Status: foundation implementation underway; M01/M02/M10 software slices and explicit device probes implemented. Full collection and motion acceptance remain pending.
 
 Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP direction aligned; repository bootstrap precedes M01 implementation.
 
@@ -20,7 +20,7 @@ This document preserves confirmed requirements, proposed choices, and unresolved
 | Robotiq Hand-E | 1 | Follower gripper; wiring and access path pending |
 | Custom GELLO with DYNAMIXEL XL430-W250-T | 1 | Leader with position-control interfaces; assembled-arm load capability pending |
 | RealSense D405 | 1 | `wrist` |
-| RealSense D435i | 2 | `third_left` and `third_right`, on either side of the arm base |
+| RealSense D435i family; attached units report D435IF | 2 | `third_left` and `third_right`, on either side of the arm base |
 
 Confirmed scope includes initialization, UR ZERO, powered positioning of both arms to READY, Space-based simultaneous leading/recording, stopping and holding, separate visual calibration, RGB-D collection, local storage, and Docker delivery. Digital-twin and DAgger interfaces are reserved; their full runtime implementations are outside the first release.
 
@@ -56,7 +56,7 @@ These paths are reserved destinations, not claims that detailed plans already ex
 
 Decision status: ROS 2 Jazzy is confirmed on 2026-09-09; prefer the official `ros:jazzy-ros-base-noble` image. Ubuntu is the production platform; Mac Docker is an initial development/test environment.
 
-Detailed development configuration: [M01 plan](docs/m01-runtime-deployment/plan.md), currently a draft; ROS 2 is aligned, while implementation kickoff remains a separate next step after repository bootstrap and the initial commit.
+Detailed development configuration: [M01 plan](docs/m01-runtime-deployment/plan.md), implementation authorized on 2026-09-09 after repository bootstrap; software and deployment checks are tracked in that plan.
 
 ### M01.1 Architecture
 
@@ -83,13 +83,13 @@ RealSense rig -> RGB-D alignment -> wrist-anchored groups -> EpisodeWriter
 
 ### M01.2 Host and image baseline
 
-The initial local inspection found a MacBook Air, Apple M5 with 10 CPU cores, 16 GB unified memory, macOS 26.4, and approximately 552 GiB free storage. Docker Desktop is now installed and its local engine is running. See [development environment](docs/development-environment.md) for the bootstrap checks and shell setup. No camera or sustained throughput test has been completed.
+The initial local inspection found a MacBook Air, Apple M5 with 10 CPU cores, 16 GB unified memory, macOS 26.4, and approximately 552 GiB free storage. Docker Desktop is now installed and its local engine is running. See [development environment](docs/development-environment.md) for the bootstrap checks and shell setup. A simultaneous 40-second three-camera diagnostic has now passed on Ubuntu; sustained encoding/storage throughput remains untested. See the M07 plan for evidence and limits.
 
 The production collection PC is reached through the user-managed SSH alias **`ur12e-collection`** (`ssh ur12e-collection`). This is the collection computer, not the UR controller address. Do not hardcode the alias's resolved IP, credentials, or SSH configuration into the repository or image.
 
 The host is intermittently reachable: the developer may be outside the lab network. Local editing, fake-device checks, and previously provisioned development containers must not require SSH, a lab VPN, or physical devices. Remote checks are explicit and bounded; an unavailable host defers Ubuntu/hardware acceptance without blocking independent local work. Dependency downloads for initial setup still require network access. Do not install a background reconnect loop or make remote probing part of normal test startup.
 
-Read-only inspection on 2026-09-09 reached hostname `ur12e-flexlab`: Ubuntu 24.04.3 LTS, x86_64, Linux `6.17.0-1032-oem`, Intel Core Ultra 9 285 with 24 logical CPUs, 62 GiB reported RAM, and 311 GiB available on the 937 GiB root filesystem. Docker CLI reports 29.4.0 and Compose v5.1.2. The current SSH user's Docker daemon access is denied; successful CLI version output is not a working-container result. USB topology reports xHCI roots including 20 Gb/s links, but camera attachment, aggregate bandwidth, GPU capabilities, and sustained storage/encoding performance remain unverified.
+Read-only inspection on 2026-09-09 reached hostname `ur12e-flexlab`: Ubuntu 24.04.3 LTS, x86_64, Linux `6.17.0-1032-oem`, Intel Core Ultra 9 285 with 24 logical CPUs, 62 GiB reported RAM, and 311 GiB available on the 937 GiB root filesystem. Docker CLI reports 29.4.0 and Compose v5.1.2. Docker access was initially denied. The user subsequently added `robot2026fall` to the Docker group and created the host mounts; a new SSH session verified Engine 29.4.0 access and a running amd64 collector container. USB topology reports xHCI roots including 20 Gb/s links, and all three attached cameras passed simultaneous 640x480@30 RGB-D diagnostics with the existing Hub wiring. GPU capabilities and sustained storage/encoding performance remain unverified.
 
 This host is a reasonable candidate for the planned workload; resource inventory alone is not throughput acceptance. Production requirements must not be limited by Mac RAM, encoding throughput, or virtualization performance. No particular GPU is required. Preserve the installed OEM kernel for initial validation; do not downgrade it merely to match an earlier candidate baseline. RealSense compatibility must be tested on this actual kernel.
 
@@ -99,7 +99,7 @@ Mac tests cover builds, fake devices, sample writing, and replay. Physical USB a
 | --- | --- |
 | Production host | Observed Ubuntu 24.04.3 LTS, x86_64, Linux 6.17.0-1032-oem; validate this installed kernel |
 | Container | Official `ros:jazzy-ros-base-noble` on Ubuntu 24.04 LTS; pin the validated image digest |
-| Docker / Compose | Observed CLI 29.4.0 / Compose 5.1.2; daemon access and compatibility validation pending |
+| Docker / Compose | Ubuntu Engine/CLI 29.4.0 / Compose 5.1.2 verified; Mac Desktop Engine 29.7.2 / Compose 5.5.1 verified |
 | Python | 3.12 series |
 | RealSense | librealsense 2.56.5; matching Python bindings if used |
 | UR adapter | SDU Robotics ur_rtde 1.6.5 candidate, using UR RTDE / URScript |
@@ -111,7 +111,7 @@ Mac tests cover builds, fake devices, sample writing, and replay. Physical USB a
 | CUDA / Isaac Sim | Not collector dependencies in v0.1 |
 | Device firmware and UR software | Read from actual hardware; unknown until verified; no automatic updates |
 
-These are unbuilt, unvalidated candidates except for the explicitly observed host/CLI versions. Pin complete dependencies and image identity before release. LeRobot 0.6.1 requires Python >=3.12. ur_rtde is an SDU Robotics project, not an official UR SDK. [LeRobot dependencies](https://github.com/huggingface/lerobot/blob/v0.6.1/pyproject.toml), [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/pages/getting_started/installation.html).
+The M01 foundation now pins and validates its runtime SDK dependencies and image identity; its formal plan and bundle manifests record the exact tested versions. LeRobot export and full encoding/storage acceptance remain pending. The initial hardware environment is installed; optional LeRobot export is deferred to M11. LeRobot 0.6.1 requires Python >=3.12. ur_rtde is an SDU Robotics project, not an official UR SDK. [LeRobot dependencies](https://github.com/huggingface/lerobot/blob/v0.6.1/pyproject.toml), [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/pages/getting_started/installation.html).
 
 Deliver an image archive, Compose configuration, launcher, identity-free templates, and short instructions. A colleague loads the image and initializes the station without source code or cloud accounts. Persist configuration and data on host mounts. USB/udev, networking, kernel, and scheduling remain host responsibilities; privileged containers do not create hard real-time guarantees.
 
@@ -400,7 +400,7 @@ Acceptance targets: `M15-A01` disabled policy interfaces cannot command hardware
 
 | Modules | Next decision |
 | --- | --- |
-| M01 | Jazzy confirmed; complete repository bootstrap and initial commit, then align implementation kickoff. Resolve Ubuntu Docker access when reachable; UR driver selection remains M03 |
+| M01 | Foundation authorized and implemented; complete release acceptance evidence. Ubuntu Docker access is resolved; final UR control integration remains M03 |
 | M04 | Register load, supply, transport and joint range; decide whether hands-off leading requires mechanical support |
 | M05 | Resolve the preferred server-client endpoint/protocol, device wiring/raw register access, and gripper hold behavior |
 | M06, M09 | Define READY targets/routes, success labels, discard review/retention semantics, and shutdown details. Space / a / Ctrl+C controls are confirmed |

@@ -3,11 +3,11 @@
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
 - Module: M01 — Runtime architecture and deployment
-- Status: draft
+- Status: implemented / acceptance pending
 - Parent: [meta_plan.md](../../meta_plan.md)
 - Updated: 2026-09-09
 - Dependencies: none; device behavior and episode implementation belong to later modules
-- User alignment: host identity and intermittent connectivity confirmed; ROS 2 Jazzy confirmed; implementation kickoff deferred until after repository bootstrap and the initial commit
+- User alignment: host identity and intermittent connectivity confirmed; ROS 2 Jazzy confirmed; implementation kickoff authorized on 2026-09-09 after commit 84f6067
 
 ## Problem and Intended Behavior
 
@@ -27,7 +27,7 @@ Confirmed on 2026-09-09: use ROS 2 Jazzy for typed messages and observability, r
 | --- | --- |
 | Production target | `linux/amd64`; observed Ubuntu 24.04.3 LTS and Linux `6.17.0-1032-oem` on `ur12e-collection` |
 | Host resources | Core Ultra 9 285, 24 logical CPUs, 62 GiB reported RAM, 311 GiB free on root at inspection; capacity snapshot, not throughput acceptance |
-| Docker host tools | Observed Docker CLI 29.4.0 and Compose 5.1.2; daemon access denied for the current SSH user |
+| Docker host tools | Docker Engine/CLI 29.4.0 and Compose 5.1.2 verified; user completed Docker group and mount setup |
 | Container baseline | Official `ros:jazzy-ros-base-noble` (Ubuntu 24.04 / ROS 2 Jazzy); pin the validated base digest and installed package versions |
 | Python | Ubuntu Python 3.12, matching the ROS Python ABI; a virtual environment with access to required ROS system packages |
 | Image variants | Production runtime includes installed package and dependencies; development target adds development/test tools |
@@ -92,20 +92,44 @@ No M01 acceptance case requires joint motion or physical camera access.
 
 - 2026-09-09: The user identified `ur12e-collection` as the collection runtime PC and clarified that it is not always reachable during development outside the lab network.
 - 2026-09-09: The user confirmed ROS 2 Jazzy, suggested an official image, and authorized repository engineering adaptation and local Docker setup followed by an initial commit. The user explicitly placed M01 kickoff alignment after that batch.
-- Pending: M01 implementation kickoff and final acceptance scope. Bootstrap setup is not M01 implementation or acceptance.
+- 2026-09-09: The user approved the proposed order and authorized M01 automatic configuration, the M02/M10 minimal foundation, and prioritized read-only station/device checks while physically connecting equipment. The user will execute necessary sudo commands. No motion acceptance is authorized by this foundation scope.
 
 ## Implementation and Validation Results
 
-**Not implemented. No acceptance checks have been run for this plan.**
+The foundation is implemented: installed CLI/package, official-base Docker runtime/development targets, Compose profiles, explicit no-pull launcher, dependency diagnostics, hashed Python requirements, and a source-free image bundle. M02 supplies draft initialization and validation; M03/M07 supply explicit read-only/camera diagnostics. Session/shadow/calibration remain unavailable, and GELLO reports unavailable rather than fake readiness.
 
-Read-only preparation on 2026-09-09 used SSH to inspect hostname, `/etc/os-release`, kernel, CPU, memory, filesystem capacity, Docker CLI/Compose versions, and USB topology. The connection succeeded. A subsequent `docker info` failed with permission denied on the Docker socket. GPU capabilities were not established. No packages, permissions, files, or device state were changed on the host.
+Python requirements pin jsonschema 4.25.1, NumPy 2.2.6, PyAV 15.1.0, OpenCV contrib headless 4.12.0.88, amd64 RealSense 2.56.5.9235, and ur_rtde 1.6.5. Development tooling pins Black 26.5.1, Pylint 4.0.8, and pytest 8.4.2. An initial pytest 9.1.1 container run failed because Jazzy's installed launch_testing plugin uses a removed hook parameter; pinning pytest 8.4.2 resolved it without disabling ROS plugins. No standalone FFmpeg CLI or LeRobot export package is required by this foundation; M11 owns their eventual integration.
 
-| Date / revision | Case ID | Environment and procedure | Result | Conclusion |
-| --- | --- | --- | --- | --- |
-| 2026-09-09 / documentation draft | M01-A01 | No implementation available | NOT RUN | No container or CLI acceptance evidence |
-| 2026-09-09 / documentation draft | M01-A02 | Host inventory only; Docker socket access denied | NOT RUN | Deployment access prerequisite unresolved; clean-station test remains outstanding |
-| 2026-09-09 / documentation draft | M01-A03 | No persistence implementation available | NOT RUN | Mount and replacement checks outstanding |
+All results below are from 2026-09-09. Code was based on commit `84f6067` plus the current foundation working tree; image labels explicitly say `84f6067-working`. The bundle manifest supplies the immutable image ID and full resolved OS/Python package lists. This is a development handoff, not final hardware release acceptance.
+
+| Case | Environment / command | Result | Conclusion |
+| --- | --- | --- | --- |
+| M01-A01.1 | Mac Python 3.12.13: `scripts/check`; Ubuntu amd64 `scripts/run station doctor --backend hardware --format json --require-mounts` | PASS | Formatting/lint and core tests pass; every selected Ubuntu SDK imports; both mounts writable |
+| M01-A01.2 | Docker `--network none` software tests on Mac arm64 and Ubuntu amd64 | PASS | 20 tests passed in each tested development image before the final GELLO-only test addition; no lab connection required |
+| M01-A01.3 | Default help / unavailable session tests and explicit doctor startup | PASS | No automatic device initialization, motion, or real-to-fake fallback |
+| M01-A02.1-smoke | Fresh bundle directory on existing Ubuntu station: `scripts/load-release`, then pinned-image doctor and station draft validation | PASS | Image loads and runs without a source checkout or registry fetch; checksum validation succeeds |
+| M01-A02.1 | Clean Ubuntu machine/VM deployment | NOT RUN | Existing-station source-free smoke is not evidence of a clean-machine installation |
+| M01-A02.2 | Actual `ur12e-collection` host, kernel 6.17.0-1032-oem | PASS | User resolved Docker access; non-root launcher and installed amd64 SDK environment work |
+| M01-A03.1 | Mac opt-in `tests/test_containers.py` | PASS | Separate container instances preserve configuration and byte-exact fixture data |
+| M01-A03.2 | Mac opt-in `tests/test_containers.py` and missing-directory unit test | PASS | Read-only/missing mounts fail without replacing existing files |
+
+After the M07 diagnostic refinement, the local and Ubuntu amd64 software suites each have 24 passing tests and two intentionally skipped opt-in Docker tests; those two Docker tests were also run explicitly and passed. Pylint reports 10.00/10. Device tests and their limitations are recorded in the owning module plans.
 
 ## Remaining Work and Acceptance Conclusion
 
-M01 is awaiting scope alignment and implementation. Complete the authorized bootstrap batch and initial commit, then align implementation kickoff. Resolve Docker access when the lab host is available. READY targets, Hand-E server details, matching wait/reuse policy, codec acceptance, and calibration sampling belong to later modules and do not prevent writing this configuration plan.
+The foundation is usable locally and on the lab station. The initial v2 development bundle is `/home/robot2026fall/ur12e-foundation-bundle-20260909-v2` on the station, copied into ignored local `artifacts/releases/ur12e-foundation-bundle-20260909-v2/` with checksums verified. Its image ID is `sha256:a30df5a2eca1ad3ec7212d0ccd92b0170773409ec2ecfc7a491d3d1d95365400`; the image archive is approximately 466 MB. Both bundled launchers select the manifest image ID; packaging rejects non-amd64 production images. The subsequent camera refinement is delivered in v3, documented below. Full M01 acceptance remains pending a clean Ubuntu deployment case. Hardware ownership, sustained three-camera capture, motion behavior, and full episode writing belong to their respective modules and remain separate acceptance work.
+
+## Initial implementation decisions
+
+### Camera diagnostic refinement bundle (2026-09-09)
+
+The v3 bundle is `/home/robot2026fall/ur12e-foundation-bundle-20260909-v3` on the station. It packages image `sha256:0699d1029bbffd2e5faf3492a598fecd5145fc0299e692f1ef7ccc2ee4277900`, labeled `84f6067-working-camera-processes`. M07 records its simultaneous 40-second three-camera evidence. The bundle includes spawned camera workers, complete alignment warm-up, separate depth counter statistics, and bounded native-worker cleanup shared with the read-only UR probe.
+
+The existing Ubuntu station passed checksum/load, pinned-image hardware doctor with writable mounts, and bundled camera inventory. Its source launcher defaults now point to the tested runtime/development images. The local copy is `artifacts/releases/ur12e-foundation-bundle-20260909-v3/`; the v2 archive remains a historical snapshot and does not contain these camera fixes. Clean-machine deployment and M11/M13 recording throughput are still NOT RUN.
+
+### Foundation choices
+
+- Use a standard-library CLI with JSON diagnostics and explicit unavailable commands. Keep station validation and time/data contracts in their owning modules.
+- Pin direct and transitive Python dependencies in hashed requirements generated from `pyproject.toml`; record installed OS packages separately. Python 3.12 is required.
+- RealSense 2.56.5.9235 and ur_rtde 1.6.5 provide CPython 3.12 Linux x86_64 wheels, but not equivalent arm64 wheels. The Mac development image excludes those physical SDKs and reports them unavailable; the Ubuntu amd64 image installs them. This does not change the production hardware requirement.
+- Add a pure software test suite for CLI failure semantics, mount preservation, configuration validation/atomic replacement, and intent-versus-feedback contracts. No physical device is opened by default.

@@ -1,0 +1,234 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "station_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "ur": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "serial": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "ready_q_rad": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 6,
+              "maxItems": 6,
+              "items": {
+                "type": "number"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "host",
+        "serial",
+        "ready_q_rad"
+      ],
+      "additionalProperties": false
+    },
+    "gello": {
+      "type": "object",
+      "properties": {
+        "backend": {
+          "const": "unavailable"
+        },
+        "ready_q_rad": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 6,
+              "maxItems": 6,
+              "items": {
+                "type": "number"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "backend",
+        "ready_q_rad"
+      ],
+      "additionalProperties": false
+    },
+    "hande": {
+      "type": "object",
+      "properties": {
+        "transport": {
+          "const": "server_client"
+        },
+        "host": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "port": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "transport",
+        "host",
+        "port"
+      ],
+      "additionalProperties": false
+    },
+    "cameras": {
+      "type": "object",
+      "properties": {
+        "wrist": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "const": "D405"
+            },
+            "serial": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "required": [
+            "model",
+            "serial"
+          ],
+          "additionalProperties": false
+        },
+        "third_left": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "enum": [
+                "D435i",
+                "D435IF"
+              ]
+            },
+            "serial": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "required": [
+            "model",
+            "serial"
+          ],
+          "additionalProperties": false
+        },
+        "third_right": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "enum": [
+                "D435i",
+                "D435IF"
+              ]
+            },
+            "serial": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "required": [
+            "model",
+            "serial"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "wrist",
+        "third_left",
+        "third_right"
+      ],
+      "additionalProperties": false
+    },
+    "camera_profile": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "const": 640
+        },
+        "height": {
+          "const": 480
+        },
+        "fps": {
+          "const": 30
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "fps"
+      ],
+      "additionalProperties": false
+    },
+    "max_skew_ns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "motion_accepted": {
+      "const": false
+    },
+    "calibration": {
+      "type": "null"
+    }
+  },
+  "required": [
+    "schema_version",
+    "station_id",
+    "ur",
+    "gello",
+    "hande",
+    "cameras",
+    "camera_profile",
+    "max_skew_ns",
+    "motion_accepted",
+    "calibration"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ur12e-collection:station:1"
+}

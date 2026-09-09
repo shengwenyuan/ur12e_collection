@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling==1.32.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ur12e-collection"
+version = "0.1.0"
+description = "Local UR12e and Hand-E demonstration collection"
+requires-python = ">=3.12,<3.13"
+dependencies = ["jsonschema==4.25.1"]
+
+[project.optional-dependencies]
+hardware = [
+  "av==15.1.0",
+  "numpy==2.2.6",
+  "opencv-contrib-python-headless==4.12.0.88",
+  "pyrealsense2==2.56.5.9235; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "ur-rtde==1.6.5; sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+dev = ["black==26.5.1", "pylint==4.0.8", "pytest==8.4.2"]
+
+[project.scripts]
+ur-collect = "ur12e_collection.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ur12e_collection"]
+
+[tool.black]
+line-length = 80
+target-version = ["py312"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.pylint.main]
+py-version = "3.12"
+
+[tool.pylint.format]
+max-line-length = 80
+
+[tool.pylint.messages_control]
+# Immutable records intentionally have no behavior methods.
+disable = ["too-few-public-methods"]
+
+[tool.pylint.design]
+max-attributes = 10
+
+[tool.pylint.typecheck]
+# OpenCV's native bindings expose members dynamically; exercised in probe tests.
+generated-members = ["cv2.*"]

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "station_id": null,
+  "ur": {
+    "host": null,
+    "serial": null,
+    "ready_q_rad": null
+  },
+  "gello": {
+    "backend": "unavailable",
+    "ready_q_rad": null
+  },
+  "hande": {
+    "transport": "server_client",
+    "host": null,
+    "port": null
+  },
+  "cameras": {
+    "wrist": {
+      "model": "D405",
+      "serial": null
+    },
+    "third_left": {
+      "model": "D435i",
+      "serial": null
+    },
+    "third_right": {
+      "model": "D435i",
+      "serial": null
+    }
+  },
+  "camera_profile": {
+    "width": 640,
+    "height": 480,
+    "fps": 30
+  },
+  "max_skew_ns": 16700000,
+  "motion_accepted": false,
+  "calibration": null
+}
