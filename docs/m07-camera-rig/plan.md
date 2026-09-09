@@ -65,3 +65,13 @@ Native capture-worker timeout/exit handling is implemented and fixture-tested. F
 Software validation after this refinement: Black and Pylint pass (10.00/10); 24 tests pass on Mac Python 3.12.13 and in the Ubuntu amd64 development image with ROS Jazzy plugins enabled. Two optional Docker mount tests are skipped in these runs; their earlier explicit pass remains recorded in M01. The Ubuntu run emitted a harmless pytest cache-write warning for read-only `/opt`; all tests completed.
 
 An offline nearest-color-timestamp check of the saved logs found 1198/1200 and 1195/1200 wrist frames within 16.7 ms of each third view. This exploratory calculation permits reuse and includes independently started stream boundaries; it is not the M08 online grouping algorithm, clock validation, or synchronization acceptance. Keep bounded waiting, reuse/eviction, and readiness gating in the separate M08 plan.
+
+## Integration ownership (aligned 2026-09-09)
+
+The M08 review corrections define a uniform SourceFault boundary. The future
+persistent M07 rig supervisor owns generation allocation, common-clock readiness
+and coordinated source recovery. It must establish a fresh rig generation before
+resetting M08. M09 handles episode failure and requests M06 stop/hold; camera
+recovery cannot automatically resume leading. This records the integration
+contract only; persistent ownership and motion handling are not implemented here.
+See the [M08 plan](../m08-frame-matching/plan.md).

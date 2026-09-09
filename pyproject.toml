@@ -12,6 +12,8 @@ dependencies = ["jsonschema==4.25.1"]
 [project.optional-dependencies]
 hardware = [
   "av==15.1.0",
+  "mcap==1.4.0",
+  "mcap-ros2-support==0.5.7",
   "numpy==2.2.6",
   "opencv-contrib-python-headless==4.12.0.88",
   "pyrealsense2==2.56.5.9235; sys_platform == 'linux' and platform_machine == 'x86_64'",

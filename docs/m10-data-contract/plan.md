@@ -29,4 +29,22 @@ Samples retain sequence, source identity, and an explicit simulated flag. A GELL
 
 ## Results and remaining work
 
-The Python contract slice is implemented. M10-A01.1 through M10-A03.1 passed software tests: distinct record kinds, immutable records, raw register range preservation, missing observations, explicit clocks/provenance, and rejection of non-finite joint values. Serialized samples include `kind` and `schema_version`. Full metadata snapshots, ROS schemas, and dataset integration remain pending and cannot be inferred from Python contract tests.
+The Python contract slice is implemented. M10-A01.1 through M10-A03.1 passed software tests: distinct record kinds, immutable records, raw register range preservation, missing observations, explicit clocks/provenance, and rejection of non-finite joint values. Serialized samples include `kind` and `schema_version`. M11 now preserves these records in ROS 2 CDR String envelopes under `leader/state`, `control/command`, and `follower/state`, with explicit per-episode snapshots. Typed live ROS publishers, auxiliary device fields, and training/dataset projection remain pending. M11 tests independently preserve missing follower joints and raw gripper values.
+
+## Recording time contract (aligned 2026-09-09)
+
+The user authorized review corrections 2-4. M11 preserves exact mapped
+acquisition time in MCAP publish_time and image headers/provenance. MCAP log_time
+is an ordered timeline, computed as max(acquisition_ns, previous_log_ns + 1),
+including metadata, images, rejections and control records. It represents record
+ordering, not a new exposure time or measured write time. Consumers use retained
+acquisition fields for synchronization/training and log_time for ordered replay.
+Snapshot and group context precede their payloads without equal-time ties.
+This does not change original device clocks, receipt clocks or wrist anchors.
+The snapshot schema and runtime builder remain a separate alignment item.
+
+
+PASS locally: M10-A03.1 is exercised through corrected M11 files with signed
+camera skew, independent depth times, and late control records. Both MCAP
+reading orders preserve original acquisition fields and context association.
+Live ROS publication and training/export timestamp policy remain unimplemented.

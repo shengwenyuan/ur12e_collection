@@ -58,6 +58,11 @@ def parser() -> argparse.ArgumentParser:
     robot.add_argument("--host", required=True)
     robot.add_argument("--seconds", type=float, default=2)
     robot.add_argument("--output", type=pathlib.Path, required=True)
+    episodes = commands.add_parser("episode").add_subparsers(dest="operation")
+    verify = episodes.add_parser(
+        "verify", help="decode and check a local episode"
+    )
+    verify.add_argument("path", type=pathlib.Path)
     for command in ("session", "shadow", "calibrate"):
         commands.add_parser(
             command, help="unavailable: owning module not implemented"
@@ -127,12 +132,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.command is None:
             root.print_help()
             return 0
-        if args.command == "devices":
-            return _devices(args)
-        if args.command == "doctor":
-            return _doctor(args)
-        if args.command == "station":
-            return _station(args)
+        handler = {
+            "doctor": _doctor,
+            "devices": _devices,
+            "station": _station,
+            "episode": _episode,
+        }.get(args.command)
+        if handler is not None:
+            return handler(args)
     except (
         ImportError,
         OSError,
@@ -147,3 +154,14 @@ def main(argv: list[str] | None = None) -> int:
         file=sys.stderr,
     )
     return 2
+
+
+def _episode(args: argparse.Namespace) -> int:
+    # Optional codec dependencies are loaded only for explicit episode commands.
+    # pylint: disable-next=import-outside-toplevel
+    from ur12e_collection import storage
+
+    if args.operation != "verify":
+        raise ValueError("an episode operation is required")
+    print(json.dumps(storage.verify_episode(args.path), indent=2))
+    return 0

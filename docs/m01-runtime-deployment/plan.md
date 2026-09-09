@@ -133,3 +133,14 @@ The existing Ubuntu station passed checksum/load, pinned-image hardware doctor w
 - Pin direct and transitive Python dependencies in hashed requirements generated from `pyproject.toml`; record installed OS packages separately. Python 3.12 is required.
 - RealSense 2.56.5.9235 and ur_rtde 1.6.5 provide CPython 3.12 Linux x86_64 wheels, but not equivalent arm64 wheels. The Mac development image excludes those physical SDKs and reports them unavailable; the Ubuntu amd64 image installs them. This does not change the production hardware requirement.
 - Add a pure software test suite for CLI failure semantics, mount preservation, configuration validation/atomic replacement, and intent-versus-feedback contracts. No physical device is opened by default.
+
+## Offline M08/M11 development increment
+
+On 2026-09-09, after leaving the lab, the user authorized local M08 matching and M11 encoding/storage work. The hashed runtime/development requirements now include MCAP 1.4.0 and mcap-ros2-support 0.5.7; doctor reports both without opening hardware. Native Mac checks pass 48 tests with three environment-specific skips; the current local arm64 Jazzy development image passes 49 with two opt-in Docker skips. The M11 plan records its exact image identity and results. Lab synchronization, amd64 rebuilding, and deployment are deferred to the next lab session. Existing v2/v3 foundation archives remain historical artifacts and do not contain these changes.
+
+
+The subsequent review-correction image `ur12e-collection:m08-m11-review` passes
+67 local arm64 Jazzy tests; the two host Docker persistence tests also pass.
+The M11 correction results record its immutable identity and the native checks.
+This supersedes the earlier M08/M11 test image for software validation only;
+amd64 production delivery and physical acceptance remain pending.

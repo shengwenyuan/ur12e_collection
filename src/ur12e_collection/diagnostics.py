@@ -14,6 +14,8 @@ DEPENDENCIES = {
     "rclpy": None,
     "numpy": "numpy",
     "av": "av",
+    "mcap": "mcap",
+    "mcap_ros2": "mcap-ros2-support",
     "cv2": "opencv-contrib-python-headless",
     "pyrealsense2": "pyrealsense2",
     "rtde_receive": "ur-rtde",

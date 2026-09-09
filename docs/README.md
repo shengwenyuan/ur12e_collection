@@ -10,7 +10,7 @@ Each plan must identify its module, scope, status, user alignment, interfaces, o
 
 Write plans and reports in English. Prepare the concrete plan before asking the user to align on development. Implement within the aligned scope, then update that same plan with tests run, environment/version, pass/fail/not-run conclusions, limitations, and remaining work. Software-only success never implies hardware acceptance.
 
-Use the [plan-module-work skill](../.agents/skills/plan-module-work/SKILL.md) and its [plan template](../.agents/skills/plan-module-work/references/plan-template.md). The foundation implementation and current acceptance results are recorded in [M01: Runtime Architecture and Deployment](m01-runtime-deployment/plan.md). M02/M03/M04/M07/M10 have scoped plans for their implemented foundation or diagnostic slices; full module acceptance remains separate.
+Use the [plan-module-work skill](../.agents/skills/plan-module-work/SKILL.md) and its [plan template](../.agents/skills/plan-module-work/references/plan-template.md). The foundation implementation and current acceptance results are recorded in [M01: Runtime Architecture and Deployment](m01-runtime-deployment/plan.md). M02/M03/M04/M07/M08/M10/M11 have scoped plans for their implemented foundation or diagnostic slices; full module acceptance remains separate.
 
 The [development environment record](development-environment.md) documents the initial Docker and repository bootstrap, separately from M01 implementation acceptance.
 

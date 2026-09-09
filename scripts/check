@@ -2,6 +2,6 @@
 # Run inside the provisioned Python 3.12 development environment.
 set -eu
 cd "$(dirname "$0")/.."
-black --check src tests scripts/release.py
-pylint src/ur12e_collection scripts/release.py
+black --check src tests scripts/*.py
+pylint src/ur12e_collection scripts/*.py
 pytest -q

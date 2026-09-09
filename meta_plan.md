@@ -1,6 +1,6 @@
 # UR12e + Robotiq Hand-E Collection: Module Plan
 
-Status: foundation implementation underway; M01/M02/M10 software slices and explicit device probes implemented. Full collection and motion acceptance remain pending.
+Status: foundation and M08/M11 offline matching/encoding slices implemented; live collection, dataset export, and motion acceptance remain pending.
 
 Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP direction aligned; repository bootstrap precedes M01 implementation.
 
@@ -228,14 +228,18 @@ Acceptance targets: `M07-A01` three correctly identified persistent pipelines; `
 
 ## M08. Frame Matching and Time Semantics
 
+The [M08 plan](docs/m08-frame-matching/plan.md) records the offline implementation and tests. On 2026-09-09 the user confirmed a 50 ms bounded wait, eight references per role, and no accepted frame reuse.
+
 Use wrist RGB acquisition time as the anchor. In comparable clock domains, select the closest real left and right RGB-D pairs. The initial confirmed threshold is **16.7 ms** (`max_skew_ns=16700000`), applied independently to each third view relative to the wrist anchor. Reject the whole group if either `abs(t_view - t_wrist)` exceeds this threshold or a member is missing. Equality is accepted; this does not impose a 16.7 ms left-to-right span limit. Preserve per-camera RGB/Depth skew and the complete group span.
 
 - Matching can choose frames before or after the anchor. Use a bounded waiting window; matching latency never blocks servo control.
-- Only accepted groups enter image storage. Retain rejection reasons, timestamps, and counts. Encode images in their selected temporal order.
-- Initially propose not consuming a source image in multiple groups, following Piper. If nearest-frame selection conflicts, reject explicitly. Reuse/eviction policy and the bounded waiting window remain open; the initial skew threshold is fixed above.
+- Only accepted groups enter image storage. Retain rejection reasons, timestamps, and counts. M08/M11 share freshness rules and matching configuration; accepted RGB times advance by at least the current encoder resolution (1000 ns), and depth times strictly increase. Encode images in their selected temporal order.
+- Do not consume a color or depth source image in multiple accepted groups. Use the nearest eligible real candidate within the fixed skew; reject when no unused candidate exists. Wait at most 50 ms after wrist receipt, retain at most eight references per role, and report expiry/overflow explicitly.
 - Keep device timestamps, time domains, monotonic receipt timestamps, frame/group IDs, and robot-state age. Do not subtract unrelated raw clocks or equate ROS publication time with acquisition time.
 - Preserve low-bandwidth UR/GELLO/Hand-E state at its actual rate. A camera group does not force every device onto the camera clock. Training projection and future online observations define their own state/action association and freshness policy.
 - Rejected groups may reduce accepted frequency below sensor 30 Hz. Report this; do not duplicate images, compress gaps, or invent uniformly sampled `index/fps` timestamps. Training FPS/resampling is a separate decision.
+
+Source discontinuities always raise a typed M08 fault carrying pending-anchor rejections. The future M07 supervisor owns generation allocation/readiness; M09 owns episode failure and M06 stop/hold requests. Explicit recovery never automatically resumes following.
 
 Acceptance targets: `M08-A01` true nearest-frame selection and threshold rejection; `M08-A02` missing/reordered/overflow cases preserve truthful diagnostics; `M08-A03` no fabricated frames or hidden time gaps.
 
@@ -287,6 +291,8 @@ Do not replace action with the follower's next state or silently redefine it as 
 
 UR joints use rad and pose translation uses meters. Robotiq raw values do not inherit Piper's meter units or `[0, 0.1]` range. Missing feedback is not zero or the last target. Current is not torque; requested speed/force is not measured speed/force. Pose reference frames and rotation conventions are explicit.
 
+MCAP retains exact mapped acquisition time in publish_time and image headers/provenance. Its log_time is a strictly increasing ordering coordinate, max(acquisition_ns, previous_log_ns + 1), so snapshot/group context precedes payloads in both reading orders. It is not measured write time; training and synchronization use retained acquisition fields.
+
 Episode metadata includes task, outcome, device/calibration snapshot, configuration/software versions, per-stream statistics, group acceptance/rejection counts, codec settings, and bytes per modality. Extend schemas without silently changing existing meanings.
 
 Acceptance targets: `M10-A01` leader intent, sent commands and actual feedback stay distinct; `M10-A02` raw gripper values and units are preserved; `M10-A03` timestamps, identities, calibration and schema versions are traceable.
@@ -299,7 +305,7 @@ Use **`episode.mcap + metadata.json`** as the production direction. On 2026-09-0
 
 Validate the selected encoder's availability, per-episode decodability, real-scene quality, bounded queues, and measured storage cost in M11/M13. If these fail materially, revisit the decision explicitly; do not silently switch format or keep large raw duplicates. H.264 is a codec and MCAP is a container; storage savings primarily come from the encoded payloads.
 
-Planned MCAP path: accepted groups -> independent RGB H.264 streams in `foxglove_msgs/msg/CompressedVideo` and PNG depth messages -> rosbag2 MCAP. Store one compressed depth representation, not raw duplicates or a parallel directory of PNG files. [CompressedVideo](https://docs.foxglove.dev/docs/sdk/schemas/compressed-video), [MCAP plugin](https://github.com/ros2/rosbag2/tree/jazzy/rosbag2_storage_mcap).
+The [M11 encoding/storage slice](docs/m11-storage/plan.md) writes accepted groups as independent H.264 streams in `foxglove_msgs/msg/CompressedVideo` and PNG depth in `sensor_msgs/msg/CompressedImage`, using ROS 2 CDR MCAP. The official Python serializer supports native Mac validation without rclpy; rosbag2 playback remains a Jazzy deployment check. Store one compressed depth representation, not raw duplicates or a parallel directory of PNG files. [CompressedVideo](https://docs.foxglove.dev/docs/sdk/schemas/compressed-video), [MCAP plugin](https://github.com/ros2/rosbag2/tree/jazzy/rosbag2_storage_mcap).
 
 ### M11.2 RGB and file lifecycle
 
@@ -404,8 +410,8 @@ Acceptance targets: `M15-A01` disabled policy interfaces cannot command hardware
 | M04 | Register load, supply, transport and joint range; decide whether hands-off leading requires mechanical support |
 | M05 | Resolve the preferred server-client endpoint/protocol, device wiring/raw register access, and gripper hold behavior |
 | M06, M09 | Define READY targets/routes, success labels, discard review/retention semantics, and shutdown details. Space / a / Ctrl+C controls are confirmed |
-| M08 | Initial skew is 16.7 ms; set bounded wait and source-frame reuse/eviction policy |
-| M11 | MCAP + JSON direction selected; validate H.264/PNG quality, throughput, compatibility, cost, and local v3 export |
+| M08 | Skew 16.7 ms, wait 50 ms, eight-frame buffers and non-reuse confirmed; validate live clock mapping and startup behavior |
+| M11 | Offline H.264/PNG + ROS 2 MCAP implemented; real-scene quality/throughput, full playback and local v3 export remain pending |
 | M12 | Establish wrist visibility/required extrinsics and held-board versus fixed-board sampling allocation |
 | M13 | Agree numerical acceptance tolerances without expanding the 40-second x 20-episode requirement |
 

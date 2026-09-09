@@ -1,6 +1,6 @@
 # UR12e Collection Foundation Quickstart
 
-This foundation provides software diagnostics, incomplete station configuration, and explicit on-site probes. Session control, ZERO/READY motion, calibration, and episode recording are not implemented. No command starts robot motion automatically.
+This foundation provides software diagnostics, incomplete station configuration, and explicit on-site probes. M08 matching and M11 encoding/storage are available as offline libraries. Session control, ZERO/READY motion, calibration, and live recording are not implemented. No command starts robot motion automatically.
 
 ## Source development
 

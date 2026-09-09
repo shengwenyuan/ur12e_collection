@@ -2,11 +2,14 @@
 
 A local single-arm collection tool for UR12e, Robotiq Hand-E, a custom GELLO leader, and three RealSense RGB-D views.
 
-The current foundation provides a ROS 2 Jazzy Docker environment, software diagnostics, versioned station drafts, data contracts, a GELLO unavailable stub, and explicit camera/UR probes. Leading, ZERO/READY motion, calibration, and episode recording are not implemented yet.
+The current foundation provides a ROS 2 Jazzy Docker environment, software diagnostics, versioned station drafts, data contracts, a GELLO unavailable stub, and explicit camera/UR probes. M08 matching and the M11 encoding/storage library are now available for offline use. Leading, ZERO/READY motion, calibration, and the live session/shadow workflow remain unimplemented.
 
 - [Requirements and stable module IDs](meta_plan.md)
 - [Development and deployment quickstart](docs/m01-runtime-deployment/quickstart.md)
 - [M01 implementation and acceptance](docs/m01-runtime-deployment/plan.md)
+- [M08 matching plan](docs/m08-frame-matching/plan.md)
+- [M11 storage plan](docs/m11-storage/plan.md)
+- [Offline validation and next lab deployment](docs/m11-storage/offline-validation.md)
 - [Google-derived engineering conventions](skills/project-engineering.md)
 
 ## Local development
