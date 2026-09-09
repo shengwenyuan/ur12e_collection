@@ -1,0 +1,23 @@
+# Local requirement ideas and temporary plans; never commit this directory.
+/plans/
+
+# Local platform files and Python tooling.
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+/build/
+/dist/
+
+# Local credentials, device identity, and collection output.
+.env
+.env.*
+!.env.example
+/station.json
+/config/local/
+/data/
+/artifacts/

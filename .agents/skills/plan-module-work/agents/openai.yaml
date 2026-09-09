@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Module Work"
+  short_description: "Align module plans and record test acceptance"
+  default_prompt: "Use $plan-module-work to prepare or update the formal plan and acceptance record for this repository module."
