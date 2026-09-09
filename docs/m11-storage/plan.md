@@ -111,3 +111,18 @@ and combined camera/matching/encoding/control throughput need lab validation.
 Snapshot schema/builder, encoding concurrency, M09 integration, M13 shadow, and
 LeRobot export remain deferred. Earlier uncommitted fixture archives predate the
 explicit recording time/configuration contract and remain historical artifacts.
+
+
+The M13 increment replaces the handwritten snapshot validator with M10's shared
+versioned schema/builder. Final Jazzy tests cover standard video CDR and native
+rosbag2 MCAP reading; CLI info/play smoke also passed without a GUI subscriber.
+Camera-only repeated episodes now exercise the recorder with persistent sources.
+See [M13 results](../m13-acceptance/plan.md) for evidence, image identity and the
+emulated-runtime overflow. Real-scene quality/throughput and LeRobot export
+remain pending; full M11 acceptance is not claimed.
+
+
+The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) closes
+the tested software slice of this module. Remaining hardware or unimplemented
+full-module cases stay open; repeat software checks only for affected changes
+or new failures.

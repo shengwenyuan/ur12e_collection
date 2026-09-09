@@ -75,3 +75,27 @@ resetting M08. M09 handles episode failure and requests M06 stop/hold; camera
 recovery cannot automatically resume leading. This records the integration
 contract only; persistent ownership and motion handling are not implemented here.
 See the [M08 plan](../m08-frame-matching/plan.md).
+
+## Persistent camera increment (aligned 2026-09-09)
+
+Implement the [M13 batch plan](../m13-acceptance/plan.md) using one persistent
+spawned process per configured role. Share existing SDK alignment/sample handling;
+add bounded frame queues, startup/health/cleanup, global-time evidence and explicit
+synthetic mode. Keep pipelines alive while M09 finalizes episodes. Each rig run
+has a unique clock identity and an initial generation; faults terminate that run,
+and a new run is explicit rather than an automatic reconnect. No motion owner
+is constructed. Extend M07-A01/A02/A03 with software lifecycle tests; hardware
+acceptance requires the next lab session.
+
+Persistent increment implemented / physical acceptance pending. Software tests
+cover startup cleanup, queue overflow, dead/stale workers, global-time domain and
+host sanity checks. Two 40-second and twenty short synthetic episodes retained
+one rig across finalization intervals. See [M13 results](../m13-acceptance/plan.md)
+for the explicit emulated-runtime overflow and isolated rerun. No new physical
+camera evidence or USB-performance claim was added in this increment.
+
+
+The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) closes
+the tested software slice of this module. Remaining hardware or unimplemented
+full-module cases stay open; repeat software checks only for affected changes
+or new failures.

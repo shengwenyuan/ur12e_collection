@@ -2,13 +2,15 @@
 
 A local single-arm collection tool for UR12e, Robotiq Hand-E, a custom GELLO leader, and three RealSense RGB-D views.
 
-The current foundation provides a ROS 2 Jazzy Docker environment, software diagnostics, versioned station drafts, data contracts, a GELLO unavailable stub, and explicit camera/UR probes. M08 matching and the M11 encoding/storage library are now available for offline use. Leading, ZERO/READY motion, calibration, and the live session/shadow workflow remain unimplemented.
+The current foundation provides a ROS 2 Jazzy Docker environment, software diagnostics, versioned station drafts, data contracts, a GELLO unavailable stub, and explicit camera/UR probes. The camera-only shadow pipeline now connects versioned snapshots, persistent camera workers, matching and independently verified MCAP episodes. Leading, ZERO/READY motion, calibration and the full keyboard session remain unimplemented.
 
 - [Requirements and stable module IDs](meta_plan.md)
 - [Development and deployment quickstart](docs/m01-runtime-deployment/quickstart.md)
 - [M01 implementation and acceptance](docs/m01-runtime-deployment/plan.md)
 - [M08 matching plan](docs/m08-frame-matching/plan.md)
 - [M11 storage plan](docs/m11-storage/plan.md)
+- [Camera-only batch plan](docs/m13-acceptance/plan.md)
+- [Lab deployment and acceptance](docs/m13-acceptance/lab-runbook.md)
 - [Offline validation and next lab deployment](docs/m11-storage/offline-validation.md)
 - [Google-derived engineering conventions](skills/project-engineering.md)
 

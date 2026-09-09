@@ -3,7 +3,6 @@
 import collections
 import dataclasses
 import json
-import math
 import pathlib
 import time
 
@@ -16,6 +15,7 @@ from mcap_ros2.writer import Writer
 from ur12e_collection import codecs
 from ur12e_collection import contracts
 from ur12e_collection import matching
+from ur12e_collection import snapshots
 
 _TIME = (
     "\n"
@@ -58,46 +58,8 @@ def json_text(value: dict) -> str:
 
 
 def snapshot_copy(snapshot: dict) -> dict:
-    """Copy explicit station, time and calibration context."""
-    result = json.loads(json_text(snapshot))
-    for key in ("task", "software_revision", "clock_id"):
-        if not isinstance(result.get(key), str) or not result[key]:
-            raise ValueError(f"snapshot requires {key}")
-    if result.get("clock_epoch") != "unix" or "calibration" not in result:
-        raise ValueError(
-            "declare a Unix common clock and calibration (or null)"
-        )
-    cameras = result.get("cameras", {})
-    if set(cameras) != set(contracts.CAMERA_ROLES):
-        raise ValueError("snapshot requires exactly three camera roles")
-    identities = set()
-    for camera in cameras.values():
-        scale = camera.get("depth_scale_m")
-        if (
-            type(scale) not in (int, float)
-            or not math.isfinite(scale)
-            or scale <= 0
-        ):
-            raise ValueError("positive per-camera depth scale required")
-        identity = camera.get("source_id")
-        if (
-            not isinstance(identity, str)
-            or not identity
-            or identity in identities
-        ):
-            raise ValueError("camera source identities must be unique")
-        identities.add(identity)
-        intrinsics = camera.get("color_intrinsics")
-        if not isinstance(intrinsics, dict):
-            raise ValueError("camera color intrinsics must be explicit")
-        if (intrinsics.get("width"), intrinsics.get("height")) != (640, 480):
-            raise ValueError("intrinsics must describe 640x480 color images")
-        for key in ("fx", "fy", "ppx", "ppy"):
-            if type(intrinsics.get(key)) not in (int, float):
-                raise ValueError("finite camera intrinsics required")
-        if intrinsics["fx"] <= 0 or intrinsics["fy"] <= 0:
-            raise ValueError("camera focal lengths must be positive")
-    return result
+    """Validate the shared M10 snapshot contract before recording or reading."""
+    return snapshots.copy(snapshot)
 
 
 def frame_from_dict(value: dict) -> matching.Frame:
@@ -121,6 +83,8 @@ class GroupValidator:
     ):
         if not isinstance(simulated, bool):
             raise ValueError("synthetic provenance must be an explicit boolean")
+        if snapshot["simulated"] != simulated:
+            raise ValueError("snapshot simulation provenance differs")
         self.snapshot = snapshot
         self.simulated = simulated
         self.config = config

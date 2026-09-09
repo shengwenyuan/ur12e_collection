@@ -63,7 +63,19 @@ def parser() -> argparse.ArgumentParser:
         "verify", help="decode and check a local episode"
     )
     verify.add_argument("path", type=pathlib.Path)
-    for command in ("session", "shadow", "calibrate"):
+    shadow = commands.add_parser(
+        "shadow", help="camera-only batch; no robot motion"
+    )
+    shadow.add_argument(
+        "--backend", choices=("hardware", "synthetic"), required=True
+    )
+    shadow.add_argument("--station", type=pathlib.Path)
+    shadow.add_argument("--output", type=pathlib.Path, required=True)
+    shadow.add_argument("--revision", required=True)
+    shadow.add_argument("--task", default="camera-shadow")
+    shadow.add_argument("--episodes", type=int, default=20)
+    shadow.add_argument("--seconds", type=float, default=40)
+    for command in ("session", "calibrate"):
         commands.add_parser(
             command, help="unavailable: owning module not implemented"
         )
@@ -137,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
             "devices": _devices,
             "station": _station,
             "episode": _episode,
+            "shadow": _shadow,
         }.get(args.command)
         if handler is not None:
             return handler(args)
@@ -164,4 +177,36 @@ def _episode(args: argparse.Namespace) -> int:
     if args.operation != "verify":
         raise ValueError("an episode operation is required")
     print(json.dumps(storage.verify_episode(args.path), indent=2))
+    return 0
+
+
+def _shadow(args: argparse.Namespace) -> int:
+    # Explicit command only: importing the CLI cannot start a camera source.
+    # pylint: disable-next=import-outside-toplevel
+    from ur12e_collection import shadow
+
+    try:
+        result = shadow.run(
+            shadow.Options(
+                backend=args.backend,
+                output=args.output,
+                revision=args.revision,
+                task=args.task,
+                episodes=args.episodes,
+                seconds=args.seconds,
+                station_path=args.station,
+            )
+        )
+    except KeyboardInterrupt:
+        return 130
+    print(
+        json.dumps(
+            {
+                "state": result["state"],
+                "episodes": len(result["episodes"]),
+                "report": str(args.output / "report.json"),
+            },
+            indent=2,
+        )
+    )
     return 0

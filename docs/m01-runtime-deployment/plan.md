@@ -144,3 +144,27 @@ The subsequent review-correction image `ur12e-collection:m08-m11-review` passes
 The M11 correction results record its immutable identity and the native checks.
 This supersedes the earlier M08/M11 test image for software validation only;
 amd64 production delivery and physical acceptance remain pending.
+
+
+The camera-batch increment adds native ROS bag CLI/transport/MCAP and Foxglove
+video message support, tested on arm64 and emulated amd64. The final runtime,
+resolved versions, failure evidence and offline bundle are recorded in the
+[M13 plan](../m13-acceptance/plan.md). Local Docker startup required its normal
+out-of-workspace log writes; terminal startup succeeded after authorized retry.
+No sudo or remote deployment occurred.
+
+
+## Lab synchronization update (2026-09-10)
+
+The shadow runtime bundle loaded on the existing Ubuntu 24.04.3 amd64 station.
+M01-A01.1, M01-A02.2, the source-free deployment smoke, and both M01-A03 host
+mount tests passed. Configuration remained unchanged. Corrected the loader's
+printed Compose profile and the camera launcher's default configuration path;
+the tested image itself was reused. See the [lab acceptance record](../m13-acceptance/lab-20260910.md).
+Clean-machine acceptance remains NOT RUN; no sudo or robot motion was needed.
+
+
+The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) closes
+the tested software slice of this module. Remaining hardware or unimplemented
+full-module cases stay open; repeat software checks only for affected changes
+or new failures.

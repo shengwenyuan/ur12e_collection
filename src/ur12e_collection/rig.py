@@ -1,0 +1,245 @@
+"""Bounded ownership of three persistent camera processes; no motion imports."""
+
+import contextlib
+import dataclasses
+import multiprocessing
+import queue
+import time
+import uuid
+from typing import Any
+
+from ur12e_collection import contracts, realsense_source, station, synthetic
+from ur12e_collection import workers
+
+QUEUE_CAPACITY = 4
+STALE_NS = 2_000_000_000
+
+
+def _synthetic_stream(config, role, clock_id, stop):
+    yield synthetic.observations(config)[role]
+    start = time.monotonic()
+    index = 0
+    while not stop.is_set():
+        if stop.wait(max(0, start + index / 30 - time.monotonic())):
+            return
+        yield synthetic.frame(
+            role, index, clock_id, time.monotonic_ns(), time.time_ns()
+        )
+        index += 1
+
+
+def _worker(config, role, clock_id, channels):
+    frames, status, stop, backend = channels
+    source = (
+        _synthetic_stream if backend == "synthetic" else realsense_source.stream
+    )
+    try:
+        with contextlib.closing(source(config, role, clock_id, stop)) as stream:
+            status.send(("ready", next(stream)))
+            for frame in stream:
+                try:
+                    frames.put_nowait(frame)
+                except queue.Full as error:
+                    raise RuntimeError(
+                        f"camera IPC queue overflow: {role}"
+                    ) from error
+    except Exception as error:  # pylint: disable=broad-exception-caught
+        status.send(("error", str(error)))
+    finally:
+        # Shutdown discards queued tails; normal operation drains continuously.
+        frames.cancel_join_thread()
+        frames.close()
+        status.close()
+
+
+@dataclasses.dataclass
+class _Camera:
+    process: Any
+    frames: Any
+    status: Any
+    observed: dict | None = None
+    last_receipt: int = 0
+    stats: dict = dataclasses.field(
+        default_factory=lambda: {
+            "frames": 0,
+            "color_gaps": 0,
+            "depth_gaps": 0,
+            "depth_repeats": 0,
+            "max_delivery_ms": 0.0,
+            "first_receipt_ns": None,
+            "last_receipt_ns": None,
+        }
+    )
+    previous: Any = None
+
+    def observe(self, frame) -> None:
+        """Count native observations independently of episode selection."""
+        self.last_receipt = frame.color.time.received_monotonic_ns
+        self.stats["first_receipt_ns"] = (
+            self.stats["first_receipt_ns"] or self.last_receipt
+        )
+        self.stats["last_receipt_ns"] = self.last_receipt
+        self.stats["frames"] += 1
+        self.stats["max_delivery_ms"] = max(
+            self.stats["max_delivery_ms"],
+            (time.monotonic_ns() - self.last_receipt) / 1e6,
+        )
+        if self.previous is not None:
+            color = frame.color.sequence - self.previous.color.sequence
+            depth = frame.depth.sequence - self.previous.depth.sequence
+            if (
+                color <= 0
+                or depth < 0
+                or frame.timestamp_ns <= self.previous.timestamp_ns
+            ):
+                raise RuntimeError("camera counters restarted")
+            self.stats["color_gaps"] += max(0, color - 1)
+            self.stats["depth_gaps"] += max(0, depth - 1)
+            self.stats["depth_repeats"] += depth == 0
+        self.previous = dataclasses.replace(frame, payload=None)
+
+
+class Rig:
+    """Own one rig generation; a fault requires an explicit new run."""
+
+    def __init__(self, config: dict, backend: str):
+        station.validate(config, cameras_ready=True)
+        if backend not in ("hardware", "synthetic"):
+            raise ValueError("an explicit camera backend is required")
+        if backend == "synthetic" and config != synthetic.configuration():
+            raise ValueError(
+                "synthetic sources require synthetic configuration"
+            )
+        self.config = config
+        self.backend = backend
+        self.clock_id = str(uuid.uuid4())
+        self._context = multiprocessing.get_context("spawn")
+        self._stop = self._context.Event()
+        self._cameras: dict[str, _Camera] = {}
+        self._epoch_offset = time.time_ns() - time.monotonic_ns()
+        self._closed = False
+
+    @property
+    def observations(self) -> dict:
+        """Return observed camera facts only after every worker is ready."""
+        if len(self._cameras) != 3 or any(
+            c.observed is None for c in self._cameras.values()
+        ):
+            raise RuntimeError("rig is not ready")
+        return {role: camera.observed for role, camera in self._cameras.items()}
+
+    def start(self, timeout: float = 30) -> None:
+        """Start once, draining early cameras while awaiting all readiness."""
+        if self._cameras or self._closed:
+            raise RuntimeError("rig can only start once")
+        try:
+            for role in contracts.CAMERA_ROLES:
+                parent, child = self._context.Pipe(duplex=False)
+                frames = self._context.Queue(maxsize=QUEUE_CAPACITY)
+                process = self._context.Process(
+                    target=_worker,
+                    args=(
+                        self.config,
+                        role,
+                        self.clock_id,
+                        (frames, child, self._stop, self.backend),
+                    ),
+                    daemon=True,
+                )
+                try:
+                    process.start()
+                except BaseException:
+                    parent.close()
+                    child.close()
+                    frames.close()
+                    frames.cancel_join_thread()
+                    raise
+                child.close()
+                self._cameras[role] = _Camera(process, frames, parent)
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                self.read()
+                if all(c.observed is not None for c in self._cameras.values()):
+                    return
+            raise TimeoutError("camera startup exceeded its deadline")
+        except BaseException:
+            self.close()
+            raise
+
+    def read(self, timeout: float = 0.01) -> list:
+        """Drain bounded queues fairly and check source/clock health."""
+        if self._closed:
+            raise RuntimeError("rig is closed")
+        offset = time.time_ns() - time.monotonic_ns()
+        if abs(offset - self._epoch_offset) > 100_000_000:
+            raise RuntimeError("host wall clock stepped during camera run")
+        result = []
+        for role, camera in self._cameras.items():
+            while camera.status.poll():
+                try:
+                    kind, value = camera.status.recv()
+                except EOFError as error:
+                    raise RuntimeError(
+                        f"camera worker exited: {role}"
+                    ) from error
+                if kind == "error":
+                    raise RuntimeError(value)
+                camera.observed = value
+                camera.last_receipt = time.monotonic_ns()
+            if not camera.process.is_alive():
+                raise RuntimeError(f"camera worker exited: {role}")
+            for _ in range(QUEUE_CAPACITY):
+                try:
+                    frame = camera.frames.get_nowait()
+                except queue.Empty:
+                    break
+                camera.observe(frame)
+                result.append(frame)
+            if camera.observed is not None and (
+                time.monotonic_ns() - camera.last_receipt > STALE_NS
+            ):
+                raise TimeoutError(f"camera stream stalled: {role}")
+        if not result:
+            self._stop.wait(timeout)
+        return result
+
+    def statistics(self) -> dict:
+        """Report all observed frames, including periods between episodes."""
+        result = {}
+        for role, camera in self._cameras.items():
+            stats = dict(camera.stats)
+            duration = (
+                (stats["last_receipt_ns"] or 0)
+                - (stats["first_receipt_ns"] or 0)
+            ) / 1e9
+            stats["received_fps"] = (
+                (stats["frames"] - 1) / duration if duration > 0 else None
+            )
+            result[role] = stats
+        return result
+
+    def close(self) -> None:
+        """Request cooperative stop, then bound native process cleanup."""
+        if self._closed:
+            return
+        self._closed = True
+        self._stop.set()
+        errors = []
+        for camera in self._cameras.values():
+            workers.stop(camera.process)
+            while camera.status.poll():
+                try:
+                    kind, value = camera.status.recv()
+                except EOFError:
+                    break
+                if kind == "error":
+                    errors.append(value)
+            if camera.process.exitcode != 0:
+                errors.append(
+                    f"camera required forced cleanup: {camera.process.exitcode}"
+                )
+            camera.frames.close()
+            camera.frames.cancel_join_thread()
+            camera.status.close()
+        if errors:
+            raise RuntimeError("; ".join(errors))

@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ur12e-collection:snapshot:1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "task": {
+      "type": "string",
+      "minLength": 1
+    },
+    "software_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "clock_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "clock_epoch": {
+      "const": "unix"
+    },
+    "clock_basis": {
+      "enum": [
+        "synthetic",
+        "realsense_global_time"
+      ]
+    },
+    "clock_validated": {
+      "const": false
+    },
+    "simulated": {
+      "type": "boolean"
+    },
+    "station": {
+      "$ref": "urn:ur12e-collection:station:1"
+    },
+    "calibration": {
+      "type": "null"
+    },
+    "cameras": {
+      "type": "object",
+      "properties": {
+        "wrist": {
+          "$ref": "#/$defs/camera"
+        },
+        "third_left": {
+          "$ref": "#/$defs/camera"
+        },
+        "third_right": {
+          "$ref": "#/$defs/camera"
+        }
+      },
+      "required": [
+        "wrist",
+        "third_left",
+        "third_right"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "task",
+    "software_revision",
+    "clock_id",
+    "clock_epoch",
+    "clock_basis",
+    "clock_validated",
+    "simulated",
+    "station",
+    "calibration",
+    "cameras"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "camera": {
+      "type": "object",
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "enum": [
+            "D405",
+            "D435i",
+            "D435IF"
+          ]
+        },
+        "depth_scale_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "color_intrinsics": {
+          "$ref": "#/$defs/intrinsics"
+        },
+        "firmware": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "usb": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source_id",
+        "model",
+        "depth_scale_m",
+        "color_intrinsics"
+      ],
+      "additionalProperties": false
+    },
+    "intrinsics": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "const": 640
+        },
+        "height": {
+          "const": 480
+        },
+        "fx": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "fy": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ppx": {
+          "type": "number"
+        },
+        "ppy": {
+          "type": "number"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coeffs": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "fx",
+        "fy",
+        "ppx",
+        "ppy"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

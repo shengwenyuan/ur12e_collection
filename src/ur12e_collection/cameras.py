@@ -64,7 +64,8 @@ def inventory(rs: Any) -> list[dict]:
     return result
 
 
-def _intrinsics(profile: Any) -> dict:
+def color_intrinsics(profile: Any) -> dict:
+    """Read factory color intrinsics and distortion without recalibration."""
     values = profile.as_video_stream_profile().get_intrinsics()
     return {
         name: getattr(values, name)
@@ -72,7 +73,8 @@ def _intrinsics(profile: Any) -> dict:
     } | {"model": str(values.model)}
 
 
-def _sample(align: Any, frames: Any) -> tuple:
+def aligned_sample(align: Any, frames: Any) -> tuple:
+    """Copy aligned arrays while retaining original stream timestamps."""
     import numpy as np  # pylint: disable=import-outside-toplevel
 
     receipt = time.monotonic_ns()
@@ -109,7 +111,9 @@ def _record(
     rgb = depth = None
     with path.open("x", encoding="utf-8") as stream:
         while time.monotonic() - start < seconds:
-            rgb, depth, entry = _sample(align, pipeline.wait_for_frames(1000))
+            rgb, depth, entry = aligned_sample(
+                align, pipeline.wait_for_frames(1000)
+            )
             colors.observe(entry["color_frame_number"], require_new=True)
             depths.observe(entry["depth_frame_number"])
             stream.write(json.dumps(entry) + "\n")
@@ -167,12 +171,12 @@ def _capture(
         report["depth_scale_m"] = (
             profile.get_device().first_depth_sensor().get_depth_scale()
         )
-        report["color_intrinsics"] = _intrinsics(
+        report["color_intrinsics"] = color_intrinsics(
             profile.get_stream(rs.stream.color)
         )
         align = rs.align(rs.stream.color)
         for _ in range(15):
-            _sample(align, pipeline.wait_for_frames(2000))
+            aligned_sample(align, pipeline.wait_for_frames(2000))
         stats, rgb, depth = _record(
             pipeline, align, seconds, output / f"{serial}.jsonl"
         )

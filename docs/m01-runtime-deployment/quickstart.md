@@ -1,6 +1,6 @@
 # UR12e Collection Foundation Quickstart
 
-This foundation provides software diagnostics, incomplete station configuration, and explicit on-site probes. M08 matching and M11 encoding/storage are available as offline libraries. Session control, ZERO/READY motion, calibration, and live recording are not implemented. No command starts robot motion automatically.
+This foundation provides software diagnostics, incomplete station configuration, and explicit on-site probes. Camera-only shadow now supports persistent camera acquisition, matching and MCAP recording; see the M13 lab runbook. Robot session control, ZERO/READY motion and calibration are not implemented. No command starts robot motion automatically.
 
 ## Source development
 

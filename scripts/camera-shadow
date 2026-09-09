@@ -1,0 +1,4 @@
+#!/bin/bash
+# Explicit persistent camera-only batch; no robot motion.
+set -euo pipefail
+exec "$(dirname "$0")/camera-run" shadow --backend hardware "$@"

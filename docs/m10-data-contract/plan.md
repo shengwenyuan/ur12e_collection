@@ -48,3 +48,25 @@ PASS locally: M10-A03.1 is exercised through corrected M11 files with signed
 camera skew, independent depth times, and late control records. Both MCAP
 reading orders preserve original acquisition fields and context association.
 Live ROS publication and training/export timestamp policy remain unimplemented.
+
+## Snapshot increment (aligned 2026-09-09)
+
+Implement a versioned snapshot schema and builder for the user-approved M13
+batch. Reuse M02 station validation; include station configuration, observed
+camera identities/models, depth scale/intrinsics, explicit clock basis/validation
+status, software revision and task. Require observed/configured identity agreement.
+M11 freezes and validates the same schema; fixtures use the builder. Calibration
+remains the explicit station value (currently null). M10-A03 adds round-trip,
+mutation isolation, schema-version, identity, finite-value and mismatch tests.
+
+Snapshot increment PASS: the shared schema/builder serves synthetic fixtures and
+the M13 runtime; version, camera identity/model, finite intrinsics/scale and
+simulation mismatches fail explicitly. Inputs are copied, and M11 validates the
+same contract. Native/Jazzy round trips pass. Calibration remains null; live
+factory readback and physical calibration validity await the lab.
+
+
+The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) closes
+the tested software slice of this module. Remaining hardware or unimplemented
+full-module cases stay open; repeat software checks only for affected changes
+or new failures.

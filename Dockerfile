@@ -5,6 +5,8 @@ ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libusb-1.0-0 python3-venv \
+      ros-jazzy-foxglove-msgs ros-jazzy-ros2bag \
+      ros-jazzy-rosbag2-storage-mcap ros-jazzy-rosbag2-transport \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m venv --system-site-packages /opt/venv
 COPY requirements/runtime.txt /opt/requirements/runtime.txt

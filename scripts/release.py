@@ -45,12 +45,17 @@ def main() -> None:
         "scripts/run",
         "scripts/load-release",
         "scripts/camera-probe",
+        "scripts/camera-run",
+        "scripts/camera-shadow",
         "config/station.example.json",
     ):
         shutil.copy2(root / relative, partial / relative)
     shutil.copy2(
         root / "docs/m01-runtime-deployment/quickstart.md",
         partial / "README.md",
+    )
+    shutil.copy2(
+        root / "docs/m13-acceptance/lab-runbook.md", partial / "LAB-RUNBOOK.md"
     )
     manifest = {
         "schema_version": 1,

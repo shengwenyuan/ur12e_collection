@@ -15,3 +15,11 @@ Use the [plan-module-work skill](../.agents/skills/plan-module-work/SKILL.md) an
 The [development environment record](development-environment.md) documents the initial Docker and repository bootstrap, separately from M01 implementation acceptance.
 
 Temporary ideas belong in the ignored root `plans/` directory. Never rely on that directory as the only record of an accepted requirement or an acceptance result. Create it locally when needed; a fresh checkout does not contain its ignored contents.
+
+The [M13 camera batch](m13-acceptance/plan.md) and
+[lab runbook](m13-acceptance/lab-runbook.md) cover persistent camera-only collection.
+[M09](m09-session/plan.md) records the shared episode lifecycle and remaining
+robot-session boundaries.
+
+The [accepted software baseline](m13-acceptance/software-baseline.md) closes the
+passed software scope and lists the remaining physical-camera acceptance checks.

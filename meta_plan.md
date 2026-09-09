@@ -1,6 +1,6 @@
 # UR12e + Robotiq Hand-E Collection: Module Plan
 
-Status: foundation and M08/M11 offline matching/encoding slices implemented; live collection, dataset export, and motion acceptance remain pending.
+Status: the camera-only software baseline is accepted for its documented scope; physical collection acceptance, full robot sessions, dataset export and motion remain pending.
 
 Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP direction aligned; repository bootstrap precedes M01 implementation.
 
@@ -365,7 +365,7 @@ Acceptance targets: `M12-A01` configuration-driven traversal and two-second stat
 
 ## M13. Shadow Diagnostics and Release Acceptance
 
-Develop `ur-collect shadow` to run only cameras, matching, encoding, and candidate writers. It does not start UR/GELLO motion control, require joint actions or ZERO/READY, or pretend simulated robot values are production measurements.
+The [M13 plan](docs/m13-acceptance/plan.md) and [lab runbook](docs/m13-acceptance/lab-runbook.md) define the implemented `ur-collect shadow` camera batch with synthetic and hardware backends. Run only cameras, matching, encoding, and candidate writers. It does not start UR/GELLO motion control, require joint actions or ZERO/READY, or pretend simulated robot values are production measurements.
 
 Mac fake-device tests can precede Ubuntu integration. On Ubuntu, shadow measures RGB/Depth rates, accepted groups/skew, missing frames, encoding time, memory, queue backlog, lossless depth equality, and storage. Use moving scene objects without robot motion to assess compression quality.
 
@@ -423,3 +423,15 @@ Read-only reference repositories:
 - `/Users/shengwenyuan/1011/piper-dual-collection-unified`: meta plan, README, relay architecture, station initialization, remaining collection work, Session BLOCK/FAIL, topic contract, and dataset semantics.
 
 Where an older meta plan conflicts with a later dedicated plan, use the later document to understand that project's behavior. This project retains its own confirmed requirements.
+
+
+### Lab deployment status (2026-09-10)
+
+The M01/M07/M08/M09 camera slice/M10/M11/M13 image is now deployed on
+`ssh ur12e-collection`. Camera-free validation passed 24 synthetic episodes,
+independent RGB/depth verification, native ROS reading/playback, mount persistence
+and interrupted-recording cleanup. No cameras are currently enumerated; physical
+20 x 40-second acceptance remains pending role binding and connection. See the
+[lab acceptance record](docs/m13-acceptance/lab-20260910.md).
+
+The [accepted software baseline](docs/m13-acceptance/software-baseline.md) defines which checks are closed and the remaining physical-camera test scope. Reopen only affected software cases after relevant changes or a new failure.

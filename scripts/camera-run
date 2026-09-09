@@ -1,0 +1,32 @@
+#!/bin/bash
+# Linux-only camera container; callers supply the camera command.
+set -euo pipefail
+if [[ $(uname -s) != Linux ]]; then
+  echo 'Physical camera probes run on the Ubuntu station.' >&2
+  exit 2
+fi
+root=$(cd "$(dirname "$0")/.." && pwd)
+if [[ -f $root/manifest.json ]]; then
+  UR12E_IMAGE=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["image_id"])' "$root/manifest.json")
+  export UR12E_IMAGE
+fi
+data_dir=${UR12E_DATA_DIR:-/var/lib/ur12e-collection/data}
+if [[ ! -d $data_dir || ! -w $data_dir ]]; then
+  echo "Missing or unwritable data directory: $data_dir" >&2
+  exit 1
+fi
+devices=(--device /dev/bus/usb)
+for entry in /sys/class/video4linux/video*; do
+  [[ -e $entry/name ]] || continue
+  if [[ $(cat "$entry/name") == *RealSense* ]]; then
+    devices+=(--device "/dev/$(basename "$entry")")
+  fi
+done
+config_dir=${UR12E_CONFIG_DIR:-/var/lib/ur12e-collection}
+mounts=()
+if [[ -d $config_dir ]]; then
+  mounts+=(--mount "type=bind,src=$config_dir,dst=/config,readonly")
+fi
+exec docker run --rm --network none --user "$(id -u):$(id -g)" \
+  "${devices[@]}" "${mounts[@]}" --mount "type=bind,src=$data_dir,dst=/data" \
+  "${UR12E_IMAGE:-ur12e-collection:runtime}" "$@"

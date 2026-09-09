@@ -5,7 +5,7 @@ import dataclasses
 import numpy as np
 import pytest
 
-from ur12e_collection import codecs, contracts, matching
+from ur12e_collection import codecs, contracts, matching, snapshots, synthetic
 
 EPOCH = 1_700_000_000_000_000_000
 
@@ -40,28 +40,20 @@ def frame_factory():
 @pytest.fixture
 def snapshot():
     """A visibly synthetic station, with no real identities or calibration."""
-    return {
-        "task": "synthetic-test",
-        "software_revision": "test-fixture",
-        "clock_epoch": "unix",
-        "clock_id": "fixture-unix",
-        "calibration": None,
-        "cameras": {
-            role: {
-                "source_id": role,
-                "depth_scale_m": 0.000123,
-                "color_intrinsics": {
-                    "width": 640,
-                    "height": 480,
-                    "fx": 400,
-                    "fy": 400,
-                    "ppx": 320,
-                    "ppy": 240,
-                },
-            }
-            for role in contracts.CAMERA_ROLES
+    config = synthetic.configuration()
+    return snapshots.build(
+        config,
+        synthetic.observations(config),
+        {
+            "task": "synthetic-test",
+            "software_revision": "test-fixture",
+            "clock_epoch": "unix",
+            "clock_id": "fixture-unix",
+            "clock_basis": "synthetic",
+            "clock_validated": False,
+            "simulated": True,
         },
-    }
+    )
 
 
 @pytest.fixture

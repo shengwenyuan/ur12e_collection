@@ -36,7 +36,7 @@ def test_capture_stop_failure_is_not_a_pass(tmp_path):
     sdk = mock.MagicMock()
     sdk.pipeline.return_value.stop.side_effect = RuntimeError("stop failed")
     with (
-        mock.patch.object(cameras, "_sample"),
+        mock.patch.object(cameras, "aligned_sample"),
         mock.patch.object(cameras, "_record", return_value=({}, None, None)),
     ):
         with mock.patch.object(cameras, "_save_samples"):
@@ -78,7 +78,7 @@ def test_capture_counts_real_depth_instead_of_rgbd_pairs(tmp_path):
         for c, d in ((10, 20), (11, 20), (13, 23))
     ]
     with (
-        mock.patch.object(cameras, "_sample", side_effect=samples),
+        mock.patch.object(cameras, "aligned_sample", side_effect=samples),
         mock.patch.object(
             cameras.time, "monotonic", side_effect=[0, 0.1, 0.2, 0.3, 1, 1]
         ),
