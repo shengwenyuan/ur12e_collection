@@ -3,14 +3,14 @@
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
 - Module: M12
-- Status: draft implementation design; workflow requirements aligned
+- Status: implementing; offline geometry/detection/checkpoint software accepted
 - Parent: [meta plan](../../meta_plan.md#m12-independent-visual-calibration)
-- Updated: 2026-09-09
+- Updated: 2026-09-10
 - Dependencies: M06 motion ownership; [M03 feedback](../m03-ur-adapter/plan.md);
   [M07 cameras](../m07-camera-rig/plan.md); [M02 configuration](../m02-station/plan.md);
   M10 immutable episode metadata
-- Authorization: documentation update only in this conversation; no implementation,
-  controller access or motion execution requested.
+- Authorization: autonomous simulator/offline sprint authorized on 2026-09-10;
+  physical calibration or robot motion remains prohibited.
 
 ## Problem and agreed workflow
 
@@ -156,8 +156,9 @@ round, and taught poses converted to scripts for both rounds. They requested thi
 documentation update and allowed remaining physical details to wait for the lab.
 Implementation-specific proposals above have not been represented as approved.
 
-**Not implemented. No runtime calibration checks have been run for this plan.**
-M12-A01 through M12-A04 are **NOT RUN**. This update changes documentation only.
+The initial 2026-09-09 update was documentation only. The subsequent authorized
+implementation and its software results are recorded below; physical gates remain
+NOT RUN.
 
 ## Remaining lab decisions
 
@@ -170,3 +171,75 @@ assume continuous connectivity. No remote connection is needed for this update.
 
 References: [OpenCV hand-eye and camera calibration](https://docs.opencv.org/4.12.0/d9/d0c/group__calib3d.html),
 [ChArUco detection](https://docs.opencv.org/4.12.0/df/d4a/tutorial_charuco_detection.html).
+
+## Autonomous offline implementation scope (2026-09-10)
+
+The [simulator sprint](../m13-acceptance/simulator-sprint.md) authorizes the
+following concrete software increment without waiting for hardware decisions.
+The earlier documentation-only authorization describes the preceding turn.
+
+Implement separate `calibration/geometry.py`, `board.py`, `checkpoint.py` and
+`results.py` responsibilities. Offline solving never imports a motion transport.
+Use OpenCV 4.12 ChArUco/PnP and PARK hand-eye calibration. A shared solver uses
+`T_base_flange` for the wrist round and its inverse for the fixed-camera round;
+it returns respectively `T_flange_camera` or `T_base_camera`. Estimate the second
+constant transform from training poses only. Verify on separately named held-out
+poses; require at least six training and three validation poses per visible camera.
+The overall taught-pose budget remains 20–40, with shared fixed-camera poses.
+
+Inputs must specify board dimensions/dictionary, calibrated image intrinsics,
+rigid transform directions, actual observed poses, unique checkpoint IDs, camera
+serial/mount/base identities, source evidence and an explicit simulation flag.
+Reject invalid rotations, repeated poses/IDs, insufficient multi-axis rotation,
+missing held-out data and exceeded explicit accuracy thresholds. Thresholds are
+required inputs, not invented physical accuracy guarantees. Report translation,
+rotation and reprojection residuals separately; never fit to validation poses.
+Planar board detection uses positive-depth PnP and records corner coverage and
+reprojection error. Unsupported distortion models fail explicitly.
+
+A pure checkpoint gate consumes actual joint feedback and image receipt times.
+It requires measured target arrival and standstill before a full two-second
+window, rejects stale/moving feedback and out-of-window images, and emits no
+motion commands. Native script/checkpoint communication and physical board
+visibility remain deferred. Synthetic images exercise detection; synthetic known
+rigid transforms exercise both geometry directions and held-out rejection.
+
+Activation will validate evidence and setup identities before atomically replacing
+the selected calibration configuration. A failed activation leaves the previous
+file unchanged. Old snapshots retain their copied content. Physical camera/mount
+changes require a fresh declared setup identity; software cannot detect an
+unreported physical relocation. Any station-schema integration is tested after
+the currently running frozen-behavior M09 long batch completes.
+
+Acceptance mapping: M12-A01/A02 pure checkpoint and image tests; M12-A03 both
+known-transform recovery, degenerate poses, noise and held-out failures;
+M12-A04 immutable result/atomic activation tests. All physical M12 gates remain
+NOT RUN. AprilGrid remains a later detector option; ChArUco is the first backend.
+
+
+## Offline geometry, detection and checkpoint results (2026-09-10)
+
+Implemented explicit SE(3) validation and UR rotation-vector conversion,
+fixed/wrist PARK hand-eye solving, independent held-out residuals and observability
+checks. ChArUco detection uses measured board scale, supported camera optics,
+corner coverage, sharpness, positive depth, planar ambiguity and reprojection
+checks. The stationary checkpoint class has no motion writer and requires actual
+arrival, settling, fresh preceding image-pose association and a two-second dwell.
+
+`pytest -q tests/test_calibration.py`: **19 PASS** on Mac Python 3.12 / OpenCV
+4.12.0. Black and module Pylint **10.00/10 PASS**. Tests cover both known-transform
+directions, realistic small synthetic measurement perturbations, held-out-only
+errors, repeated IDs, identical/single-axis degeneracy, invalid rotations,
+rendered ChArUco pixels, blur/visibility/unsupported optics, full dwell boundaries,
+motion during dwell, stale feedback and a later pose incorrectly paired to an image.
+
+- M12-A01/A02: offline checkpoint and image portions PASS. Native checkpoint
+  transport, board fixation and real camera/robot capture NOT RUN.
+- M12-A03: synthetic geometry/detection portions PASS. Physical accuracy,
+  factory distortion compatibility and independent real-pose validation NOT RUN.
+- M12-A04: result persistence, activation and station/snapshot integration remain
+  pending in the next increment. No active calibration has been installed.
+
+The synthetic test tolerances are software gates only. No printed board geometry,
+physical mounting measurement, safe taught route or physical calibration accuracy
+has been inferred from these results.

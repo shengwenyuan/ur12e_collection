@@ -79,4 +79,10 @@ work or changing previously accepted behavior.
 - Native Home: default parameters, asymmetric return, stop/hold, client loss and
   exclusive SDK handover pass actual URSim tests; see M06 simulator-control.md.
 - Next: persistent moving session and independent recording/provenance.
-- Subsequent work: all later ordered increments above remain pending.
+- M09/M10/M11: short moving episodes and actual URSim discard/recorder-loss/SIGINT
+  gates pass; the 20 x 40-second batch is being diagnosed (not accepted). Changes
+  are uncommitted until the coherent session increment passes its recorded gates.
+- M12: offline geometry, ChArUco detection and pure stationary checkpoints pass
+  19 software tests. Result persistence/activation remains the next M12 increment.
+- Subsequent work: configuration/device audit, LeRobot export and release remain
+  pending. Preserve the earlier physical acceptance boundaries.
