@@ -100,6 +100,14 @@ def main() -> None:
         root / "docs/m13-acceptance/readonly-quickstart.md",
         partial / "READONLY.md",
     )
+    shutil.copy2(
+        root / "docs/m12-calibration/offline-usage.md",
+        partial / "CALIBRATION.md",
+    )
+    shutil.copy2(
+        root / "docs/m13-acceptance/simulator-matrix.md",
+        partial / "CAPABILITIES.md",
+    )
     manifest = {
         "schema_version": 1,
         "source_files_sha256": sources,

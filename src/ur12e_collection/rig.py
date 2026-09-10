@@ -37,6 +37,7 @@ def _synthetic_stream(config, role, clock_id, stop):
 
 
 def _worker(config, role, clock_id, channels):
+    workers.ignore_terminal_interrupt()
     frames, status, stop, backend, descriptor = channels
     slots = shared_frames.Slots.attach(descriptor) if descriptor else None
     source = (

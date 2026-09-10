@@ -177,3 +177,10 @@ then the full Mac suite (232 PASS / 4 skipped) with Black/Pylint 10.00/10.
 A deliberately blocked writer accepts the configured 128 small records without
 consuming image slots and rejects the next record with exact occupancy evidence.
 The new frozen 20-episode batch is running; its acceptance remains pending.
+
+
+The corrected simulator batch `session-1789028767567594961` completes all twenty
+40-second episodes and passes the independent current audit. The observed record
+queue peak is 68/128, image peak 10/16, maximum queue delay 339.03 ms. Each MCAP
+is independently decoded and all depth hashes verified. This closes the simulator
+long-duration gate; it does not change physical resource/quality acceptance.

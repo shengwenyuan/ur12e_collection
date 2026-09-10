@@ -30,7 +30,7 @@ installed URCaps (`Remote TCP & Toolpath`, `UR Connect`, `External Control`,
 discrepancy and recheck the current address before robot integration. These are
 inventory observations, not motion or Hand-E communication acceptance.
 
-Confirmed scope includes initialization, UR ZERO, powered positioning of both arms to READY, Space-based simultaneous leading/recording, stopping and holding, separate visual calibration, RGB-D collection, local storage, and Docker delivery. Digital-twin and DAgger interfaces are reserved; their full runtime implementations are outside the first release.
+Confirmed scope includes initialization, a single UR READY/HOME, powered positioning of both arms to READY, Space-based simultaneous leading/recording, stopping and holding, separate visual calibration, RGB-D collection, local storage, and Docker delivery. Digital-twin and DAgger interfaces are reserved; their full runtime implementations are outside the first release.
 
 No pedals, cloud storage, bcecmd, BOS, BucketLink, PFS, model training, or full GUI are required. GELLO hardware/firmware development proceeds separately.
 
@@ -47,7 +47,7 @@ IDs identify responsibility, not mandatory execution order. Never renumber or re
 | M03 | UR device adapter | `docs/m03-ur-adapter/` | M01, M02 |
 | M04 | GELLO device adapter | `docs/m04-gello-adapter/` | M01, M02 |
 | M05 | Hand-E device adapter | `docs/m05-hande-adapter/` | M01, M02 |
-| M06 | Control ownership, limits, ZERO and READY | `docs/m06-control-motion/` | M03, M04, M05 |
+| M06 | Control ownership, limits and READY/HOME | `docs/m06-control-motion/` | M03, M04, M05 |
 | M07 | RealSense camera rig | `docs/m07-camera-rig/` | M01, M02 |
 | M08 | Frame matching and time semantics | `docs/m08-frame-matching/` | M07 |
 | M09 | Session, episode and keyboard lifecycle | `docs/m09-session/` | M06, M08, M10, M11 |
@@ -204,34 +204,44 @@ Acceptance targets: `M05-A01` raw request/feedback distinction; `M05-A02` health
 
 ### M06.1 Motion and ownership
 
-Current offline proposal: use one application READY/HOME and remove the separate
-all-zero startup waypoint. Candidate UR joint angles in base/shoulder/elbow/
-wrist1/wrist2/wrist3 order are `[0, -90, -90, -90, 90, 0]` degrees. The user confirmed on the real arm that this exact target is L-shaped
-with the end effector pointing vertically downward. See the
-[HOME proposal](docs/m06-control-motion/home-proposal.md). This is not encoder
-zeroing, an accepted route, or authority to move. The earlier ZERO contract below
-is historical pending final adoption of this proposed lifecycle; do not implement
-that intermediate waypoint while this decision is open.
+Use one application **READY/HOME**, with UR joint angles
+`[0, -90, -90, -90, 90, 0]` degrees in base/shoulder/elbow/wrist1/wrist2/wrist3
+order. The user confirmed that this exact physical pose is L-shaped with the end
+effector vertically downward. The separate all-zero startup waypoint is retired;
+no encoder offsets or factory calibration are changed. The generic station draft
+keeps its target unset until the physical station is deliberately configured.
 
-ZERO is confirmed as UR joint angles `[0, 0, 0, 0, 0, 0] rad`. It is a motion target, not an instruction to rewrite encoder offsets or factory calibration.
+The local URSim implementation uses the official PolyScope Home node through
+Dashboard with its installed defaults (60 deg/s, 80 deg/s²). Loading/playing a
+program is not arrival: verify actual joint position, standstill and program
+completion before granting the next owner. Native Home does not depend on a host
+heartbeat and may finish after client loss. SDK following has its own watchdog
+and exclusive handover. See [control implementation](docs/m06-control-motion/simulator-control.md).
+Physical routes, clearance and motion acceptance remain NOT RUN; physical-control
+entrypoints are disabled. The user's simulation authorization does not permit
+sending a physical robot command.
 
-READY is a user-designed task starting posture. Store corresponding UR and GELLO joint targets and tolerances: raw encoder numbers need not match, but their calibrated robot-space targets must agree. GO_READY actively positions both arms and leaves both holding. It never relies solely on manually placing the leader.
+READY is the common task start posture. GELLO must eventually reach and hold its
+mapped corresponding target; one-sided physical readiness is insufficient.
+Its positioning/holding hardware remains externally blocked. Simulator fixtures
+are isolated and cannot make an unavailable physical leader ready. Returning HOME
+never starts recording, and stopping an episode never automatically returns HOME.
 
-Both arms must be stable and aligned before Space can start collection; one-sided success is insufficient. Simultaneous movement versus sequential arrival is unresolved. ZERO belongs to initialization; every episode starts at READY, but returning to READY does not implicitly revisit ZERO.
-
-All motion is owned by one arbiter. If UR-native programs execute a route, explicitly transfer ownership, coordinate GELLO positioning, and verify both arms before restoring leader control. The choice of native programs versus custom scripts remains open.
+All motion has one owner. Native Home and SDK following use mutually exclusive
+ownership, with measured release/arrival before handover. Physical GELLO
+coordination and any physical script route remain separate acceptance work.
 
 ### M06.2 Mandatory bounds
 
-- Enforce configured joint limits on targets and actual states for leading, ZERO, READY, calibration, and future policy sources. GELLO has its own bounds.
+- Enforce configured joint limits on targets and actual states for leading, READY, calibration, and future policy sources. GELLO has its own bounds.
 - Preserve the correct angle branch; arbitrary wrapping must not change physical sweep or cable winding.
 - Configure speed, acceleration, step size, command freshness, arrival tolerance, and stopping behavior. Values require site acceptance.
 - Initially reject out-of-range commands and stop following; do not silently clamp or chase queued targets.
 - Validate starting conditions and the swept path of links, tools, cameras, and cables. Joint limits alone do not prevent self/environment collisions.
-- ZERO must be within the validated configuration. Resolve any route/limit conflict explicitly; do not bypass limits.
+- READY must lie within the validated configuration; resolve route/limit conflicts explicitly.
 - An already out-of-bounds state requires a separate controlled recovery procedure, not an automatically invented route.
 
-These are mandatory software command limits plus applicable UR safety configuration, not new physical stops or a claim of safety certification. READY angles and all motion routes remain unspecified until designed and verified.
+These are mandatory software command limits plus applicable UR safety configuration, not new physical stops or a claim of safety certification. The UR READY target is specified above; physical motion routes and bounds still require site verification.
 
 Acceptance targets: `M06-A01` exclusive ownership; `M06-A02` both arms reach and hold READY; `M06-A03` every motion source obeys limits; `M06-A04` invalid start/routes block motion and collection.
 
@@ -283,7 +293,7 @@ Prepare the writer and a common start boundary before opening leader control. A 
 
 The ending Space event closes the demonstration sampling boundary and revokes following, discarding queued goals. Record deceleration/stopping feedback in session diagnostics, not the demonstration interval. File finalization can complete later. Preserve both the Space timestamp and verified stop-completion time.
 
-Holding means the actual posture after controlled deceleration, not an instantaneous freeze while moving. Verify stop latency/displacement and drift. GELLO seeds a hold at its current position; the operator supports it until handover completes. Subsequent leader movement cannot move the UR. Normal completion does not put UR into freedrive, disable it, return it automatically to ZERO/READY, or implicitly release Hand-E.
+Holding means the actual posture after controlled deceleration, not an instantaneous freeze while moving. Verify stop latency/displacement and drift. GELLO seeds a hold at its current position; the operator supports it until handover completes. Subsequent leader movement cannot move the UR. Normal completion does not put UR into freedrive, disable it, return it automatically to READY, or implicitly release Hand-E.
 
 Keep device connections across episodes. Do not resume following merely because writing completed. Debounce keyboard events so a held key cannot cross lifecycle boundaries. Keep operator discard, system failure, and task success distinct; whether a normal Space completion implies task success remains open. Writer success alone does not establish task success.
 
@@ -368,7 +378,7 @@ Acceptance targets: `M11-A01` pixel-exact depth round trip; `M11-A02` independen
 
 The [M12 development plan](docs/m12-calibration/plan.md) records the two-round workflow aligned on 2026-09-09. The immediate goal is a common world reference and traceable camera extrinsics across episodes. Providing extrinsics to a future VLM prompt is a possible consumer, not a first-release prompt feature or a claim that calibration removes viewpoint changes. Numerical accuracy targets remain open.
 
-Proposed entrypoint: `ur-collect calibrate`, separate from production episodes. The user first teaches key poses and verifies routes, then converts them into a fixed motion script. Both rounds, including the first held-board round, execute by script. M12 consumes capture checkpoints, actual robot pose feedback and images; it does not generate exploratory motion. Script execution must respect M06 exclusive ownership and limits. The script/checkpoint transport remains to be chosen with the lab controller. Keep the existing 20-40-pose overall budget; the split between rounds and held-out validation is not yet agreed. Store pose IDs, joint targets, required waypoints and expected visible cameras; `dwell_s=2.0`.
+Implemented offline entrypoint: `ur-collect calibrate solve|verify|setup|activate`, separate from production episodes. See [offline usage](docs/m12-calibration/offline-usage.md). Scripted physical capture remains pending. The user first teaches key poses and verifies routes, then converts them into a fixed motion script. Both rounds, including the first held-board round, execute by script. M12 consumes capture checkpoints, actual robot pose feedback and images; it does not generate exploratory motion. Script execution must respect M06 exclusive ownership and limits. The script/checkpoint transport remains to be chosen with the lab controller. Keep the existing 20-40-pose overall budget; the split between rounds and held-out validation is not yet agreed. Store pose IDs, joint targets, required waypoints and expected visible cameras; `dwell_s=2.0`.
 
 Check configuration/board/cameras -> enter exclusive calibration motion ownership -> execute the verified script -> verify arrival/stability at each checkpoint -> dwell for two seconds while capturing -> solve and validate -> atomically update environment calibration. Motion time is not part of the dwell. Report invisible boards, stale pose feedback or failed detection rather than accepting missing samples.
 
@@ -516,3 +526,15 @@ program, and its speed/stop behavior passed URSim checks. Dashboard disconnect
 alone does not stop that program, so native Home heartbeat/handover integration
 remains pending. Moving-session recording and keyboard lifecycle are also
 pending; no whole-module or physical acceptance is implied.
+
+
+## Current simulator sprint status
+
+The [2026-09-10 simulator sprint](docs/m13-acceptance/simulator-sprint.md) and
+[module matrix](docs/m13-acceptance/simulator-matrix.md) supersede older
+not-yet-implemented status notes where their dated results overlap. Native Home,
+UR-only control/session behavior, independent MCAP recording, optional official
+LeRobot v3 RGB/arm export, and offline calibration/activation are implemented.
+Physical control remains disabled. GELLO, physical Hand-E actuation, physical
+calibration capture and live ROS topic/service/TF integration remain distinct
+open work; no simulator result establishes their physical acceptance.

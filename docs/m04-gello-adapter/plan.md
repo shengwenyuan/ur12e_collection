@@ -18,3 +18,10 @@ Case M04-A04.1: software tests verify missing state and rejected control request
 ## Results
 
 The unavailable API is implemented. M04-A04.1 is covered by the software suite: no ready state or invented feedback, no network calls, and explicit failure for move/hold/stop. Physical GELLO acceptance remains blocked by parallel hardware work.
+
+
+2026-09-10 audit: the external hardware interface remains unavailable as requested.
+URSim uses an explicitly named waveform under `simulation/targets.py`, not this
+adapter. No DYNAMIXEL serial access, fabricated torque hold or physical readiness
+was added. Real joint mapping/transport/torque/thermal gates remain blocked by
+external hardware work; further speculative GELLO implementation is deferred.

@@ -47,9 +47,15 @@ def main() -> None:
         ),
     )
     parser.add_argument("--signal", choices=("kill", "stall"), default="kill")
+    parser.add_argument(
+        "--client-image", default="ur12e-collection:readonly-runtime"
+    )
     parser.add_argument("--episodes", type=int, default=2)
     parser.add_argument("--seconds", type=float, default=3)
     args = parser.parse_args()
+    client = inspect("image", args.client_image)
+    if (client["Os"], client["Architecture"]) != ("linux", "amd64"):
+        raise ValueError("simulator client requires a local linux/amd64 image")
     sim = inspect("container", SIMULATOR)
     image = inspect("image", IMAGE)
     network = inspect("network", NETWORK)
@@ -82,6 +88,10 @@ def main() -> None:
     lock.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="permit-", dir=output) as temporary:
         frozen = sim_source.freeze(ROOT, pathlib.Path(temporary))
+        frozen["client_image"] = client["Id"]
+        frozen["source_revision"] += (
+            "-image-" + client["Id"].split(":")[-1][:12]
+        )
         (output / (frozen["source_revision"] + ".json")).write_text(
             json.dumps(frozen, indent=2), encoding="utf-8"
         )
@@ -98,11 +108,13 @@ def main() -> None:
             ),
             encoding="utf-8",
         )
-        subprocess.run(
+        completed = subprocess.run(
             [
                 "docker",
                 "run",
                 "--rm",
+                "--pull",
+                "never",
                 "--init",
                 *(["--interactive", "--tty"] if args.mode == "console" else []),
                 "--platform",
@@ -134,12 +146,15 @@ def main() -> None:
                 "PYTHONDONTWRITEBYTECODE=1",
                 "--entrypoint",
                 "python",
-                "ur12e-collection:readonly-runtime",
+                client["Id"],
                 "-u",
                 *_entrypoint(args, frozen["source_revision"]),
             ],
-            check=True,
+            check=False,
         )
+        if args.mode == "console" and completed.returncode == 130:
+            raise SystemExit(130)
+        completed.check_returncode()
 
 
 def _entrypoint(args, revision):

@@ -1,5 +1,7 @@
 """Bounded cleanup for disposable native-SDK diagnostic processes."""
 
+import multiprocessing
+import signal
 from multiprocessing.process import BaseProcess
 
 
@@ -11,3 +13,9 @@ def stop(process: BaseProcess) -> None:
             return
         terminate()
         process.join(timeout=2)
+
+
+def ignore_terminal_interrupt() -> None:
+    """Let the parent own Ctrl+C and stop children through explicit channels."""
+    if multiprocessing.parent_process() is not None:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)

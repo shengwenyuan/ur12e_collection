@@ -7,6 +7,7 @@ from ur12e_collection import archive, workers
 
 
 def _worker(connection):
+    workers.ignore_terminal_interrupt()
     try:
         connection.send(("ready", None))
         while True:

@@ -172,3 +172,34 @@ change an active run. The ordinary hardware session CLI still fails closed befor
 any transport import. Mac checks: 215 PASS / 4 skipped; Ubuntu 24.04/Jazzy amd64
 checks: 217 PASS / 2 skipped. Black/Pylint PASS. The new 20 x 40-second batch remains
 running; functional acceptance does not claim its long-duration gate has passed.
+
+### Terminal process-group interrupt correction
+
+The real Docker/PTY console exposed a difference from the earlier `os.kill(pid,
+SIGINT)` test: terminal Ctrl+C reaches the whole foreground process group. Camera
+and verification children raised KeyboardInterrupt during normal shutdown. The UR
+stopped, but child cleanup logs were not a clean acceptance. Make the session
+parent the sole terminal-interrupt owner; its recording, camera and verification
+children ignore SIGINT and exit through the existing abort/stop channels. SIGKILL
+and bounded forced-cleanup behavior remain unchanged. Add a real isolated process-
+group test with shared memory, then repeat actual URSim terminal start/stop/discard/
+Ctrl+C. Retain the failed console evidence rather than calling it clean shutdown.
+
+
+Full persistent-session gate now PASSes: twenty 40-second episodes, repeated
+native HOME/follow/stop/held transitions and final held discard. The independent
+current verifier and grouping audit PASS; see the M13 full-batch result. The real
+terminal process-group Ctrl+C correction is validated separately below.
+
+The process-group correction now PASSes an isolated real subprocess-group test:
+Ctrl+C reaches the parent, child workers exit cooperatively, shared slots are
+unlinked, and stderr is empty. Actual Docker terminal HOME/start/active-Ctrl+C
+also exits 130 cleanly without Python/worker tracebacks. Its unfinished episode
+remains partial (`console-1789030303415277000`), with SDK release 0.551 s. The
+preceding terminal run exercised Space stop/held/a discard; its original noisy
+Ctrl+C cleanup remains preserved as the failure that triggered this correction.
+
+Final interrupt regression: Mac 242 PASS / 4 skipped, Black/Pylint 10.00/10.
+The signal helper cannot alter the main process handler when called directly.
+A separate simulator-only readback after terminal interruption reports runtime
+STOPPED, normal safety, zero joint speed and zero drift over one second.

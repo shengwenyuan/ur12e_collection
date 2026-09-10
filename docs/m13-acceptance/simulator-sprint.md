@@ -73,26 +73,26 @@ work or changing previously accepted behavior.
 
 ## Progress
 
-- Baseline: 156 native tests pass, four environment/opt-in tests skipped; two
-  additional Jazzy compatibility cases passed in the dependency container.
-  Black/Pylint passed. Committed as `429b701`.
-- Native Home: default parameters, asymmetric return, stop/hold, client loss and
-  exclusive SDK handover pass actual URSim tests; see M06 simulator-control.md.
-- Persistent moving session and optional offline export committed as `60bf3da`.
-- M09/M10/M11: short moving episodes and actual URSim discard/recorder-loss/SIGINT
-  gates pass; the 20 x 40-second batch is being diagnosed (not accepted). Functional slice committed; the separate long-duration gate remains pending.
-- M12: offline geometry, ChArUco detection and pure stationary checkpoints pass
-  19 software tests. Offline result/activation now passes 11 additional tests and is committed as
-  `4bb00e1`; current full checks are 228 native / 230 Jazzy PASS.
-- LeRobot official 0.6.1 writer/loader: 1,291 frames in two episodes pass, exact
-  numeric readback and sampled RGB MAE <0.719/255, offline; see M11 export plan.
-- Latest long batch `session-1789027660592731838` completed 14 x 40 s then failed
-  a generic writer overflow. Parent-owned shared slots fixed recorder-kill leaks.
-  Explicit simulator record budget is now 128 (four records x 50 Hz against a
-  500 ms recorder heartbeat), media queue 16, camera slots 8 per role. Hardware
-  shadow defaults remain unchanged. Detailed overflow/operation diagnostics added;
-  69 targeted tests and Pylint pass. New frozen full batch is running with log
-  `artifacts/simulator-control/long-budgeted.log`.
-- Remaining: long-batch diagnosis/acceptance, source-matched runtime/dev build,
-  release bundle, M01–M13 audit/matrix and optional ROS observability gaps.
-  No physical connection is permitted. Preserve failed logs and current commits.
+- Baseline `429b701`; native Home `9ad0137`; offline geometry `535fe69`;
+  controlled session/export `60bf3da`; calibration activation `4bb00e1`;
+  coverage/budget correction `36c00b2`.
+- Full controlled batch `session-1789028767567594961`: **20 x 40 s PASS**.
+  Current independent audit also PASS: 23,998 / 24,007 accepted (99.9625%),
+  worst 99.75%, maximum two consecutive rejections, no native source gaps/repeats.
+  Final episode is intentionally discarded as an outcome test. Preserve failed
+  predecessors; they never count toward this successful batch.
+- Real terminal group Ctrl+C exposed child interrupts; child-only SIGINT ignoring
+  plus parent-owned abort fixes cleanup. Group/TTY tests pass, active data remains
+  partial, and independent URSim readback shows stopped runtime, zero speed/drift.
+- Latest Mac suite: **242 PASS / 4 skipped**, Black/Pylint 10.00/10. A prior
+  source-matched runtime/dev pair for `36c00b2` passes 234 installed Jazzy tests
+  and two separate mount tests. New interrupt changes need the final image rebuild.
+- Official LeRobot 0.6.1 writer/loader: 1,291 frames / two episodes PASS, exact
+  numeric values and sampled RGB MAE below 0.719/255. M12 has 30 offline tests,
+  including rendered PNG detection, independent geometry and atomic activation.
+- Next bounded increment: optional read-only ROS observation sidecar, as planned
+  in `docs/m10-data-contract/ros-observation.md`. No control input or camera
+  duplication. Test real Jazzy round trips and observer-loss isolation in URSim.
+- Then refresh final runtime/dev images, package the offline release, update
+  `simulator-matrix.md`, and close the scheduled continuation. No lab/physical
+  connection or non-Docker GUI control is permitted.

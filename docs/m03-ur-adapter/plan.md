@@ -40,3 +40,14 @@ The diagnostic command is implemented. Software tests verify the fixed read-only
 
 Read-only preflight captured the configured serial, Dashboard status and 60 RTDE samples. Persistent output-only acquisition is implemented and software-tested; its new-image physical integration remains NOT RUN. The powered-off raw zero values do not establish physical joint posture. See the
 [shared plan and results](../m13-acceptance/readonly-integration.md).
+
+
+## URSim control increment
+
+M03-A01/A02/A03 simulator portions now PASS: progressing readback, bounded
+move/servo stop, held drift, client loss, stall watchdog and explicit native
+Home/SDK ownership. Shared transport code remains separate from a physical
+connection factory, which is disabled. See the current
+[M06 control results](../m06-control-motion/simulator-control.md). The earlier
+read-only statements above describe the diagnostic command, which remains GET/output-only.
+Physical control acceptance remains NOT RUN.

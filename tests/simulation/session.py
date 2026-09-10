@@ -90,12 +90,13 @@ def main():
                     == "discarded"
                 )
                 report["held_discard"] = True
-                report["status"] = "PASS"
             finally:
                 owner.close()
         for completed in report["episodes"]:
             storage.verify_episode(output / completed["episode"])
+        report["status"] = "PASS"
     except BaseException as error:
+        report["status"] = "FAIL"
         report["error"] = str(error)
         if owner is not None:
             report["timings"] = owner.timings

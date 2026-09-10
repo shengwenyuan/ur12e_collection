@@ -18,3 +18,11 @@ M05-A01/A02 software/readback slices pass. Persistent physical integration and
 M05-A03 grasp retention under actual control remain NOT RUN; no control code was
 added. The raw protocol, output-only interfaces, late/failing sources and MCAP
 verification are covered by the shared offline tests.
+
+
+2026-09-10 simulator audit: keep the approved Hand-E bypass. Every simulated
+controlled episode records the bypass and null gripper values. No URCap SET,
+activation or inferred gripper state was added. Unit tests preserve raw readback
+and reject fabricated values in bypassed recordings. Physical URCap actuation,
+reconnection ownership and grip retention require the actual device/protocol
+acceptance; simulating an invented TCP actuator would not validate them.

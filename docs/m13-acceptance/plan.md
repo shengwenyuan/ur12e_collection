@@ -214,3 +214,50 @@ in this test and still met the current 640x480/30 Hz capture gates.
 
 Offline read-only integration passes native, amd64 Jazzy and source-free runtime checks. Two 2-second synthetic episodes completed with 60 image groups each and independently verified feedback. New-image real input acceptance remains NOT RUN; no lab access or control commands occurred during offline resumption. See the
 [shared plan and results](readonly-integration.md).
+
+## Independent controlled-batch audit
+
+Keep native URSim recording and its final audit distinct. The audit must reject
+an error-bearing report even if an earlier test step set a success flag. Require
+exact episode count/duration, final-file verification with the current control
+validator, no native source gaps/repeats, at least 99.5% accepted wrist decisions
+per episode and 99.7% overall, and at most two consecutive rejected anchors.
+Check contiguous decision identities and boundary coverage within 50 ms; never
+use the weaker 28.5 Hz smoke floor as the final grouping-quality gate. Stored
+outcome may honestly mark the last verified episode discarded by the lifecycle
+test; this does not make it retained training data. Preserve all failed reports.
+
+The audit reports maximum host receipt gaps separately. Its 50 ms coverage check
+applies at episode boundaries; an internal callback interval is not a physical
+exposure-clock measurement. Internal decision IDs must still be contiguous and
+receipt order must advance. Synthetic scheduling jitter remains visible in the
+original timestamps and rejection counts; it is never replaced with idealized
+30 Hz timestamps. The optional LeRobot projection has its own stricter cadence
+requirements and may reject an otherwise valid raw episode.
+
+## Full controlled URSim batch result (2026-09-10)
+
+M13-A03.sim **PASS**: `session-1789028767567594961` completed all twenty 40-second
+URSim-controlled episodes with three persistent synthetic RGB-D sources. The
+current independent audit also PASSes: 23,998 / 24,007 wrist decisions accepted
+(99.9625%); worst episode 99.75%; maximum two consecutive rejections. All source
+color/depth counters remain contiguous with no repeated depth observations.
+Every complete MCAP reopens, all RGB decodes, every raw-depth hash matches, and
+current authority/stream-coverage verification passes. The final episode is
+intentionally marked discarded to test held review; it is not retained training
+data. No failed or partial episode is counted toward twenty.
+
+Writer peaks are 10/16 image triples and 68/128 small records; the latter exceeds
+the old 64-record budget and supports the corrected simulator allocation.
+Maximum observed queue delay is 339.03 ms. The maximum observed source receipt gap
+is reported separately; synthetic producer scheduling is not uniform physical
+exposure and no timestamp is replaced with an idealized value. All decision
+identities and boundary coverage pass the independent audit.
+
+The twenty MCAP files total 600,513,742 bytes. This easy synthetic image/depth
+fixture is not a lab storage-cost prediction; previous physical-scene measurements
+remain the useful deployment evidence. No physical camera, UR, Hand-E or GELLO
+acceptance is inferred. The original frozen client used the previously tested
+dependency image plus its recorded source overlay; current source-matched images
+are validated separately. Full reports and failed predecessors remain under
+ignored `artifacts/simulator-control/`.

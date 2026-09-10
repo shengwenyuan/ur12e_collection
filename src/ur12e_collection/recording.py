@@ -117,6 +117,7 @@ class _Capture:
 
 
 def _worker(config, context, channels):
+    workers.ignore_terminal_interrupt()
     _, replies, abort, _, slots = channels
     source = rig.Rig(
         config,

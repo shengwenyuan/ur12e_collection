@@ -173,3 +173,41 @@ or new failures.
 
 Offline read-only v3 amd64 runtime/development images built with the pinned Jazzy base. The bundle records exact installed source hashes and includes an explicit observation launcher. New-image Ubuntu deployment remains NOT RUN. See the
 [shared plan and results](../m13-acceptance/readonly-integration.md).
+
+## Simulator sprint delivery increment (2026-09-10)
+
+Build runtime and development images for linux/amd64 from the pinned official
+Ubuntu 24.04/Jazzy base. Test the installed package without a source overlay,
+compare every package Python/schema file with the working tree, exercise writable
+and read-only mount replacement, and package the runtime plus checksums and exact
+resolved dependencies. Do not SSH, deploy to the lab or enable physical control.
+
+The simulator launcher may select an already installed client image through
+`--client-image`; require Linux/amd64 and use `--pull never`. Preserve the isolated
+verified official URSim peer and prohibit host/address overrides. Record the
+selected client image identity with each frozen source manifest so dependency
+changes cannot be confused with source changes. This is a deployment selection,
+not an alternate robot transport or a physical-control enablement.
+
+
+### Source-matched image checks
+
+Runtime `ur12e-collection:sim-runtime-36c00b2` is
+`sha256:dc43e74d822f979beb8bd06c4124b3551092fb059ba9aec292f7e97953f7e875`.
+Its source label is full commit `36c00b2ddcf4bf6d1f226b3d8ea5cd5df00f005c`;
+all 57 installed Python/schema files match the repository by SHA-256.
+The paired development image initially passed 234 tests, with two host-only
+mount tests skipped; those two then passed explicitly against the runtime.
+
+The installed runtime reports Ubuntu 24.04.4 LTS, Python 3.12.3, rclpy
+`7.1.11-1noble.20260615.133206`, rosbag2 MCAP
+`0.26.11-1noble.20260616.074830`, Foxglove messages
+`3.4.1-1noble.20260615.111611`, numpy 2.2.6, PyAV 15.1.0, MCAP 1.4.0,
+mcap-ros2-support 0.5.7, OpenCV contrib 4.12.0.88, librealsense Python
+2.56.5.9235 and ur-rtde 1.6.5. Its software-only hardware-dependency doctor
+passes with physical readiness explicitly false. No device/network access is
+needed for these checks. Export-only LeRobot/Torch is excluded from this image.
+
+The offline bundle also includes calibration usage and the capability/acceptance
+matrix. Final bundle publication awaits the simulator batch/audit; lab deployment
+and physical checks remain NOT RUN during this sprint.

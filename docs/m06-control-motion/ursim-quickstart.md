@@ -77,7 +77,7 @@ URSim in Remote mode, run these explicitly authorized simulator tests:
 .venv/bin/python scripts/sim_control.py watchdog --signal stall
 ```
 
-The launcher mounts current source read-only, verifies the pinned simulator
+The launcher freezes and hashes source, then mounts that copy read-only, verifies the pinned simulator
 image/service/peer, and gives the client no external route or physical station
 configuration. Each watchdog test intentionally kills or freezes the motion
 owner. Native protective-stop recovery is deliberately not automatic.
@@ -116,3 +116,25 @@ startup script intentionally selects that control configuration and separate
 UR12e serial/safety files. The tested simulator serial is `20245199999`.
 Mac emulation is suitable for functional tests here; it does not qualify
 real-time servo timing or physical motion. Gazebo is not required or installed.
+
+
+## Current session commands
+
+The explicit session entrypoint supports Space HOME/start/stop, `a` discard and
+Ctrl+C. Keep the application console in a terminal; the source waveform is a
+simulation fixture and Hand-E is explicitly bypassed.
+
+```sh
+python scripts/sim_control.py console --client-image ur12e-collection:sim-runtime-36c00b2
+python scripts/sim_control.py session-faults --client-image ur12e-collection:sim-runtime-36c00b2
+python scripts/sim_control.py session --episodes 20 --seconds 40 \
+  --client-image ur12e-collection:sim-runtime-36c00b2
+PYTHONPATH=src python tests/simulation/acceptance.py artifacts/simulator-control/session-RUN
+```
+
+The client image must already exist locally and be linux/amd64; the launcher
+never pulls it implicitly. Each report identifies its frozen source and client
+image. The official URSim image, identity, internal network and exclusive lease
+are still mandatory; these commands accept no physical host/address argument.
+The complete snapshot/MCAP validation and grouping audit must pass before claiming
+a successful full batch. Failed/partial results remain available for diagnosis.
