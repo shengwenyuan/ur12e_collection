@@ -37,7 +37,7 @@
       "$ref": "urn:ur12e-collection:station:1"
     },
     "calibration": {
-      "type": "null"
+      "$ref": "urn:ur12e-collection:station:1#/properties/calibration"
     },
     "cameras": {
       "type": "object",

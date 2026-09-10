@@ -42,8 +42,7 @@ def copy(snapshot: dict) -> dict:
             expected["model"],
         ):
             raise ValueError(f"observed camera differs from station: {role}")
-    if result["calibration"] != result["station"]["calibration"]:
-        raise ValueError("snapshot calibration differs from station")
+    _calibration(result)
     if "capture" in result and result["capture"] != capture.resolve(
         result["station"]
     ):
@@ -63,6 +62,21 @@ def copy(snapshot: dict) -> dict:
             if devices["hande"]["source_id"] != endpoint:
                 raise ValueError("Hand-E source differs from station")
     return result
+
+
+def _calibration(result):
+    """Bind active geometry to the declared setup and observed optics."""
+    setup = result["station"].get("setup")
+    if setup is not None and setup["simulated"] != result["simulated"]:
+        raise ValueError("declared setup simulation differs from snapshot")
+    for role, value in (result["calibration"] or {}).get("cameras", {}).items():
+        if (
+            value["context"]["intrinsics"]
+            != result["cameras"][role]["color_intrinsics"]
+        ):
+            raise ValueError("calibration optics differ from observed camera")
+    if result["calibration"] != result["station"]["calibration"]:
+        raise ValueError("snapshot calibration differs from station")
 
 
 def build(config: dict, observed: dict, context: dict) -> dict:

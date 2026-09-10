@@ -155,7 +155,7 @@ def export(
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
-        _publish(partial, destination)
+        filesystem.publish(partial, destination)
         return result
     except BaseException as error:
         if owns_partial and partial.is_dir():
@@ -198,22 +198,6 @@ def _write(dependencies, partial, episodes):
         with contextlib.suppress(Exception):
             writer.clear_episode_buffer()
             writer.finalize()
-        raise
-
-
-def _publish(partial, destination):
-    for path in sorted(
-        partial.rglob("*"), key=lambda p: len(p.parts), reverse=True
-    ):
-        filesystem.sync(path)
-    filesystem.sync(partial)
-    if destination.exists():
-        raise FileExistsError(destination)
-    partial.rename(destination)
-    try:
-        filesystem.sync(destination.parent)
-    except OSError:
-        destination.rename(partial)
         raise
 
 

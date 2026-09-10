@@ -213,7 +213,10 @@
       "const": false
     },
     "calibration": {
-      "type": "null"
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "capture": {
       "type": "object",
@@ -234,6 +237,9 @@
         "empty_poll_ns"
       ],
       "additionalProperties": false
+    },
+    "setup": {
+      "type": "object"
     }
   },
   "required": [

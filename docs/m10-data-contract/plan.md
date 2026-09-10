@@ -87,3 +87,10 @@ independent MCAP decoding, distinct intent/sent/actual values, authority boundar
 and absent Hand-E fields. Mac/Ubuntu tests pass; no physical control acceptance
 is implied. M11's optional projection preserves original integer clocks beside
 LeRobot's explicitly nominal 30 Hz playback clock. See M09 and M11 detailed results.
+
+
+M12 now contributes optional immutable per-camera calibration results. Snapshot
+validation requires matching declared setup, simulation flag, device serial and
+observed RGB optics. Old snapshots retain their original result copies when the
+station's mount generation changes. Software tests pass; physical calibration
+accuracy is not inferred from metadata consistency.

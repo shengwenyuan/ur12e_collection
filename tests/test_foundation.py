@@ -87,7 +87,11 @@ def test_atomic_station_replacement(tmp_path):
     with pytest.raises(ValueError):
         station.write(path, draft, replace=True)
     assert path.read_bytes() == previous
-    assert list(tmp_path.iterdir()) == [path]
+    # A stable lock inode coordinates future atomic replacements.
+    assert set(tmp_path.iterdir()) == {
+        path,
+        path.with_name(path.name + ".lock"),
+    }
 
 
 def test_configuration_cli_uses_shared_schema(tmp_path):

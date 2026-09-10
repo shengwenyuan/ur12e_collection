@@ -76,7 +76,7 @@ def test_invalid_transform_rejected(bad):
         geometry.transform(bad)
 
 
-def image_fixture():
+def image_fixture(camera_board=None):
     definition = board.Board(7, 5, 0.03, 0.022, "DICT_4X4_50")
     intrinsics = {
         "width": 640,
@@ -88,7 +88,8 @@ def image_fixture():
         "model": "none",
         "coeffs": [],
     }
-    camera_board = geometry.pose([-0.10, -0.07, 0.5, 0.25, -0.2, 0.1])
+    if camera_board is None:
+        camera_board = geometry.pose([-0.10, -0.07, 0.5, 0.25, -0.2, 0.1])
     points = np.array(
         [[0, 0, 0], [0.21, 0, 0], [0.21, 0.15, 0], [0, 0.15, 0]], np.float32
     )

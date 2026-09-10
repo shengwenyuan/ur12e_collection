@@ -12,6 +12,7 @@ from ur12e_collection import cameras
 from ur12e_collection import diagnostics
 from ur12e_collection import station
 from ur12e_collection import ur
+from ur12e_collection.calibration import cli as calibration_cli
 
 
 def parser() -> argparse.ArgumentParser:
@@ -95,8 +96,8 @@ def parser() -> argparse.ArgumentParser:
     )
     session.add_argument("--output", type=pathlib.Path)
     session.add_argument("--revision")
-    commands.add_parser(
-        "calibrate", help="offline calibration entrypoint pending"
+    calibration_cli.configure(
+        commands.add_parser("calibrate", help="offline visual calibration")
     )
     return root
 
@@ -170,6 +171,7 @@ def main(argv: list[str] | None = None) -> int:
             "episode": _episode,
             "shadow": _shadow,
             "session": _session,
+            "calibrate": calibration_cli.run,
         }.get(args.command)
         if handler is not None:
             return handler(args)

@@ -37,3 +37,18 @@ The configuration slice is implemented. M02-A01.1, M02-A02.1, and M02-A03.1 pass
 
 Optional station capture settings resolve to 75 ms wait and 1 ms polling and are validated against each new snapshot. Legacy stations and snapshots remain readable. No live station identity, HOME target or motion acceptance was changed. See the
 [shared plan and results](../m13-acceptance/readonly-integration.md).
+
+
+## Calibration configuration increment (2026-09-10)
+
+The autonomous simulator sprint authorizes optional explicit setup declarations
+and per-camera calibration results. Offline activation verifies copied evidence,
+recomputes the solution and requires matching serial, base, mount and simulation
+identity. Setup changes invalidate affected cameras. Uncalibrated legacy stations
+remain valid and motion remains disabled. Station updates now serialize complete
+read/validate/replace transactions using an advisory lock. A hard-link backup
+restores prior visible bytes if replacement-directory synchronization fails.
+
+M02-A02/A03 software portions PASS in M12 activation tests, including corrupted
+inputs, failed fsync, immutable snapshots and moved-camera invalidation. Physical
+mount verification and real startup/control acceptance remain NOT RUN.

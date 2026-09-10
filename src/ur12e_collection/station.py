@@ -1,11 +1,13 @@
 """M02 station schema and atomic persistence; no hardware connections."""
 
+import contextlib
+import fcntl
 import json
 import os
 import pathlib
 import tempfile
 from importlib import resources
-from typing import Any
+from typing import Any, Callable
 
 import jsonschema
 
@@ -24,6 +26,17 @@ def validate(document: dict[str, Any], *, cameras_ready: bool = False) -> None:
     """Validate a draft, optionally requiring three unique camera identities."""
     json.dumps(document, allow_nan=False)
     jsonschema.Draft202012Validator(schema()).validate(document)
+    if document.get("setup") is not None or document["calibration"] is not None:
+        # Optional calibration code is loaded only for configured geometry.
+        # pylint: disable-next=import-outside-toplevel
+        from ur12e_collection.calibration import manifest
+
+        try:
+            manifest.active(document)
+        except (KeyError, TypeError) as error:
+            raise ValueError(
+                f"invalid calibration configuration: {error}"
+            ) from error
     cameras = document["cameras"]
     serials = [cameras[role]["serial"] for role in contracts.CAMERA_ROLES]
     present = [serial for serial in serials if serial is not None]
@@ -63,14 +76,40 @@ def example() -> dict[str, Any]:
     }
 
 
+@contextlib.contextmanager
+def _lock(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.with_name(path.name + ".lock").open(
+        "a", encoding="utf-8"
+    ) as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(stream, fcntl.LOCK_UN)
+
+
+def update(path: pathlib.Path, change: Callable[[dict], dict]) -> dict:
+    """Serialize configuration read, validation and replacement."""
+    with _lock(path):
+        document = change(load(path))
+        _write(path, document, replace=True)
+        return document
+
+
 def write(
     path: pathlib.Path, document: dict[str, Any], *, replace: bool = False
 ) -> None:
     """Atomically store validated JSON; default creation never overwrites."""
+    with _lock(path):
+        _write(path, document, replace=replace)
+
+
+def _write(path, document, *, replace):
     validate(document)
     payload = json.dumps(document, indent=2, allow_nan=False) + "\n"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = None
+    temporary = backup = None
+    published = False
     try:
         with tempfile.NamedTemporaryFile(
             mode="w", encoding="utf-8", dir=path.parent, delete=False
@@ -79,15 +118,28 @@ def write(
             stream.write(payload)
             stream.flush()
             os.fsync(stream.fileno())
+        if replace and path.exists():
+            backup = temporary.with_name(temporary.name + ".previous")
+            os.link(path, backup)
         if replace:
             os.replace(temporary, path)
         else:
             os.link(temporary, path)
+        published = True
         directory = os.open(path.parent, os.O_RDONLY)
         try:
             os.fsync(directory)
         finally:
             os.close(directory)
+    except BaseException:
+        if published:
+            if backup is not None:
+                os.replace(backup, path)
+            else:
+                path.unlink()
+        raise
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+        if backup is not None:
+            backup.unlink(missing_ok=True)

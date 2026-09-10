@@ -243,3 +243,55 @@ motion during dwell, stale feedback and a later pose incorrectly paired to an im
 The synthetic test tolerances are software gates only. No printed board geometry,
 physical mounting measurement, safe taught route or physical calibration accuracy
 has been inferred from these results.
+
+## Offline result and activation increment
+
+Implement `calibrate solve INPUT --output BUNDLE`, `calibrate activate BUNDLE
+--station FILE`, and `calibrate setup --station FILE --input SETUP`. These commands
+are offline and never import a motion writer. The input names one camera role,
+serial, base/mount identity, board, exact RGB optics, thresholds, script revision,
+and independent training/validation checkpoints with actual `T_base_flange`.
+Physical inputs require relative lossless RGB PNG evidence and derive board poses
+with the implemented detector. Explicit simulated inputs may supply known board
+transforms without images; they must remain marked simulated throughout.
+
+Publish an immutable result bundle only after successful solve/held-out checks,
+copying source evidence and recording hashes. Activation verifies the bundle and
+recomputes its solution before copying the selected camera result into station
+configuration. Keep setup declarations (base ID, three camera mount IDs, explicit
+simulation flag) separate from successful results. Changing setup removes affected
+active results; an unchanged wrist mount may retain its flange extrinsic. A base
+change invalidates all results conservatively. Software cannot detect an unreported
+physical move. Reject synthetic results for a physical setup.
+
+Station and snapshot validation check calibration/setup/camera identity, transform
+directions, optics, and simulation consistency. Partial per-camera calibration is
+explicit, not a claim that all views are calibrated. Active snapshot copies do not
+require external file access and remain immutable after later setup changes.
+Missing calibration remains permitted for ordinary collection, as previously
+agreed; these commands cannot authorize physical motion. Result storage failures,
+corrupt evidence, failed re-solve, mismatched identities and invalid setup must
+preserve the previous station bytes. Test all these cases and retain NOT RUN for
+physical calibration and the taught-script checkpoint transport.
+
+
+### Result/activation software results (2026-09-10)
+
+M12-A04 software PASS: immutable bundle creation/reverification, corrupted input
+and result rejection, simulation/device mismatch rejection, directory-fsync
+failure restoring prior station bytes, partial camera activation, moved-camera
+invalidation and unchanged old snapshots. Ten new tests pass, including full
+rendered-PNG detection/solve/copy/re-detection for both fixed and wrist rounds.
+These are synthetic image/geometry checks, not physical accuracy evidence.
+
+The offline CLI now exposes solve/verify/setup/activate; see
+[usage and input fields](offline-usage.md). M02 serializes read/validate/replace
+transactions, and M10 binds active extrinsics to copied setup, camera serials,
+observed optics and simulation status. Neither configuration nor activation can
+authorize motion. A missing or partial calibration remains explicitly represented.
+Real taught-script execution, physical TCP-to-flange validation, actual board
+visibility and physical held-out thresholds remain NOT RUN.
+
+Final increment checks: Mac **228 PASS / 4 skipped**, Ubuntu 24.04 / ROS 2
+Jazzy amd64 **230 PASS / 2 skipped**, Black and Pylint **10.00/10 PASS**.
+The additional concurrent-update test confirms serialized configuration changes.
