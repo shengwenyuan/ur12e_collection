@@ -63,6 +63,15 @@ def parser() -> argparse.ArgumentParser:
         "verify", help="decode and check a local episode"
     )
     verify.add_argument("path", type=pathlib.Path)
+    export = episodes.add_parser("export", help="offline LeRobot v3 projection")
+    export.add_argument("paths", nargs="+", type=pathlib.Path)
+    export.add_argument("--output", type=pathlib.Path, required=True)
+    export.add_argument(
+        "--action-source",
+        choices=("sent_command", "leader_intent"),
+        required=True,
+    )
+    export.add_argument("--rgb-arm-only", action="store_true", required=True)
     shadow = commands.add_parser(
         "shadow", help="camera-only batch; no robot motion"
     )
@@ -80,10 +89,15 @@ def parser() -> argparse.ArgumentParser:
     shadow.add_argument("--task", default="camera-shadow")
     shadow.add_argument("--episodes", type=int, default=20)
     shadow.add_argument("--seconds", type=float, default=40)
-    for command in ("session", "calibrate"):
-        commands.add_parser(
-            command, help="unavailable: owning module not implemented"
-        )
+    session = commands.add_parser("session", help="explicit simulator session")
+    session.add_argument(
+        "--backend", choices=("hardware", "ursim"), default="hardware"
+    )
+    session.add_argument("--output", type=pathlib.Path)
+    session.add_argument("--revision")
+    commands.add_parser(
+        "calibrate", help="offline calibration entrypoint pending"
+    )
     return root
 
 
@@ -155,6 +169,7 @@ def main(argv: list[str] | None = None) -> int:
             "station": _station,
             "episode": _episode,
             "shadow": _shadow,
+            "session": _session,
         }.get(args.command)
         if handler is not None:
             return handler(args)
@@ -179,6 +194,25 @@ def _episode(args: argparse.Namespace) -> int:
     # pylint: disable-next=import-outside-toplevel
     from ur12e_collection import storage
 
+    if args.operation == "export":
+        # pylint: disable-next=import-outside-toplevel
+        from ur12e_collection import lerobot_export
+
+        result = lerobot_export.export(
+            args.paths,
+            args.output,
+            args.action_source,
+            rgb_arm_only=args.rgb_arm_only,
+        )
+        print(
+            json.dumps(
+                {
+                    "output": str(args.output),
+                    "verification": result["verification"],
+                }
+            )
+        )
+        return 0
     if args.operation != "verify":
         raise ValueError("an episode operation is required")
     print(json.dumps(storage.verify_episode(args.path), indent=2))
@@ -216,3 +250,20 @@ def _shadow(args: argparse.Namespace) -> int:
         )
     )
     return 0
+
+
+def _session(args: argparse.Namespace) -> int:
+    if args.backend != "ursim":
+        print(
+            "error: physical session unavailable; control is disabled",
+            file=sys.stderr,
+        )
+        return 2
+    if args.output is None or not args.revision:
+        raise ValueError("simulator session requires --output and --revision")
+    # Enter the verified simulator boundary only by explicit selection.
+    # pylint: disable-next=import-outside-toplevel
+    from ur12e_collection.simulation import session
+
+    result = session.run(args.output, args.revision, sys.stdin)
+    return 130 if result["state"] == "interrupted" else 0

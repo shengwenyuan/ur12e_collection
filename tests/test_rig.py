@@ -48,7 +48,9 @@ def test_camera_queue_overflow_reports_error_and_closes(group_factory):
     frames, status, stop = mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
     frames.put_nowait.side_effect = queue.Full
     with mock.patch.object(rig, "_synthetic_stream", source):
-        rig._worker({}, "wrist", "clock", (frames, status, stop, "synthetic"))
+        rig._worker(
+            {}, "wrist", "clock", (frames, status, stop, "synthetic", None)
+        )
     assert status.send.call_args_list[0].args[0][0] == "ready"
     assert "overflow" in status.send.call_args_list[1].args[0][1]
     frames.cancel_join_thread.assert_called_once()

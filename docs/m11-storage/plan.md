@@ -138,3 +138,16 @@ or new failures.
 
 Mandatory final-file depth hashes replace inline PNG decode checks. A reproduced runtime queue failure led to independent bounded admission for four ordinary group/event items and 64 feedback records, with one ordered FIFO and writer. Both overflow paths fail explicitly. Corrupted feedback identity is rejected by independent file verification; pixel-corruption regression coverage remains in place. See the
 [shared plan and results](../m13-acceptance/readonly-integration.md).
+
+
+The 2026-09-10 [simulation-session increment](../m09-session/plan.md#autonomous-simulation-session-increment-2026-09-10)
+adds a process boundary around recording and a recoverable outcome marker.
+Verified MCAP and snapshot contents remain immutable across discard/review.
+
+
+Controlled simulator recording now prepares the writer before following starts,
+requires measured stop before commit, and verifies MCAP in a separate persistent
+process. Bounded slot/queue failure aborts the episode. Short and two 40-second
+URSim sessions plus fault/restart cases pass; full 20 x 40 remains pending.
+The explicit optional [LeRobot projection](lerobot-export.md) passes real official
+writer/loader validation; it does not replace authoritative RGB-D MCAP storage.

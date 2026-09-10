@@ -1,0 +1,75 @@
+"""Explicit simulation composition; no physical station or leader fallback."""
+
+import json
+import pathlib
+import time
+
+from ur12e_collection import recording, synthetic
+from ur12e_collection.control.session import Session, Setup
+from ur12e_collection.control import console
+from ur12e_collection.simulation import connection
+from ur12e_collection.simulation import profile, targets
+
+
+def create(
+    station, output: pathlib.Path, revision: str | None = None
+) -> Session:
+    """Start persistent synthetic cameras before acquiring motion control."""
+    permit = json.loads(
+        pathlib.Path("/sim-permit.json").read_text(encoding="utf-8")
+    )
+    if revision is not None and revision != permit["source_revision"]:
+        raise ValueError(
+            "requested revision differs from frozen simulator source"
+        )
+    context = {
+        "task": "ursim-teleoperation-validation",
+        "software_revision": permit["source_revision"],
+        "clock_epoch": "unix",
+        "clock_basis": "synthetic",
+        "clock_validated": False,
+        "simulated": True,
+        "control": {
+            "backend": "ursim",
+            "hande": "bypassed",
+            "arm_id": profile.SERIAL,
+            "leader_id": "simulation-wave",
+            "command_id": "ur-rtde-servo",
+            "owner_id": "session-owner",
+            "monotonic_to_unix_ns": time.time_ns() - time.monotonic_ns(),
+            "control_hz": 50,
+            "camera_queue_capacity": 8,
+            "camera_transport": "shared_memory",
+            "writer_queue_capacity": 16,
+            "association": "independent_receipts_no_interpolation",
+            "native_home": permit["home"],
+            "simulator": {"image": profile.IMAGE, "version": profile.VERSION},
+        },
+    }
+    recorder = recording.Recorder(synthetic.configuration(), context)
+    try:
+        snapshot = recorder.start()
+    except BaseException:
+        recorder.close()
+        raise
+    return Session(
+        station, recorder, Setup(profile.LIMITS, targets.Wave, snapshot, output)
+    )
+
+
+def run(output: pathlib.Path, revision: str, stream) -> dict:
+    """Run the explicit simulator console and retain its report."""
+    with console.keyboard(stream) as read_keys:
+        output.mkdir(parents=True, exist_ok=False)
+        report = {"state": "failed", "episodes": []}
+        with connection.open_station() as station:
+            owner = create(station, output, revision)
+            try:
+                report = console.drive(owner, read_keys)
+            finally:
+                owner.close()
+                report["timings"] = owner.timings
+                (output / "session.json").write_text(
+                    json.dumps(report, indent=2), encoding="utf-8"
+                )
+        return report

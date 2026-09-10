@@ -18,6 +18,16 @@ DASHBOARD_QUERIES = (
     "is in remote control",
 )
 
+OUTPUT_FIELDS = [
+    "timestamp",
+    "actual_q",
+    "actual_qd",
+    "actual_current",
+    "actual_TCP_pose",
+    "robot_mode",
+    "safety_mode",
+]
+
 
 def dashboard(host: str) -> dict:
     """Read only the fixed query allowlist, with bounded socket operations."""

@@ -16,7 +16,7 @@ class Validator:
         """Verify receipt-mapped Unix and retain separate controller uptime."""
         device = KINDS.get(record.kind)
         if self.context is None:
-            if device:
+            if device or record.kind == "authority_event":
                 raise ValueError("feedback source missing from snapshot")
             return
         if device is None:
@@ -50,6 +50,9 @@ class Validator:
             ):
                 raise ValueError("controller time did not progress")
         self.previous[device] = provenance
+
+    def frames(self, group) -> None:
+        """Read-only timing is verified separately from control authority."""
 
     def finish(self) -> None:
         """An enabled source must contribute actual in-boundary feedback."""

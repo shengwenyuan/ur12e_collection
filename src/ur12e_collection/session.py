@@ -10,17 +10,37 @@ from ur12e_collection import matching, snapshots, storage
 class Session:
     """Single submission owner; finalization never pauses camera draining."""
 
-    def __init__(self, snapshot: dict, config: matching.MatchConfig):
+    def __init__(
+        self, snapshot: dict, config: matching.MatchConfig, *, verify=None
+    ):
         self.snapshot = snapshots.copy(snapshot)
         self.config = config
+        self.verify = verify
         self.state = "idle"
         self.writer = None
         self.matcher = None
         self.boundaries = {}
         self._completion = None
 
+    @classmethod
+    def from_snapshot(cls, snapshot: dict, *, verify=None):
+        """Derive runtime matching from the frozen station/capture context."""
+        return cls(
+            snapshot,
+            matching.MatchConfig(
+                max_skew_ns=snapshot["station"]["max_skew_ns"],
+                wait_ns=snapshot["capture"]["wait_ns"],
+            ),
+            verify=verify,
+        )
+
     def start(self, destination: pathlib.Path, now_ns: int) -> None:
-        """Open an independent episode at an explicit host receipt boundary."""
+        """Prepare and start at the caller's explicit receipt boundary."""
+        self.prepare(destination)
+        self.begin(now_ns)
+
+    def prepare(self, destination: pathlib.Path) -> None:
+        """Create the writer before the control owner permits following."""
         if self.state != "idle":
             raise RuntimeError("episode start requires idle state")
         self.writer = storage.EpisodeWriter(
@@ -28,8 +48,19 @@ class Session:
             self.snapshot,
             simulated=self.snapshot["simulated"],
             match_config=self.config,
+            capacity=self.snapshot.get("control", {}).get(
+                "writer_queue_capacity", 4
+            ),
+            verify=self.verify,
         )
         self.matcher = matching.Matcher(self.snapshot["clock_id"], self.config)
+        self.boundaries = {}
+        self.state = "prepared"
+
+    def begin(self, now_ns: int) -> None:
+        """Commit the shared start boundary only after preparation succeeds."""
+        if self.state != "prepared":
+            raise RuntimeError("episode begin requires prepared state")
         self.boundaries = {"start_receipt_ns": now_ns}
         self.state = "recording"
 
@@ -61,7 +92,8 @@ class Session:
     def submit_feedback(self, samples: list) -> None:
         """Keep independent feedback clocks and the same receipt window."""
         records = []
-        offset = self.snapshot["feedback"]["monotonic_to_unix_ns"]
+        context = self.snapshot.get("control", self.snapshot.get("feedback"))
+        offset = context["monotonic_to_unix_ns"]
         try:
             for sample in samples:
                 receipt = sample.provenance.time.received_monotonic_ns
@@ -112,7 +144,7 @@ class Session:
 
     def poll(self) -> dict | None:
         """Surface writer failures or return one completed report."""
-        if self.state not in ("recording", "finalizing"):
+        if self.state not in ("prepared", "recording", "finalizing"):
             return None
         if self.writer.health()["state"] in ("aborted", "failed"):
             error = self.writer.health()["error"]

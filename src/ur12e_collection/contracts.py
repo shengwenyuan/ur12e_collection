@@ -205,3 +205,22 @@ class HandEFeedback:
             if not isinstance(pair, tuple) or pair[1] is None:
                 raise ValueError("raw registers must be immutable and present")
             _raw(pair[1])
+
+
+@dataclasses.dataclass(frozen=True)
+class AuthorityEvent:
+    """Explicit ownership boundary; release does not imply task success."""
+
+    provenance: Provenance
+    action: str
+    reason: str
+    kind: str = dataclasses.field(default="authority_event", init=False)
+    schema_version: int = dataclasses.field(default=SCHEMA_VERSION, init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.provenance, Provenance):
+            raise ValueError("authority requires provenance")
+        if self.action not in ("acquired", "released"):
+            raise ValueError("invalid authority action")
+        if not isinstance(self.reason, str) or not self.reason:
+            raise ValueError("authority reason is required")

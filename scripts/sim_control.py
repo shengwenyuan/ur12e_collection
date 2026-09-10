@@ -5,8 +5,10 @@ import json
 import pathlib
 import subprocess
 import tempfile
+import time
 
 import sim_program
+import sim_source
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 NETWORK = "ur12e-sim_control"
@@ -33,9 +35,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "mode",
-        choices=("motion", "watchdog", "native-home", "prepare-home", "home"),
+        choices=(
+            "motion",
+            "watchdog",
+            "native-home",
+            "prepare-home",
+            "home",
+            "session",
+            "session-faults",
+            "console",
+        ),
     )
     parser.add_argument("--signal", choices=("kill", "stall"), default="kill")
+    parser.add_argument("--episodes", type=int, default=2)
+    parser.add_argument("--seconds", type=float, default=3)
     args = parser.parse_args()
     sim = inspect("container", SIMULATOR)
     image = inspect("image", IMAGE)
@@ -56,7 +69,8 @@ def main() -> None:
         raise RuntimeError("simulator control alias is missing")
     home = (
         sim_program.prepare(SIMULATOR)
-        if args.mode in ("prepare-home", "home")
+        if args.mode
+        in ("prepare-home", "home", "session", "session-faults", "console")
         else None
     )
     if args.mode == "prepare-home":
@@ -67,10 +81,15 @@ def main() -> None:
     lock = output / "lock"
     lock.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="permit-", dir=output) as temporary:
+        frozen = sim_source.freeze(ROOT, pathlib.Path(temporary))
+        (output / (frozen["source_revision"] + ".json")).write_text(
+            json.dumps(frozen, indent=2), encoding="utf-8"
+        )
         permit = pathlib.Path(temporary) / "permit.json"
         permit.write_text(
             json.dumps(
                 {
+                    **frozen,
                     "image": IMAGE,
                     "host": "ursim-control",
                     "address": peer["IPAddress"],
@@ -85,6 +104,7 @@ def main() -> None:
                 "run",
                 "--rm",
                 "--init",
+                *(["--interactive", "--tty"] if args.mode == "console" else []),
                 "--platform",
                 "linux/amd64",
                 "--network",
@@ -99,9 +119,9 @@ def main() -> None:
                 "--tmpfs",
                 "/tmp:rw,nosuid,size=128m",
                 "-v",
-                f"{ROOT / 'src'}:/workspace/src:ro",
+                f"{temporary}/src:/workspace/src:ro",
                 "-v",
-                f"{ROOT / 'tests/simulation'}:/checks:ro",
+                f"{temporary}/checks:/checks:ro",
                 "-v",
                 f"{permit}:/sim-permit.json:ro",
                 "-v",
@@ -116,11 +136,34 @@ def main() -> None:
                 "python",
                 "ur12e-collection:readonly-runtime",
                 "-u",
-                f"/checks/{args.mode.replace('-', '_')}.py",
-                *([args.signal] if args.mode == "watchdog" else []),
+                *_entrypoint(args, frozen["source_revision"]),
             ],
             check=True,
         )
+
+
+def _entrypoint(args, revision):
+    if args.mode == "console":
+        return [
+            "-m",
+            "ur12e_collection",
+            "session",
+            "--backend",
+            "ursim",
+            "--output",
+            f"/results/console-{time.time_ns()}",
+            "--revision",
+            revision,
+        ]
+    return [
+        f"/checks/{args.mode.replace('-', '_')}.py",
+        *([args.signal] if args.mode == "watchdog" else []),
+        *(
+            ["--episodes", str(args.episodes), "--seconds", str(args.seconds)]
+            if args.mode == "session"
+            else []
+        ),
+    ]
 
 
 if __name__ == "__main__":

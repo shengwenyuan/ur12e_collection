@@ -15,21 +15,13 @@ from av.error import FFmpegError  # pylint: disable=no-name-in-module
 from mcap.exceptions import McapError
 
 from ur12e_collection import archive
-from ur12e_collection import matching
+from ur12e_collection import matching, filesystem
 
 FEEDBACK_CAPACITY = 64
 
 
 class RecordingError(RuntimeError):
     """An episode cannot be accepted; any partial data is retained."""
-
-
-def _sync_directory(path: pathlib.Path) -> None:
-    descriptor = os.open(path, os.O_RDONLY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
 
 
 def _json_file(path: pathlib.Path, value: dict) -> None:
@@ -54,6 +46,7 @@ class EpisodeWriter:
         capacity: int = 4,
         crf: int = 20,
         match_config: matching.MatchConfig = matching.MatchConfig(),
+        verify=None,
     ):
         if (
             not isinstance(simulated, bool)
@@ -81,12 +74,14 @@ class EpisodeWriter:
             "capacity": capacity,
             "crf": crf,
             "matching": match_config,
+            "verify": verify,
         }
         self._queue = queue.Queue(maxsize=capacity + FEEDBACK_CAPACITY)
         self._lock = threading.Lock()
         self._done = threading.Event()
         self._status = {
             "state": "open",
+            "initialized": False,
             "error": None,
             "deadline": None,
             "report": None,
@@ -168,6 +163,7 @@ class EpisodeWriter:
         with self._lock:
             return {
                 "state": self._status["state"],
+                "initialized": self._status["initialized"],
                 "error": self._status["error"],
                 "queued": self._status["queued"],
                 "queued_feedback": self._status["queued_feedback"],
@@ -235,7 +231,7 @@ class EpisodeWriter:
         raise RecordingError("recording was aborted")
 
     def _commit(self, report: dict) -> None:
-        _sync_directory(self.partial)
+        filesystem.sync(self.partial)
         with self._lock:
             deadline = self._status["deadline"]
             if (
@@ -248,7 +244,7 @@ class EpisodeWriter:
                 raise FileExistsError(self.destination)
             self.partial.rename(self.destination)
             try:
-                _sync_directory(self.destination.parent)
+                filesystem.sync(self.destination.parent)
             except OSError:
                 self.destination.rename(self.partial)
                 raise
@@ -265,11 +261,13 @@ class EpisodeWriter:
                     self.options["crf"],
                     config=self.options["matching"],
                 )
+                with self._lock:
+                    self._status["initialized"] = True
                 self._consume(writer)
                 writer.finish()
                 stream.flush()
                 os.fsync(stream.fileno())
-            verification = archive.verify_mcap(
+            verification = (self.options["verify"] or archive.verify_mcap)(
                 self.partial / "episode.mcap",
                 self.snapshot,
                 self.options["simulated"],

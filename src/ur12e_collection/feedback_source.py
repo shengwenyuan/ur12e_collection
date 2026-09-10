@@ -4,15 +4,7 @@ import time
 
 from ur12e_collection import contracts, hande, ur
 
-UR_OUTPUTS = [
-    "timestamp",
-    "actual_q",
-    "actual_qd",
-    "actual_current",
-    "actual_TCP_pose",
-    "robot_mode",
-    "safety_mode",
-]
+UR_OUTPUTS = ur.OUTPUT_FIELDS
 
 
 def _provenance(identity, index, source_ns, simulated=False):

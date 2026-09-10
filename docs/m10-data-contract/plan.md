@@ -75,3 +75,15 @@ or new failures.
 
 New ur_feedback and hande_feedback records share follower/state while retaining independent identities and clocks. MCAP feedback publish_time explicitly maps host receipt to Unix; controller uptime and Hand-E polling intervals remain separate. This is observation data with no fabricated action. The snapshot declares read-only sources, timing basis and effective camera settings. See the
 [shared plan and results](../m13-acceptance/readonly-integration.md).
+
+
+The 2026-09-10 [simulation-session increment](../m09-session/plan.md#autonomous-simulation-session-increment-2026-09-10)
+extends control provenance and authority events with independent MCAP verification.
+It preserves read-only validation and raw/missing gripper semantics.
+
+
+The controlled recording slice passes actual URSim short/40-second episodes,
+independent MCAP decoding, distinct intent/sent/actual values, authority boundaries,
+and absent Hand-E fields. Mac/Ubuntu tests pass; no physical control acceptance
+is implied. M11's optional projection preserves original integer clocks beside
+LeRobot's explicitly nominal 30 Hz playback clock. See M09 and M11 detailed results.

@@ -10,7 +10,6 @@ import sys
 import time
 
 from ur12e_collection import (
-    capture,
     feedback,
     matching,
     rig,
@@ -187,13 +186,7 @@ def run(options: Options) -> dict:
                 "simulated": report["simulated"],
             },
         )
-        owner = session.Session(
-            snapshot,
-            matching.MatchConfig(
-                max_skew_ns=config["max_skew_ns"],
-                wait_ns=capture.resolve(config)["wait_ns"],
-            ),
-        )
+        owner = session.Session.from_snapshot(snapshot)
         report["capture"] = snapshot["capture"]
         report["limits"]["capture_tail_drain_ns"] = owner.config.wait_ns
         _collect(source, owner, options, report, readers)

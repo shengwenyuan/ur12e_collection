@@ -79,3 +79,22 @@ def group_factory(frame_factory):
         )
 
     return make
+
+
+@pytest.fixture
+def controlled(snapshot):
+    snapshot["control"] = {
+        "backend": "ursim",
+        "hande": "bypassed",
+        "arm_id": "ursim-123",
+        "leader_id": "simulation-wave",
+        "command_id": "rtde-control",
+        "owner_id": "session-owner",
+        "monotonic_to_unix_ns": EPOCH,
+        "control_hz": 50,
+        "camera_queue_capacity": 8,
+        "association": "independent_receipts_no_interpolation",
+        "native_home": {},
+        "simulator": {},
+    }
+    return snapshots.copy(snapshot)

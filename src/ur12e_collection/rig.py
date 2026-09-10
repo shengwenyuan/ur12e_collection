@@ -2,6 +2,7 @@
 
 import contextlib
 import dataclasses
+import math
 import multiprocessing
 import queue
 import time
@@ -14,6 +15,7 @@ from ur12e_collection import (
     realsense_source,
     station,
     synthetic,
+    shared_frames,
 )
 from ur12e_collection import workers
 
@@ -23,7 +25,7 @@ STALE_NS = 2_000_000_000
 
 def _synthetic_stream(config, role, clock_id, stop):
     yield synthetic.observations(config)[role]
-    start = time.monotonic()
+    start = (math.floor(time.monotonic() * 30) + 1) / 30
     index = 0
     while not stop.is_set():
         if stop.wait(max(0, start + index / 30 - time.monotonic())):
@@ -35,7 +37,8 @@ def _synthetic_stream(config, role, clock_id, stop):
 
 
 def _worker(config, role, clock_id, channels):
-    frames, status, stop, backend = channels
+    frames, status, stop, backend, descriptor = channels
+    slots = shared_frames.Slots.attach(descriptor) if descriptor else None
     source = (
         _synthetic_stream if backend == "synthetic" else realsense_source.stream
     )
@@ -44,18 +47,21 @@ def _worker(config, role, clock_id, channels):
             status.send(("ready", next(stream)))
             for frame in stream:
                 try:
-                    frames.put_nowait(frame)
+                    frames.put_nowait(slots.pack(frame) if slots else frame)
                 except queue.Full as error:
                     raise RuntimeError(
                         f"camera IPC queue overflow: {role}"
                     ) from error
     except Exception as error:  # pylint: disable=broad-exception-caught
-        status.send(("error", str(error)))
+        with contextlib.suppress(BrokenPipeError, EOFError):
+            status.send(("error", str(error)))
     finally:
         # Shutdown discards queued tails; normal operation drains continuously.
         frames.cancel_join_thread()
         frames.close()
         status.close()
+        if slots is not None:
+            slots.close()
 
 
 @dataclasses.dataclass
@@ -63,6 +69,7 @@ class _Camera:
     process: Any
     frames: Any
     status: Any
+    slots: shared_frames.Slots | None = None
     observed: dict | None = None
     last_receipt: int = 0
     stats: dict = dataclasses.field(
@@ -108,7 +115,15 @@ class _Camera:
 class Rig:
     """Own one rig generation; a fault requires an explicit new run."""
 
-    def __init__(self, config: dict, backend: str):
+    def __init__(
+        self,
+        config: dict,
+        backend: str,
+        *,
+        queue_capacity: int = QUEUE_CAPACITY,
+        shared_slots: dict | None = None,
+        stop=None,
+    ):
         station.validate(config, cameras_ready=True)
         if backend not in ("hardware", "synthetic"):
             raise ValueError("an explicit camera backend is required")
@@ -116,11 +131,23 @@ class Rig:
             raise ValueError(
                 "synthetic sources require synthetic configuration"
             )
+        if (
+            not isinstance(queue_capacity, int)
+            or isinstance(queue_capacity, bool)
+            or not 1 <= queue_capacity <= 16
+        ):
+            raise ValueError("camera queue capacity must be between 1 and 16")
+        self._queue_capacity = queue_capacity
+        self._shared_slots = shared_slots or {}
+        if self._shared_slots and set(self._shared_slots) != set(
+            contracts.CAMERA_ROLES
+        ):
+            raise ValueError("shared slots require all three camera roles")
         self.config = config
         self.backend = backend
         self.clock_id = str(uuid.uuid4())
         self._context = multiprocessing.get_context("spawn")
-        self._stop = self._context.Event()
+        self._stop = stop if stop is not None else self._context.Event()
         self._cameras: dict[str, _Camera] = {}
         self._epoch_offset = time.time_ns() - time.monotonic_ns()
         self._closed = False
@@ -141,14 +168,25 @@ class Rig:
         try:
             for role in contracts.CAMERA_ROLES:
                 parent, child = self._context.Pipe(duplex=False)
-                frames = self._context.Queue(maxsize=QUEUE_CAPACITY)
+                frames = self._context.Queue(maxsize=self._queue_capacity)
+                slots = (
+                    shared_frames.Slots.attach(self._shared_slots[role])
+                    if self._shared_slots
+                    else None
+                )
                 process = self._context.Process(
                     target=_worker,
                     args=(
                         self.config,
                         role,
                         self.clock_id,
-                        (frames, child, self._stop, self.backend),
+                        (
+                            frames,
+                            child,
+                            self._stop,
+                            self.backend,
+                            slots.descriptor() if slots else None,
+                        ),
                     ),
                     daemon=True,
                 )
@@ -159,9 +197,11 @@ class Rig:
                     child.close()
                     frames.close()
                     frames.cancel_join_thread()
+                    if slots is not None:
+                        slots.close()
                     raise
                 child.close()
-                self._cameras[role] = _Camera(process, frames, parent)
+                self._cameras[role] = _Camera(process, frames, parent, slots)
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
                 self.read()
@@ -194,11 +234,13 @@ class Rig:
                 camera.last_receipt = time.monotonic_ns()
             if not camera.process.is_alive():
                 raise RuntimeError(f"camera worker exited: {role}")
-            for _ in range(QUEUE_CAPACITY):
+            for _ in range(self._queue_capacity):
                 try:
                     frame = camera.frames.get_nowait()
                 except queue.Empty:
                     break
+                if camera.slots is not None:
+                    frame = camera.slots.unpack(frame)
                 camera.observe(frame)
                 result.append(frame)
             if camera.observed is not None and (
@@ -237,6 +279,8 @@ class Rig:
         errors = []
         for camera in self._cameras.values():
             workers.stop(camera.process)
+            if camera.slots is not None:
+                camera.slots.close()
             while camera.status.poll():
                 try:
                     kind, value = camera.status.recv()

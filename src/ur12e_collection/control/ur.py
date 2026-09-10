@@ -81,6 +81,8 @@ def read_state(receiver) -> State:
             receiver.getRobotMode(),
             receiver.getSafetyMode(),
             receiver.getRuntimeState(),
+            tuple(receiver.getActualCurrent()),
+            tuple(receiver.getActualTCPPose()),
         )
         if stamp == receiver.getTimestamp():
             return State(

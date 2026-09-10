@@ -14,6 +14,7 @@ from mcap_ros2.writer import Writer
 
 from ur12e_collection import codecs
 from ur12e_collection import contracts
+from ur12e_collection import control_records
 from ur12e_collection import feedback_records
 from ur12e_collection import matching
 from ur12e_collection import snapshots
@@ -39,6 +40,7 @@ _SCHEMAS = {
     ),
 }
 RECORD_TYPES = {
+    "authority_event": contracts.AuthorityEvent,
     "leader_intent": contracts.LeaderIntent,
     "sent_command": contracts.SentCommand,
     "follower_state": contracts.FollowerState,
@@ -46,6 +48,7 @@ RECORD_TYPES = {
     "hande_feedback": contracts.HandEFeedback,
 }
 RECORD_TOPICS = {
+    "authority_event": "control/authority",
     "leader_intent": "leader/state",
     "sent_command": "control/command",
     "follower_state": "follower/state",
@@ -182,7 +185,11 @@ class ArchiveWriter:
             r: codecs.VideoEncoder(crf) for r in contracts.CAMERA_ROLES
         }
         self.validator = GroupValidator(snapshot, simulated, config)
-        self.feedback = feedback_records.Validator(snapshot)
+        self.records = (
+            control_records.Validator(snapshot)
+            if "control" in snapshot
+            else feedback_records.Validator(snapshot)
+        )
         self.counts = collections.Counter()
         self.payload_bytes = collections.Counter()
         self.encode_ns = collections.Counter()
@@ -224,6 +231,7 @@ class ArchiveWriter:
     def group(self, group: matching.Match) -> None:
         """Encode an accepted triple without persisting raw duplicates."""
         self.validator.check(group)
+        self.records.frames(group)
         for frame in group.members:
             _stamp(frame.timestamp_ns)
             _stamp(frame.depth_timestamp_ns)
@@ -307,7 +315,7 @@ class ArchiveWriter:
             raise ValueError("unsupported M10 record")
         if record.provenance.simulated != self.validator.simulated:
             raise ValueError("mixed synthetic and physical record provenance")
-        self.feedback.check(record, timestamp_ns)
+        self.records.check(record, timestamp_ns)
         topic = RECORD_TOPICS[record.kind]
         self._write(
             topic,
@@ -319,7 +327,7 @@ class ArchiveWriter:
 
     def finish(self) -> None:
         """Flush every encoder and write the MCAP summary/footer."""
-        self.feedback.finish()
+        self.records.finish()
         for video in self.video.values():
             video.finish()
         self.writer.finish()
@@ -361,7 +369,11 @@ class _Verifier:
             r: av.CodecContext.create("h264", "r")
             for r in contracts.CAMERA_ROLES
         }
-        self.feedback = feedback_records.Validator(snapshot)
+        self.records = (
+            control_records.Validator(snapshot)
+            if "control" in snapshot
+            else feedback_records.Validator(snapshot)
+        )
         self.counts = collections.Counter()
         self.expected = collections.deque()
         self._log_time = -1
@@ -378,6 +390,7 @@ class _Verifier:
             info["decided_monotonic_ns"],
         )
         self.validator.check(group)
+        self.records.frames(group)
         if info["skews_ns"] != group.metadata()["skews_ns"]:
             raise ValueError("group skews differ from source timestamps")
         if message.sequence != self.counts["camera/frame_set"]:
@@ -471,7 +484,7 @@ class _Verifier:
             if topic != RECORD_TOPICS[info["kind"]]:
                 raise ValueError("control topic semantics changed")
             record = _record_check(info, self.validator.simulated)
-            self.feedback.check(record, message.publish_time)
+            self.records.check(record, message.publish_time)
         elif topic == "diagnostics/frame_rejection":
             frame = frame_from_dict(info["anchor"])
             if (
@@ -488,7 +501,7 @@ class _Verifier:
 
     def finish(self) -> None:
         """Reject missing payloads, empty recordings and delayed frames."""
-        self.feedback.finish()
+        self.records.finish()
         if self.expected or not self.counts["camera/frame_set"]:
             raise ValueError("empty or incomplete episode")
         if any(decoder.decode(None) for decoder in self.decoders.values()):

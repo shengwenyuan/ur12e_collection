@@ -123,3 +123,39 @@ mount-to-optical-origin offset and separates mechanical framing from calibration
 
 The aligned 1 ms empty-poll profile is now mainline and snapshot-visible. The new read-only recording image has not yet repeated a physical smoke; previous source continuity evidence remains scoped to its recorded images and setups. See the
 [shared plan and results](../m13-acceptance/readonly-integration.md).
+
+## Simulator-only shared-memory transport increment (2026-09-10)
+
+The autonomous M01–M13 sprint exposed occasional 145–290 ms delivery stalls in
+Mac/amd64 emulation. A multiprocessing Queue carrying a full RGB-D ndarray can
+block while a partially delivered large payload arrives, despite `get_nowait`.
+Increasing receive capacity alone also creates larger bursts at the encoder.
+
+Add an explicit shared-memory slot transport for synthetic simulator sessions.
+Keep the physical/shadow default pickle transport and four-frame capacity intact.
+Each camera owns eight fixed 640x480 RGB8/depth16 slots. Only a validated frame
+header and slot index cross the existing bounded Queue. The worker writes before
+publishing; the reader copies into owned arrays before returning the slot. No
+consumer sees a buffer subsequently overwritten by acquisition. Exhaustion is an
+explicit fault, never silent replacement or frame loss. Clean up allocated shared
+memory on normal exit and failed startup; container exit bounds crash resources.
+Record transport and queue capacities in the simulator control snapshot.
+
+Pair the eight-frame receive budget with a sixteen-item recorder admission queue,
+so a recovered receive burst cannot overflow a smaller writer queue immediately.
+This is an explicit emulator profile; matching thresholds, clock truth, 75 ms tail
+drain, no-reuse policy and active motion/watchdog limits remain unchanged.
+
+Acceptance: repeated slot reuse preserves exact RGB and uint16 pixels, malformed
+indices/exhaustion fail, source generation/provenance is unchanged, shared memory
+is removed on cleanup; persistent actual-URSim sessions use the new profile.
+Physical shared-memory camera acceptance is NOT RUN and is not claimed by this
+increment. Existing physical pickle-path evidence is retained.
+
+
+The simulator-only shared-memory transport passes exact pixel/metadata, repeated
+slot reuse, capacity exhaustion and unlink tests. The parent session owns storage,
+so recorder SIGKILL cannot leak it across session restarts. Camera producers share
+the parent abort signal. Two actual 40-second simulator sessions and three fault
+scenarios pass; the full 20-episode batch remains pending. This is no new physical
+camera acceptance and does not change the previously accepted shadow profile.

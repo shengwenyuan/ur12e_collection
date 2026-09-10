@@ -88,10 +88,18 @@ class State:
     robot_mode: int = 7
     safety_mode: int = 1
     runtime_state: int = 2
+    currents: Joints | None = None
+    tcp: Joints | None = None
+
+    # One measured packet view; optional fields remain absent in unit stubs.
+    # pylint: disable=too-many-instance-attributes
 
     def __post_init__(self):
         joints(self.q)
         joints(self.qd)
+        for values in (self.currents, self.tcp):
+            if values is not None:
+                joints(values)
         if type(self.received_ns) is not int or self.received_ns < 0:
             raise ControlError("invalid receipt timestamp")
         if (

@@ -7,7 +7,7 @@ import pathlib
 import socket
 import time
 
-from ur12e_collection import wire
+from ur12e_collection import ur, wire
 from ur12e_collection.control.model import ControlError
 from ur12e_collection.control.ur import URTransport, read_state
 from ur12e_collection.control.program import NativeHome
@@ -128,6 +128,10 @@ class Station:
         self.address, self.receiver = address, receiver
         self.owner = None
 
+    def read(self):
+        """Observe the arm while no motion program is owned."""
+        return read_state(self.receiver)
+
     def _acquire(self, owner: str) -> None:
         if self.owner is not None:
             raise ControlError("another program already owns this connection")
@@ -218,14 +222,7 @@ def open_station():
         receiver = rtde_receive.RTDEReceiveInterface(
             address,
             125.0,
-            [
-                "timestamp",
-                "actual_q",
-                "actual_qd",
-                "robot_mode",
-                "safety_mode",
-                "runtime_state",
-            ],
+            ur.OUTPUT_FIELDS + ["runtime_state"],
         )
         yield Station(address, receiver)
     finally:

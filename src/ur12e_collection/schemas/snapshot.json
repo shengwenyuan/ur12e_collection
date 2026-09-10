@@ -163,6 +163,78 @@
         "devices"
       ],
       "additionalProperties": false
+    },
+    "control": {
+      "type": "object",
+      "properties": {
+        "arm_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "leader_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "backend": {
+          "const": "ursim"
+        },
+        "hande": {
+          "const": "bypassed"
+        },
+        "monotonic_to_unix_ns": {
+          "type": "integer"
+        },
+        "control_hz": {
+          "const": 50
+        },
+        "association": {
+          "const": "independent_receipts_no_interpolation"
+        },
+        "native_home": {
+          "type": "object"
+        },
+        "simulator": {
+          "type": "object"
+        },
+        "camera_queue_capacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "camera_transport": {
+          "enum": [
+            "pickle",
+            "shared_memory"
+          ]
+        },
+        "writer_queue_capacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        }
+      },
+      "required": [
+        "arm_id",
+        "leader_id",
+        "command_id",
+        "owner_id",
+        "backend",
+        "hande",
+        "monotonic_to_unix_ns",
+        "control_hz",
+        "association",
+        "native_home",
+        "simulator"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -266,5 +338,29 @@
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "allOf": [
+    {
+      "not": {
+        "required": [
+          "feedback",
+          "control"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "control"
+        ]
+      },
+      "then": {
+        "properties": {
+          "simulated": {
+            "const": true
+          }
+        }
+      }
+    }
+  ]
 }
