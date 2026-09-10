@@ -224,3 +224,9 @@ no cancelled episode becomes complete. Native regression **PASS: 252 tests,
 5 environment skips**, including deterministic cancellation/fault comparison and
 three real process-group interrupt timings. Black and Pylint 10.00/10 pass.
 Final installed-image acceptance is recorded in the M01 consolidation plan.
+
+The consolidated installed Jazzy image passes **255 tests / 2 host-only skips**;
+the two host mount checks pass separately. All varied process-group interrupt
+cases and deterministic real-partial cleanup checks pass. The failed predecessor
+remains recorded, and no interrupt assertion was relaxed. No new physical or
+URSim movement was needed for this shutdown-only correction.

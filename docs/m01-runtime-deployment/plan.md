@@ -247,3 +247,11 @@ mounts. This is Docker Desktop validation, not fresh Ubuntu or lab deployment.
 Archive size: 474,623,488 bytes (452.64 MiB). SHA-256:
 `7cad26c75a48af7e1bdd01d5f8d608528072c6acde1fc778aa3001a22586cfe4`.
 New lab deployment, fresh-machine setup and physical control remain **NOT RUN**.
+
+## One current image (2026-09-11)
+
+The [image consolidation record](image-consolidation.md) supersedes the daily
+runtime/dev image split. All launchers select `ur12e-collection:current` by
+default; dev and station retain separate networking/mount profiles using the same
+image. Its 255 installed tests and two mount tests pass. Old image deletion is
+an explicit pending cleanup proposal, not part of the completed consolidation.

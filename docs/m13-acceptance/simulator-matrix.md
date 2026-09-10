@@ -84,3 +84,16 @@ Native regression is 248 PASS / 5 environment skips; installed Jazzy is
 contains 59 hash-matched Python/schema files. Final-image active discard,
 recorder-kill/restart and Ctrl+C/hold regression also PASS. Source and deployment
 instructions are in the M01 plan; physical control remains disabled.
+
+## Current image consolidation (2026-09-11)
+
+The daily collector image is now `ur12e-collection:current`, shared by dev,
+station, camera and URSim-client launchers. It uses the tested runtime plus test
+tools; official URSim remains separate. Current image ID:
+`sha256:a3d22d1ffa6c36331116a4c870f7bb841d84ec036cd9a2d23460345ce15bab96`,
+source `bbc56a8c714e7a8bc1b6f9124af80339352a2b97`. A discovered cancellation
+race was corrected without changing control or capture semantics. Native checks
+pass 252 cases; installed Jazzy checks pass 255 cases, and the two host mount
+checks pass separately. No motion or physical device tests were run for image
+consolidation. Earlier motion/camera evidence retains its original image identity.
+See M01 `image-consolidation.md` for bundle selection and pending cleanup.
