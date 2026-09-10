@@ -255,3 +255,13 @@ runtime/dev image split. All launchers select `ur12e-collection:current` by
 default; dev and station retain separate networking/mount profiles using the same
 image. Its 255 installed tests and two mount tests pass. Old image deletion is
 an explicit pending cleanup proposal, not part of the completed consolidation.
+
+
+### Current image synchronized to Ubuntu (2026-09-11)
+
+The [lab deployment record](../m13-acceptance/lab-20260911.md) confirms current
+image transfer/load, 255 native Ubuntu installed tests, both host mount tests,
+59 matching package hashes and unchanged station configuration. The collection
+PC's current selector is `/home/robot2026fall/ur12e-current`. No device/control
+access occurred; the robot is offline. This supersedes the latest-image lab
+NOT RUN status above, without changing any physical acceptance status.

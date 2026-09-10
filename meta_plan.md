@@ -1,6 +1,6 @@
 # UR12e + Robotiq Hand-E Collection: Module Plan
 
-Status: camera acceptance is recorded; URSim control/session, 20 x 40-second capture, optional LeRobot export, offline calibration and read-only ROS observation pass their software/simulation gates. New-image lab deployment and physical control/device/calibration acceptance remain pending. See the current module matrix below.
+Status: camera acceptance is recorded; URSim control/session, 20 x 40-second capture, optional LeRobot export, offline calibration and read-only ROS observation pass their software/simulation gates. The unified current image is deployed on the lab PC; physical control/device/calibration acceptance remains pending. See the current module matrix below.
 
 Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP direction aligned; repository bootstrap precedes M01 implementation.
 
@@ -539,3 +539,14 @@ Physical control remains disabled. GELLO, physical Hand-E actuation, physical
 calibration capture, calibration services and calibrated TF remain distinct
 open work. Optional read-only ROS typed observation now passes Jazzy and URSim
 observer-loss tests; no simulator result establishes physical acceptance.
+
+
+### Unified image deployed to the collection PC (2026-09-11)
+
+`ur12e-collection:current` is synchronized and software-verified on
+`ssh ur12e-collection`; use `/home/robot2026fall/ur12e-current` on that PC.
+Native installed tests (255), both mount tests and unchanged station config pass.
+The UR12e remains offline; no hardware access or control occurred. See the
+[deployment record](docs/m13-acceptance/lab-20260911.md). The eight approved early
+local image archives were removed; the current and `ur12e-simulator-6e48d82`
+rollback archives are retained. Old Docker images were not deleted.

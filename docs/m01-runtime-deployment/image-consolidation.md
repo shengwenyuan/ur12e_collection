@@ -2,7 +2,7 @@
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: consolidation accepted; old-resource cleanup awaiting user alignment, 2026-09-11.
+Status: consolidation accepted; eight early archives removed with user approval; old Docker-image cleanup still pending, 2026-09-11.
 
 The user requested consolidation of current images and an explicit removal list
 after verification. Use one current collector image for daily collection,
@@ -156,3 +156,18 @@ remain intact. The failed temporary consolidation candidate was superseded when
 `current` was rebuilt; its failure log remains. No Docker prune or lab deployment
 was performed. Current snapshots still distinguish physical, simulated and
 unavailable devices; consolidation does not enable real control.
+
+
+## Authorized archive cleanup (2026-09-11)
+
+The user explicitly approved the eight early archive removals and retention of
+`ur12e-simulator-6e48d82`. All eight named `image.tar` files are now removed,
+totaling **3,770,061,824 bytes**. Their manifests/reports remain; each directory
+has `ARCHIVE_REMOVED.md` marking it metadata-only and not a complete bundle.
+The current and rollback archives passed SHA-256 checks before deletion and are
+retained. Exact removed paths and byte counts are recorded locally in
+`artifacts/lab-20260911/archive-cleanup.json`.
+
+This approval did not include the nine Docker image tags, build cache, remote
+historical bundles, containers or volumes; none of those were removed. Current
+Ubuntu synchronization is recorded in M13 `lab-20260911.md`.

@@ -8,7 +8,7 @@ this autonomous sprint. No GUI automation was required.
 
 | Module | Implemented behavior | Current evidence | Remaining boundary |
 | --- | --- | --- | --- |
-| M01 | Ubuntu 24.04/Jazzy runtime/dev images, pinned dependencies, non-root mounts, offline delivery | Source-matched amd64 images; installed-package and mount checks PASS | Updated image deployment on the lab PC NOT RUN |
+| M01 | Ubuntu 24.04/Jazzy runtime/dev images, pinned dependencies, non-root mounts, offline delivery | Source-matched amd64 images; installed-package and mount checks PASS | Current image deployed to lab PC with software gates PASS (2026-09-11); new physical checks NOT RUN |
 | M02 | Strict station config, serialized atomic updates, explicit setup/mount declarations and calibration activation | Configuration, concurrent updates, failed replacement and identity tests PASS | Physical identities/setup and production motion configuration require lab verification |
 | M03 | Output-only UR readback; shared UR transport behind verified simulator-only connection | Actual URSim feedback, stop/hold, killed/stalled client watchdog PASS | Physical control factory remains disabled |
 | M04 | Explicit unavailable GELLO API; isolated test waveform | Missing state and rejected physical requests PASS | Real DYNAMIXEL transport, mapping, torque/holding and load tests remain externally blocked |
@@ -97,3 +97,9 @@ pass 252 cases; installed Jazzy checks pass 255 cases, and the two host mount
 checks pass separately. No motion or physical device tests were run for image
 consolidation. Earlier motion/camera evidence retains its original image identity.
 See M01 `image-consolidation.md` for bundle selection and pending cleanup.
+
+
+The consolidated image is now deployed on `ssh ur12e-collection`; native Ubuntu
+255 installed tests, both host mount tests, all 59 source hashes and unchanged
+production config PASS. No cameras, Hand-E or UR controller were accessed.
+See `lab-20260911.md`; the UR12e remains offline and physical gates remain open.
