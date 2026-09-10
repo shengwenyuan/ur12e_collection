@@ -51,3 +51,14 @@ connection factory, which is disabled. See the current
 [M06 control results](../m06-control-motion/simulator-control.md). The earlier
 read-only statements above describe the diagnostic command, which remains GET/output-only.
 Physical control acceptance remains NOT RUN.
+
+
+## Powered Manual-mode readback (2026-09-11)
+
+The [live-state check](live-state-20260911.md) passes the short M03-A01 read-only
+scope on the deployed current image: registered serial/software, Manual/Local,
+normal safety, stopped program and 150 feedback observations. One getter sample
+crossed a timestamp update and remains explicitly marked; no atomic sample-rate
+acceptance is inferred. Raw model query is `UR10`; physical unit identity remains
+the user-registered UR12e with matching serial. No real control or configuration
+change was performed, and physical motion remains prohibited.

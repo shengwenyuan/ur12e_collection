@@ -64,3 +64,14 @@ This inventory update does not change network settings or enable motion.
 This unit-specific reference is versioned at the user's explicit request.
 Runtime station identity and network bindings remain in the local station
 configuration; this document is not a deployment default.
+
+
+## Independent powered readback (2026-09-11)
+
+The [bounded current-image diagnostic](live-state-20260911.md) independently
+confirmed endpoint `10.18.1.106`, serial `20255100083` and software
+`5.22.1.1214860`. The controller is Manual/Local, reports normal safety and a
+stopped program. Dashboard's model query returns `UR10`; this raw naming does
+not replace the physically identified UR12e or qualify a different control model.
+Component-screen fields, URCap versions and gripper identity remain unverified.
+No physical control, mode change or configuration update was sent.

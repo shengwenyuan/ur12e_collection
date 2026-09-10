@@ -546,7 +546,14 @@ observer-loss tests; no simulator result establishes physical acceptance.
 `ur12e-collection:current` is synchronized and software-verified on
 `ssh ur12e-collection`; use `/home/robot2026fall/ur12e-current` on that PC.
 Native installed tests (255), both mount tests and unchanged station config pass.
-The UR12e remains offline; no hardware access or control occurred. See the
+The UR12e was offline during deployment; no hardware access or control occurred. See the
 [deployment record](docs/m13-acceptance/lab-20260911.md). The eight approved early
 local image archives were removed; the current and `ur12e-simulator-6e48d82`
 rollback archives are retained. Old Docker images were not deleted.
+
+
+A later explicit read-only check on 2026-09-11 confirms the powered physical UR12e
+is Manual/Local with normal safety and a stopped program. Serial matches the
+registered unit; 150 diagnostic feedback samples were captured. See the
+[M03 live-state record](docs/m03-ur-adapter/live-state-20260911.md). No control
+signals or configuration changes were sent; physical control remains prohibited.
