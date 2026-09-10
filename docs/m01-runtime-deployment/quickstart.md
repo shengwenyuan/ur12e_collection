@@ -61,3 +61,11 @@ separately documented dependency environment; Torch/LeRobot are not bundled.
 The runtime image contains simulator adapters, but this Ubuntu delivery does not
 include the official URSim appliance or authorize physical control. Use the
 repository simulator launcher and setup instructions for local URSim testing.
+
+
+The [image consolidation record](image-consolidation.md) identifies the current
+image, verification results and explicit old-image cleanup candidates. Local
+`artifacts/releases/current` points to the verified current bundle; old bundles
+remain immutable until separately reviewed for removal. Official URSim stays a
+separate appliance image. One collector image does not mean combining its
+controller process or persistent volumes into the collection container.

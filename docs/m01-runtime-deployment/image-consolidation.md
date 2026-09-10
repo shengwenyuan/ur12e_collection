@@ -60,3 +60,14 @@ explicit `UR12E_IMAGE` override changes both profiles together. Dev remains
 `network_mode: none`; station retains its existing host network. Launcher Python
 lint passes at 10.00/10; shell syntax and formatting checks pass. Application
 package sources are unchanged. Image/bundle acceptance remains pending below.
+
+## Failed candidate and bounded correction
+
+Candidate `82f199361dab` had 250 installed tests pass and one strict interrupt
+case fail: expected camera shutdown raced an in-flight read and printed a false
+worker failure. The candidate is **not accepted**. Source hashes, dependency
+manifest and both mount tests passed, but those do not override the failed gate.
+The existing race is corrected in M09 with three lines of cancellation handling;
+normal capture/control remains unchanged. Native suite now passes 252 cases,
+with deterministic fault-versus-cancel coverage and varied group-interrupt timing.
+Preserve `artifacts/image-consolidation/installed-tests.log` as failure evidence.

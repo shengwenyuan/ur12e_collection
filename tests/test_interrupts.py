@@ -6,13 +6,16 @@ import select
 import signal
 import subprocess
 import sys
+import time
 
+import pytest
 import ur12e_collection
 from pathlib import Path
 
 
+@pytest.mark.parametrize("delay", [0, 0.002, 0.02])
 def test_foreground_group_interrupt_reaps_recording_children(
-    tmp_path, controlled
+    tmp_path, controlled, delay
 ):
     context = dict(controlled)
     context["control"]["camera_transport"] = "shared_memory"
@@ -67,6 +70,7 @@ if __name__ == "__main__":
             0
         ], "startup timed out"
         assert process.stdout.readline().strip() == "ready"
+        time.sleep(delay)
         os.killpg(process.pid, signal.SIGINT)
         output, error = process.communicate(timeout=10)
         assert process.returncode == 0, error

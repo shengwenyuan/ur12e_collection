@@ -2,9 +2,11 @@
 
 A local single-arm collection tool for UR12e, Robotiq Hand-E, a custom GELLO leader, and three RealSense RGB-D views.
 
-The current foundation provides a ROS 2 Jazzy Docker environment, software diagnostics, versioned station drafts, data contracts, a GELLO unavailable stub, and explicit camera/UR probes. The camera-only shadow pipeline now connects versioned snapshots, persistent camera workers, matching and independently verified MCAP episodes. Leading, ZERO/READY motion, calibration and the full keyboard session remain unimplemented.
+The application provides persistent three-camera acquisition, verified MCAP recording, explicit URSim control/session testing, read-only ROS observation and offline calibration. Optional LeRobot export is separately provisioned. Physical control remains disabled; real GELLO and Hand-E actuation are pending. See the module matrix for software, simulation and physical acceptance boundaries.
 
 - [Requirements and stable module IDs](meta_plan.md)
+- [Current module acceptance matrix](docs/m13-acceptance/simulator-matrix.md)
+- [Current image and cleanup inventory](docs/m01-runtime-deployment/image-consolidation.md)
 - [Development and deployment quickstart](docs/m01-runtime-deployment/quickstart.md)
 - [M01 implementation and acceptance](docs/m01-runtime-deployment/plan.md)
 - [M08 matching plan](docs/m08-frame-matching/plan.md)
@@ -27,6 +29,6 @@ source .venv/bin/activate
 ur-collect --help
 ```
 
-To use Docker, build the development target and run `./scripts/run dev doctor --format json --require-mounts`. The development container has no network or hardware access. Ubuntu deployment and explicit physical probes are described in the quickstart.
+Use one daily Docker image, `ur12e-collection:current`, for collection, development tests and simulator clients. Build with `docker build --platform linux/amd64 --target development -t ur12e-collection:current .`, then run `./scripts/run dev doctor --format json --require-mounts`. The development container has no network or hardware access. Ubuntu deployment and explicit physical probes are described in the quickstart.
 
 Formal plans and actual acceptance results live under `docs/`. Temporary ideas, station identities, recordings, and release artifacts stay in ignored local directories. Do not infer hardware readiness from passing software tests.

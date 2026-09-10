@@ -145,6 +145,9 @@ def _worker(config, context, channels):
     # The child must report SDK/codec failures before aborting its partial.
     # pylint: disable-next=broad-exception-caught
     except (Exception, KeyboardInterrupt) as error:
+        # Cancellation can end cameras during an in-flight read.
+        if abort.is_set():
+            return
         print(f"recorder worker failed: {error!r}", flush=True)
         if capture_owner is not None:
             print(f"capture timings: {dict(capture_owner.timings)}", flush=True)

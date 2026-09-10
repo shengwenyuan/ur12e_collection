@@ -1,6 +1,10 @@
 """Receipt watermarks and verified stops guard independent recording commits."""
 
 import dataclasses
+import queue
+import threading
+from types import SimpleNamespace
+from unittest import mock
 import time
 
 import pytest
@@ -90,3 +94,46 @@ def test_stop_cannot_precede_admitted_watermark(tmp_path, controlled):
             "stop", (99, factory.authority("released", "space", 99))
         )
     owner.close()
+
+
+@pytest.mark.parametrize("cancelled", [True, False])
+def test_camera_exit_after_cancel_cleans_partial_without_false_fault(
+    tmp_path, controlled, monkeypatch, capsys, cancelled
+):
+    abort = threading.Event()
+    replies = queue.Queue()
+    replies.cancel_join_thread = lambda: None
+    source = mock.Mock()
+    source.clock_id = controlled["clock_id"]
+    source.observations = {}
+    monkeypatch.setattr(recording.rig, "Rig", lambda *a, **k: source)
+    monkeypatch.setattr(recording.snapshots, "build", lambda *a: controlled)
+    verifier = mock.Mock()
+    monkeypatch.setattr(recording.verification, "Verifier", lambda *a: verifier)
+    destination = tmp_path / "interrupted"
+
+    def interrupted(capture, _channels):
+        capture.owner.prepare(destination)
+        if cancelled:
+            abort.set()
+        raise RuntimeError("camera worker exited: wrist")
+
+    monkeypatch.setattr(recording, "_run", interrupted)
+    recording._worker(
+        controlled["station"],
+        controlled,
+        (queue.Queue(), replies, abort, SimpleNamespace(value=0), {}),
+    )
+    assert abort.is_set()
+    assert not destination.exists()
+    assert destination.with_suffix(".partial").is_dir()
+    source.close.assert_called_once()
+    verifier.close.assert_called_once()
+    assert replies.get_nowait()[0] == "ready"
+    output = capsys.readouterr().out
+    if cancelled:
+        assert output == ""
+        assert replies.empty()
+    else:
+        assert "recorder worker failed" in output
+        assert replies.get_nowait() == ("error", "camera worker exited: wrist")

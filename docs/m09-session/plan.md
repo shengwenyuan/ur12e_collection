@@ -203,3 +203,24 @@ Final interrupt regression: Mac 242 PASS / 4 skipped, Black/Pylint 10.00/10.
 The signal helper cannot alter the main process handler when called directly.
 A separate simulator-only readback after terminal interruption reports runtime
 STOPPED, normal safety, zero joint speed and zero drift over one second.
+
+## Cancellation race found during M01 consolidation (2026-09-11)
+
+The full installed-image gate reproduced an existing shutdown race: parent Ctrl+C
+sets the shared abort event, camera workers exit, and an already-running recorder
+read reports a camera exit as an unsolicited fault. Cleanup and memory removal
+succeeded, but the strict clean-terminal test correctly failed. Correct only the
+classification after explicit parent cancellation: the recorder must still abort
+unfinished output and close all resources, without reporting expected teardown
+as a fresh fault. Without cancellation, the same source failure must still be
+reported. Add deterministic fault/cancel comparison with real partial-writer
+cleanup and vary the actual process-group interrupt timing. This is a bounded
+acceptance fix within the authorized image consolidation; no physical test or
+change to control, codecs, grouping or normal episode success is involved.
+
+The correction treats an already-set parent abort as cancellation while keeping
+unrequested failures visible. A real partial writer is closed in both cases;
+no cancelled episode becomes complete. Native regression **PASS: 252 tests,
+5 environment skips**, including deterministic cancellation/fault comparison and
+three real process-group interrupt timings. Black and Pylint 10.00/10 pass.
+Final installed-image acceptance is recorded in the M01 consolidation plan.
