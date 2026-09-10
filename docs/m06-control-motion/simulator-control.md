@@ -221,11 +221,9 @@ did not continue HOME. The generated script and test report are retained as
 
 Closing the Dashboard connection does **not** stop the native program: both
 completed returns ran after their command sockets closed. A plain Home program
-is therefore callable but is not yet accepted as the default collector READY
-backend. Its integration requires a controller-side heartbeat, exclusive
-handover from/to the teleoperation program, measured arrival, and the same
-stop/hold/fault semantics. This remains implementation work, not an unresolved
-question about whether the existing installation Home can be reused.
+was therefore callable; the initial proposal required a controller-side
+heartbeat before default adoption. The later user decision below supersedes that
+heartbeat proposal. Exclusive handover and measured stop/arrival remain required.
 
 The physical READY program must retain the intended station installation,
 including its Hand-E URCap/tool configuration. The simulator's default
@@ -259,3 +257,39 @@ Acceptance: native-default speed/acceleration preserved, return from asymmetric
 poses, stop midway and hold, host disconnect permits Home completion, later SDK
 handover succeeds without resuming old targets, and malformed/unexpected program
 or configuration blocks motion. Tests use only the isolated URSim endpoint.
+
+
+## Native HOME integration results (2026-09-10)
+
+Implemented reusable `NativeHome` beside `URTransport`, sharing one persistent
+RTDE receiver. The simulator station permits exactly one program owner. It
+requires measured standstill and a stopped native program before SDK acquisition;
+SDK teardown completes before native load/play. Native completion requires actual
+joint arrival, standstill and stopped runtime, never just a Dashboard reply.
+
+A single Home node at the start of a program failed Dashboard play from the
+asymmetric test pose because PolyScope requested AutoMove. The earlier base-only
+probe had not exposed this. The prepared fixture now uses UR's documented
+[current-pose variable waypoint before the Home node](https://www.universal-robots.com/articles/ur/programming/creating-a-safe-home-routine/).
+This zero-displacement preamble avoids AutoMove; the actual return remains the
+native Home node. Preparation checks the installed Home and original one-node
+program, preserves the installation and records both file hashes. No compiled
+`.script` fixture is required. Earlier failed reports remain retained.
+
+- M03/M06 software and actual URSim native-HOME checks: PASS. Eight dedicated
+  native-program unit cases cover rejected starts, stale feedback, premature
+  program completion, ownership and interrupted hold.
+- `python scripts/sim_control.py home`: PASS, repeated after removing the
+  diagnostic compiled script and after adding the measured SDK handover guard.
+  Latest report: `home-defaults-1789023918694649009.json` in local simulator
+  artifacts. Default peak joint speed was 1.047198 rad/s (60 deg/s), with the
+  configured 1.396263 rad/s² acceleration (80 deg/s²).
+- Asymmetric return, midpoint stop and one-second position hold: PASS; latest
+  stop took 0.288 s. SDK reacquisition did not resume old targets.
+- Immediate native client process exit: PASS; HOME finished normally without a
+  host heartbeat, as explicitly selected by the user.
+- Physical native program, tool/installation preservation and collision route:
+  NOT RUN. Simulator results do not establish a safe physical path.
+
+The host launcher is `python scripts/sim_control.py home`; `prepare-home` only
+prepares the verified simulator fixture. Physical program deployment is absent.

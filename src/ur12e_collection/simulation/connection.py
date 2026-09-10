@@ -9,7 +9,8 @@ import time
 
 from ur12e_collection import wire
 from ur12e_collection.control.model import ControlError
-from ur12e_collection.control.ur import URTransport
+from ur12e_collection.control.ur import URTransport, read_state
+from ur12e_collection.control.program import NativeHome
 from ur12e_collection.simulation import profile
 
 
@@ -69,6 +70,8 @@ def dashboard(address: str, command: str) -> str:
         "load /ursim/programs/ready.urp",
         "play",
         "stop",
+        "running",
+        "load /ursim/programs/collector_ready.urp",
     }
     if command not in allowed:
         raise ControlError("unsupported simulator Dashboard operation")
@@ -102,29 +105,114 @@ def _wait_mode(address: str, expected: str) -> None:
     raise ControlError("simulator initialization timed out")
 
 
+def _initialize(address: str) -> None:
+    _identity(address)
+    mode = dashboard(address, "robotmode")
+    if mode == "Robotmode: POWER_OFF":
+        if dashboard(address, "power on") != "Powering on":
+            raise ControlError("simulator power-on rejected")
+        _wait_mode(address, "IDLE")
+        mode = "Robotmode: IDLE"
+    if mode == "Robotmode: IDLE":
+        if dashboard(address, "brake release") != "Brake releasing":
+            raise ControlError("simulator brake release rejected")
+        _wait_mode(address, "RUNNING")
+    elif mode != "Robotmode: RUNNING":
+        raise ControlError("simulator is not in an initializable mode")
+
+
+class Station:
+    """One simulator lease and readback, with explicit program ownership."""
+
+    def __init__(self, address: str, receiver):
+        self.address, self.receiver = address, receiver
+        self.owner = None
+
+    def _acquire(self, owner: str) -> None:
+        if self.owner is not None:
+            raise ControlError("another program already owns this connection")
+        self.owner = owner
+
+    @contextlib.contextmanager
+    def home(self):
+        """Yield native HOME only after the SDK owner has fully released it."""
+        permit = json.loads(
+            pathlib.Path("/sim-permit.json").read_text(encoding="utf-8")
+        )
+        home = permit.get("home")
+        if (
+            not isinstance(home, dict)
+            or home.get("program") != "/ursim/programs/collector_ready.urp"
+        ):
+            raise ControlError(
+                "native HOME launch configuration is not verified"
+            )
+        if max(abs(a - b) for a, b in zip(home["q"], profile.HOME)) > 1e-6:
+            raise ControlError("native HOME launch target differs")
+        self._acquire("home")
+        program = NativeHome(
+            lambda cmd: dashboard(self.address, cmd),
+            lambda: read_state(self.receiver),
+            profile.LIMITS,
+            "/ursim/programs/collector_ready.urp",
+        )
+        try:
+            yield program
+        finally:
+            try:
+                program.close()
+            finally:
+                self.owner = None
+
+    @contextlib.contextmanager
+    def motion(self):
+        """Upload an idle SDK program on explicit ownership acquisition."""
+        self._acquire("rtde")
+        control = transport = None
+        try:
+            _identity(self.address)
+            if dashboard(self.address, "running") != "Program running: false":
+                raise ControlError("another native program is running")
+            state = read_state(self.receiver)
+            if state.runtime_state != 1 or max(map(abs, state.qd)) >= 0.01:
+                raise ControlError("SDK handover requires measured standstill")
+            # pylint: disable=import-outside-toplevel,import-error
+            import rtde_control
+
+            control = rtde_control.RTDEControlInterface(
+                self.address,
+                50.0,
+                rtde_control.RTDEControlInterface.FLAG_UPLOAD_SCRIPT
+                | rtde_control.RTDEControlInterface.FLAG_UPPER_RANGE_REGISTERS,
+            )
+            if not control.setWatchdog(5.0):
+                raise ControlError("simulator watchdog setup failed")
+            transport = URTransport(
+                control, self.receiver, profile.PERIOD, owns_receiver=False
+            )
+            yield transport
+        finally:
+            try:
+                if transport is not None:
+                    transport.close()
+                elif control is not None:
+                    try:
+                        control.stopScript()
+                    finally:
+                        control.disconnect()
+            finally:
+                self.owner = None
+
+
 @contextlib.contextmanager
-def open_controller():
-    """Authorize once, then yield the shared SDK adapter."""
+def open_station():
+    """Authorize one local peer before initialization or SDK creation."""
     lease = Lease(pathlib.Path("/sim-lock/controller.lock"))
-    receiver = control = transport = None
+    receiver = None
     try:
         address = verify_boundary()
-        _identity(address)
-        mode = dashboard(address, "robotmode")
-        if mode == "Robotmode: POWER_OFF":
-            if dashboard(address, "power on") != "Powering on":
-                raise ControlError("simulator power-on rejected")
-            _wait_mode(address, "IDLE")
-            mode = "Robotmode: IDLE"
-        if mode == "Robotmode: IDLE":
-            if dashboard(address, "brake release") != "Brake releasing":
-                raise ControlError("simulator brake release rejected")
-            _wait_mode(address, "RUNNING")
-        elif mode != "Robotmode: RUNNING":
-            raise ControlError("simulator is not in an initializable mode")
-        # Only this authorized factory imports a command-capable SDK.
+        _initialize(address)
         # pylint: disable=import-outside-toplevel,import-error
-        import rtde_control
         import rtde_receive
 
         receiver = rtde_receive.RTDEReceiveInterface(
@@ -139,24 +227,18 @@ def open_controller():
                 "runtime_state",
             ],
         )
-        control = rtde_control.RTDEControlInterface(
-            address,
-            50.0,
-            rtde_control.RTDEControlInterface.FLAG_UPLOAD_SCRIPT
-            | rtde_control.RTDEControlInterface.FLAG_UPPER_RANGE_REGISTERS,
-        )
-        if not control.setWatchdog(5.0):
-            raise ControlError("simulator watchdog setup failed")
-        transport = URTransport(control, receiver, profile.PERIOD)
-        yield transport
+        yield Station(address, receiver)
     finally:
         try:
-            if transport is not None:
-                transport.close()
-            else:
-                if control is not None:
-                    control.disconnect()
-                if receiver is not None:
-                    receiver.disconnect()
+            if receiver is not None:
+                receiver.disconnect()
         finally:
             lease.close()
+
+
+@contextlib.contextmanager
+def open_controller():
+    """Compatibility entrypoint for a single explicit SDK ownership interval."""
+    with open_station() as station:
+        with station.motion() as transport:
+            yield transport

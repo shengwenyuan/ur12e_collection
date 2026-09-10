@@ -75,6 +75,8 @@ work or changing previously accepted behavior.
 
 - Baseline: 156 native tests pass, four environment/opt-in tests skipped; two
   additional Jazzy compatibility cases passed in the dependency container.
-  Black/Pylint passed in the preceding control increment. Baseline commit pending.
-- Next: native Home integration and default-parameter acceptance.
+  Black/Pylint passed. Committed as `429b701`.
+- Native Home: default parameters, asymmetric return, stop/hold, client loss and
+  exclusive SDK handover pass actual URSim tests; see M06 simulator-control.md.
+- Next: persistent moving session and independent recording/provenance.
 - Subsequent work: all later ordered increments above remain pending.

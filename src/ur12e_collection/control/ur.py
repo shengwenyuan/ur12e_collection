@@ -8,34 +8,25 @@ from ur12e_collection.control.model import ControlError, State
 class URTransport:
     """Own authorized SDK objects; never reconnect or choose a robot address."""
 
-    def __init__(self, control, receiver, period: float = 0.02):
+    def __init__(
+        self,
+        control,
+        receiver,
+        period: float = 0.02,
+        *,
+        owns_receiver: bool = True,
+    ):
         self.control = control
         self.receiver = receiver
         self.period = period
         self.closed = False
+        self.owns_receiver = owns_receiver
 
     def read(self) -> State:
         """Bracket getters with uptime; this is not an atomic packet."""
         if not self.control.isConnected() or not self.receiver.isConnected():
             raise ControlError("UR connection lost")
-        for _ in range(5):
-            stamp = self.receiver.getTimestamp()
-            values = (
-                tuple(self.receiver.getActualQ()),
-                tuple(self.receiver.getActualQd()),
-                self.receiver.getRobotMode(),
-                self.receiver.getSafetyMode(),
-                self.receiver.getRuntimeState(),
-            )
-            if stamp == self.receiver.getTimestamp():
-                return State(
-                    values[0],
-                    values[1],
-                    stamp,
-                    time.monotonic_ns(),
-                    *values[2:],
-                )
-        raise ControlError("UR readback changed during every timestamp bracket")
+        return read_state(self.receiver)
 
     def move(self, q: tuple, speed: float, acceleration: float) -> None:
         """Start a native asynchronous moveJ with explicit rate limits."""
@@ -74,4 +65,29 @@ class URTransport:
             try:
                 self.control.disconnect()
             finally:
-                self.receiver.disconnect()
+                if self.owns_receiver:
+                    self.receiver.disconnect()
+
+
+def read_state(receiver) -> State:
+    """Read the same measured fields during native and SDK programs."""
+    if not receiver.isConnected():
+        raise ControlError("UR receive connection lost")
+    for _ in range(5):
+        stamp = receiver.getTimestamp()
+        values = (
+            tuple(receiver.getActualQ()),
+            tuple(receiver.getActualQd()),
+            receiver.getRobotMode(),
+            receiver.getSafetyMode(),
+            receiver.getRuntimeState(),
+        )
+        if stamp == receiver.getTimestamp():
+            return State(
+                values[0],
+                values[1],
+                stamp,
+                time.monotonic_ns(),
+                *values[2:],
+            )
+    raise ControlError("UR readback changed during every timestamp bracket")

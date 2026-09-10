@@ -6,6 +6,8 @@ import pathlib
 import subprocess
 import tempfile
 
+import sim_program
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 NETWORK = "ur12e-sim_control"
 SIMULATOR = "ur12e-sim-ursim-1"
@@ -29,7 +31,10 @@ def inspect(kind: str, name: str) -> dict:
 def main() -> None:
     """Launch only supported test entrypoints with no station or host option."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("motion", "watchdog", "native-home"))
+    parser.add_argument(
+        "mode",
+        choices=("motion", "watchdog", "native-home", "prepare-home", "home"),
+    )
     parser.add_argument("--signal", choices=("kill", "stall"), default="kill")
     args = parser.parse_args()
     sim = inspect("container", SIMULATOR)
@@ -49,6 +54,14 @@ def main() -> None:
     peer = sim["NetworkSettings"]["Networks"][NETWORK]
     if "ursim-control" not in peer["Aliases"]:
         raise RuntimeError("simulator control alias is missing")
+    home = (
+        sim_program.prepare(SIMULATOR)
+        if args.mode in ("prepare-home", "home")
+        else None
+    )
+    if args.mode == "prepare-home":
+        print(json.dumps(home, indent=2))
+        return
     output = ROOT / "artifacts/simulator-control"
     output.mkdir(parents=True, exist_ok=True)
     lock = output / "lock"
@@ -61,6 +74,7 @@ def main() -> None:
                     "image": IMAGE,
                     "host": "ursim-control",
                     "address": peer["IPAddress"],
+                    "home": home,
                 }
             ),
             encoding="utf-8",
