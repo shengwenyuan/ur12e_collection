@@ -96,6 +96,7 @@ def parser() -> argparse.ArgumentParser:
     )
     session.add_argument("--output", type=pathlib.Path)
     session.add_argument("--revision")
+    session.add_argument("--ros-observe", action="store_true")
     calibration_cli.configure(
         commands.add_parser("calibrate", help="offline visual calibration")
     )
@@ -267,5 +268,7 @@ def _session(args: argparse.Namespace) -> int:
     # pylint: disable-next=import-outside-toplevel
     from ur12e_collection.simulation import session
 
-    result = session.run(args.output, args.revision, sys.stdin)
+    result = session.run(
+        args.output, args.revision, sys.stdin, observe=args.ros_observe
+    )
     return 130 if result["state"] == "interrupted" else 0

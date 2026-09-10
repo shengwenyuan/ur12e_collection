@@ -536,5 +536,6 @@ not-yet-implemented status notes where their dated results overlap. Native Home,
 UR-only control/session behavior, independent MCAP recording, optional official
 LeRobot v3 RGB/arm export, and offline calibration/activation are implemented.
 Physical control remains disabled. GELLO, physical Hand-E actuation, physical
-calibration capture and live ROS topic/service/TF integration remain distinct
-open work; no simulator result establishes their physical acceptance.
+calibration capture, calibration services and calibrated TF remain distinct
+open work. Optional read-only ROS typed observation now passes Jazzy and URSim
+observer-loss tests; no simulator result establishes physical acceptance.

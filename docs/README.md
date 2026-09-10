@@ -14,7 +14,7 @@ Use the [plan-module-work skill](../.agents/skills/plan-module-work/SKILL.md) an
 
 The [development environment record](development-environment.md) documents the initial Docker and repository bootstrap, separately from M01 implementation acceptance.
 
-[M12: Independent Visual Calibration](m12-calibration/plan.md) records the aligned two-round requirements and the proposed script/capture interfaces. Implementation and hardware acceptance have not started.
+[M12: Independent Visual Calibration](m12-calibration/plan.md) records the aligned two-round requirements and the proposed script/capture interfaces. Offline detection, geometry, immutable evidence and activation are implemented and software-tested; physical capture and accuracy acceptance remain pending.
 
 Temporary ideas belong in the ignored root `plans/` directory. Never rely on that directory as the only record of an accepted requirement or an acceptance result. Create it locally when needed; a fresh checkout does not contain its ignored contents.
 
@@ -32,3 +32,10 @@ The official [URSim environment](m06-control-motion/ursim-setup.md) and
 [quickstart](m06-control-motion/ursim-quickstart.md) cover local basic motion
 simulation in Docker Desktop. Gazebo is excluded; physical control acceptance
 remains separate.
+
+The current [M01–M13 simulator matrix](m13-acceptance/simulator-matrix.md)
+separates accepted simulation/software behavior from remaining hardware work.
+The [read-only ROS observer](m10-data-contract/ros-observation.md),
+[official LeRobot export](m11-storage/lerobot-export.md) and
+[offline calibration commands](m12-calibration/offline-usage.md) have independent
+acceptance records and explicit optional/deferred boundaries.

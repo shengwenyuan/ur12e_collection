@@ -61,14 +61,15 @@ class Setup:
 class Session:
     """Call key and step from one control loop; failures latch until restart."""
 
-    def __init__(self, station, recorder, setup: Setup):
+    def __init__(self, station, recorder, setup: Setup, observer=None):
         self.station, self.recorder = station, recorder
-        self.limits, self.leader_factory = setup.limits, setup.leader_factory
+        self.setup = setup
         self.snapshot, self.output = setup.snapshot, setup.output
         self.lifecycle = lifecycle.Lifecycle()
         self.active = Active()
         self.completed = []
         self.timings = []
+        self.observer = observer
 
     @property
     def state(self) -> str:
@@ -100,7 +101,7 @@ class Session:
         self.active = Active()
         transport = self.active.stack.enter_context(self.station.motion())
         self.active.program = owner.Controller(
-            transport, self.limits, self.snapshot["control"]["leader_id"]
+            transport, self.setup.limits, self.snapshot["control"]["leader_id"]
         )
         self.active.program.tick(time.monotonic_ns())
         self.active.destination = (
@@ -116,28 +117,22 @@ class Session:
         program.tick(time.monotonic_ns())
         now = time.monotonic_ns()
         self.active.started_ns = now
-        self.active.leader = self.leader_factory(
+        self.active.leader = self.setup.leader_factory(
             program.progress.feedback.q, now
         )
         initial = self.active.leader.sample(now)
-        self.recorder.send(
-            "begin",
-            (
-                now,
-                self.active.records.authority("acquired", "space", now),
-            ),
-        )
+        event = self.active.records.authority("acquired", "space", now)
+        self.recorder.send("begin", (now, event))
+        if self.observer is not None:
+            self.observer.records((event,))
         program.engage(initial, now)
         self.lifecycle.complete("prepare")
 
     def _stop(self, now_ns, reason):
-        self.recorder.send(
-            "stop",
-            (
-                now_ns,
-                self.active.records.authority("released", reason, now_ns),
-            ),
-        )
+        event = self.active.records.authority("released", reason, now_ns)
+        self.recorder.send("stop", (now_ns, event))
+        if self.observer is not None:
+            self.observer.records((event,))
         self.active.program.halt(now_ns)
 
     def step(self) -> None:
@@ -158,6 +153,11 @@ class Session:
                 write_outcome(self.active.destination, disposition)
                 self.completed.append(self.active.report)
                 self.lifecycle.complete("finalize")
+            if self.observer is not None:
+                destination = self.active.destination
+                self.observer.status(
+                    self.state, destination.name if destination else None
+                )
         except BaseException:
             self.fail()
             raise
@@ -179,6 +179,8 @@ class Session:
                 sent = active.records.sent(target, time.monotonic_ns())
                 samples = (intent, sent, *active.records.feedback(state))
                 self.recorder.send("samples", (time.monotonic_ns(), samples))
+                if self.observer is not None:
+                    self.observer.records(samples)
             elif self.state == "stopping" and active.program.state == "hold":
                 active.held = state.q
                 self.recorder.send("settled")
@@ -191,7 +193,7 @@ class Session:
         active = self.active
         state = self.station.read()
         now = time.monotonic_ns()
-        self.limits.check(state.q)
+        self.setup.limits.check(state.q)
         if (
             active.observed is None
             or state.timestamp > active.observed.timestamp
@@ -200,16 +202,17 @@ class Session:
         elif state.timestamp < active.observed.timestamp:
             raise model.ControlError("held controller timestamp moved backward")
         if (
-            not 0 <= now - state.received_ns <= self.limits.freshness_ns
-            or now - active.observed_progress_ns > self.limits.freshness_ns
+            not 0 <= now - state.received_ns <= self.setup.limits.freshness_ns
+            or now - active.observed_progress_ns
+            > self.setup.limits.freshness_ns
         ):
             raise model.ControlError("held feedback is stale")
         active.observed = state
         if (
             (state.robot_mode, state.safety_mode, state.runtime_state)
             != (7, 1, 1)
-            or max(map(abs, state.qd)) >= self.limits.stopped_speed
-            or model.distance(state.q, active.held) > self.limits.arrival
+            or max(map(abs, state.qd)) >= self.setup.limits.stopped_speed
+            or model.distance(state.q, active.held) > self.setup.limits.arrival
         ):
             raise model.ControlError("released arm did not hold its pose")
 
@@ -245,3 +248,6 @@ class Session:
         finally:
             self.recorder.close()
             self.lifecycle.close()
+            if self.observer is not None:
+                self.observer.status(self.state, None)
+                self.observer.close()

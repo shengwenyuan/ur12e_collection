@@ -17,7 +17,7 @@ this autonomous sprint. No GUI automation was required.
 | M07 | Persistent three-camera rig, RGB-D alignment boundary, source health; optional parent-owned shared slots for simulator | Earlier physical camera acceptance retained; new simulator slot/restart tests PASS | New release camera smoke and semantic left/right binding remain lab work |
 | M08 | Wrist-anchored real-frame matching, 16.7 ms skew, 75 ms wait/drain, no reuse | Deterministic/failure tests and earlier physical grouping gates PASS | Physical clock accuracy/exposure synchronization is not established by SDK global time |
 | M09 | Space HOME/start/stop, held review, a discard, Ctrl+C, recorder supervision and explicit authority handover | Short/40-second URSim sessions and discard/recorder-kill/restart/SIGINT PASS | 20 x 40 controlled batch and independent audit PASS; physical GELLO/Hand-E coordination NOT RUN |
-| M10 | Separate intent/sent/actual streams, authority interval, exact clocks, missing gripper and immutable calibration context | MCAP source/coverage/pairing and current-verifier readback PASS | Real GELLO mapping and live typed ROS graph interfaces remain pending |
+| M10 | Separate intent/sent/actual streams, authority interval, exact clocks, immutable calibration context and optional read-only ROS observer | MCAP source/coverage/pairing and current-verifier readback PASS | Real GELLO mapping, calibrated TF and calibration services remain pending |
 | M11 | Independent H.264 streams, exact uint16 PNG, verified atomic MCAP; optional official LeRobot v3 RGB/arm export | Codec/corruption/failure gates PASS; actual official loader verifies 1,291 frames in two episodes | Full simulator duration gate PASS; gripper/depth training projection and physical task-image export quality NOT RUN |
 | M12 | ChArUco detection, fixed/wrist geometry, independent held-out checks, stationary checkpoint gate, offline solve/verify/setup/activate | 30 offline tests across geometry, real rendered PNG pixels, immutable evidence and failure-preserving activation PASS | Taught physical script/checkpoint transport, TCP-to-flange offset, board dimensions/visibility and real accuracy thresholds NOT RUN |
 | M13 | Hardware-free shadow, actual URSim functional/fault batches, independent final audit and reproducible reports | Software/native ROS/installed-image checks PASS | Twenty 40-second episodes and independent audit PASS; final image/bundle handoff in progress |
@@ -44,15 +44,18 @@ small control records. Active recorder supervision is 500 ms; a 3 s allowance
 exists only after confirmed stop while the SDK releases ownership. This is not
 a relaxed active-control deadline. Physical/shadow defaults remain unchanged.
 
-ROS 2 Jazzy and native ROS-CDR/rosbag2 interoperability are tested. Live typed
-status publishers, calibration services and TF broadcasting are not implemented.
-They remain observability work; the current CLI/session/MCAP logic does not depend
-on them. In particular, no unverified TCP-to-flange transform is broadcast.
+ROS 2 Jazzy and native ROS-CDR/rosbag2 interoperability are tested. Optional
+`--ros-observe` publishes separate actual/intent/sent JointState streams, TCP
+PoseStamped, original M10 records and retained phase/context. Seven real Jazzy
+tests and actual URSim observer-kill isolation pass. It is a bounded read-only
+process; main collection is independent of its delivery. Joint/pose publication
+covers recorded windows only. Calibration services and TF remain unimplemented;
+no unverified TCP-to-flange transform is broadcast.
 
 ## Evidence and follow-up
 
 - Functional commits: `429b701`, `9ad0137`, `535fe69`, `60bf3da`, `4bb00e1`,
-  `36c00b2`. Their module plans retain actual checks and limitations.
+  `36c00b2`, `57f152c`. Their module plans retain actual checks and limitations.
 - Native Home and complex-motion evidence: M06 `simulator-control.md`.
 - Latest physical camera layout acceptance predates this sprint; see
   `layout-recheck-20260910.md`. It is not a new physical test of this image.

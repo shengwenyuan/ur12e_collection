@@ -52,7 +52,13 @@ def main() -> None:
     )
     parser.add_argument("--episodes", type=int, default=2)
     parser.add_argument("--seconds", type=float, default=3)
+    parser.add_argument("--ros-observe", action="store_true")
+    parser.add_argument("--kill-observer", action="store_true")
     args = parser.parse_args()
+    if args.ros_observe and args.mode not in ("session", "console"):
+        parser.error("ROS observation requires session or console mode")
+    if args.kill_observer and (args.mode != "session" or not args.ros_observe):
+        parser.error("observer kill test requires session --ros-observe")
     client = inspect("image", args.client_image)
     if (client["Os"], client["Architecture"]) != ("linux", "amd64"):
         raise ValueError("simulator client requires a local linux/amd64 image")
@@ -145,8 +151,15 @@ def main() -> None:
                 "-e",
                 "PYTHONDONTWRITEBYTECODE=1",
                 "--entrypoint",
-                "python",
+                "/bin/bash",
+                "-e",
+                "ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST",
+                "-e",
+                "ROS_LOG_DIR=/tmp/ros-log",
                 client["Id"],
+                "-c",
+                'source /opt/ros/jazzy/setup.bash && exec python "$@"',
+                "simulator",
                 "-u",
                 *_entrypoint(args, frozen["source_revision"]),
             ],
@@ -169,10 +182,13 @@ def _entrypoint(args, revision):
             f"/results/console-{time.time_ns()}",
             "--revision",
             revision,
+            *(["--ros-observe"] if args.ros_observe else []),
         ]
     return [
         f"/checks/{args.mode.replace('-', '_')}.py",
         *([args.signal] if args.mode == "watchdog" else []),
+        *(["--ros-observe"] if args.ros_observe else []),
+        *(["--kill-observer"] if args.kill_observer else []),
         *(
             ["--episodes", str(args.episodes), "--seconds", str(args.seconds)]
             if args.mode == "session"

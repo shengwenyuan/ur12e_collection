@@ -38,6 +38,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--episodes", type=int, default=2)
     parser.add_argument("--seconds", type=float, default=3)
+    parser.add_argument("--ros-observe", action="store_true")
+    parser.add_argument("--kill-observer", action="store_true")
     args = parser.parse_args()
     output = pathlib.Path("/results") / f"session-{time.time_ns()}"
     output.mkdir()
@@ -46,7 +48,7 @@ def main():
     (output / "report.json").write_text(json.dumps(report, indent=2))
     try:
         with connection.open_station() as station:
-            owner = session.create(station, output)
+            owner = session.create(station, output, observe=args.ros_observe)
             try:
                 for index in range(args.episodes):
                     press(owner)
@@ -54,8 +56,21 @@ def main():
                     press(owner)
                     wait(owner, "recording")
                     started = owner.active.started_ns / 1e9
+                    killed = False
                     while time.monotonic() - started < args.seconds:
                         tick(owner)
+                        if (
+                            args.kill_observer
+                            and not killed
+                            and time.monotonic() - started > args.seconds / 2
+                        ):
+                            owner.observer.process.kill()
+                            killed = True
+                    if args.kill_observer:
+                        assert owner.observer.health()["state"] == "failed"
+                        assert owner.observer.health()["dropped_records"] > 0
+                    elif args.ros_observe:
+                        assert owner.observer.health()["state"] == "online"
                     owner.key(" ", time.monotonic_ns())
                     wait(owner, "held")
                     completed = owner.completed[-1]
@@ -104,6 +119,8 @@ def main():
     finally:
         if owner is not None:
             report["timings"] = owner.timings
+            if owner.observer is not None:
+                report["observer"] = owner.observer.health()
         (output / "report.json").write_text(json.dumps(report, indent=2))
     print(
         json.dumps(

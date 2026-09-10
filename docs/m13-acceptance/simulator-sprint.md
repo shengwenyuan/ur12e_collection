@@ -90,9 +90,10 @@ work or changing previously accepted behavior.
 - Official LeRobot 0.6.1 writer/loader: 1,291 frames / two episodes PASS, exact
   numeric values and sampled RGB MAE below 0.719/255. M12 has 30 offline tests,
   including rendered PNG detection, independent geometry and atomic activation.
-- Next bounded increment: optional read-only ROS observation sidecar, as planned
-  in `docs/m10-data-contract/ros-observation.md`. No control input or camera
-  duplication. Test real Jazzy round trips and observer-loss isolation in URSim.
+- Optional read-only ROS observation accepted: seven real Jazzy tests, normal
+  5-second URSim recording with zero telemetry admission loss, and observer
+  SIGKILL during recording with verified completion. See its M10 plan.
+  Latest native suite: 248 PASS / 5 environment skips, Black/Pylint pass.
 - Then refresh final runtime/dev images, package the offline release, update
   `simulator-matrix.md`, and close the scheduled continuation. No lab/physical
   connection or non-Docker GUI control is permitted.

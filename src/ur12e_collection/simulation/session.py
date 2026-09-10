@@ -4,7 +4,7 @@ import json
 import pathlib
 import time
 
-from ur12e_collection import recording, synthetic
+from ur12e_collection import recording, ros_observer, synthetic
 from ur12e_collection.control.session import Session, Setup
 from ur12e_collection.control import console
 from ur12e_collection.simulation import connection
@@ -12,7 +12,7 @@ from ur12e_collection.simulation import profile, targets
 
 
 def create(
-    station, output: pathlib.Path, revision: str | None = None
+    station, output: pathlib.Path, revision: str | None = None, *, observe=False
 ) -> Session:
     """Start persistent synthetic cameras before acquiring motion control."""
     permit = json.loads(
@@ -49,28 +49,39 @@ def create(
         },
     }
     recorder = recording.Recorder(synthetic.configuration(), context)
+    observer = None
     try:
         snapshot = recorder.start()
+        if observe:
+            observer = ros_observer.Observer(snapshot)
+            observer.start()
     except BaseException:
         recorder.close()
+        if observer is not None:
+            observer.close()
         raise
     return Session(
-        station, recorder, Setup(profile.LIMITS, targets.Wave, snapshot, output)
+        station,
+        recorder,
+        Setup(profile.LIMITS, targets.Wave, snapshot, output),
+        observer,
     )
 
 
-def run(output: pathlib.Path, revision: str, stream) -> dict:
+def run(output: pathlib.Path, revision: str, stream, *, observe=False) -> dict:
     """Run the explicit simulator console and retain its report."""
     with console.keyboard(stream) as read_keys:
         output.mkdir(parents=True, exist_ok=False)
         report = {"state": "failed", "episodes": []}
         with connection.open_station() as station:
-            owner = create(station, output, revision)
+            owner = create(station, output, revision, observe=observe)
             try:
                 report = console.drive(owner, read_keys)
             finally:
                 owner.close()
                 report["timings"] = owner.timings
+                if owner.observer is not None:
+                    report["observer"] = owner.observer.health()
                 (output / "session.json").write_text(
                     json.dumps(report, indent=2), encoding="utf-8"
                 )
