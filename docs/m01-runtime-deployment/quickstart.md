@@ -11,7 +11,7 @@ recording-camera commands do not initialize either robot or gripper control.
 Use Python 3.12. Install `requirements/development.txt` with hash verification into a virtual environment, then install this package with `pip install --no-deps -e .`. Run `pytest`, `black --check src tests scripts/release.py`, and `pylint src/ur12e_collection` with this repository's configuration. The Mac does not need lab SSH access. Hardware SDK availability differs between arm64 development and amd64 production.
 
 ```sh
-docker build --target development -t ur12e-collection:dev .
+docker build --platform linux/amd64 --target development -t ur12e-collection:current .
 ./scripts/run dev doctor --format json --require-mounts
 ```
 
@@ -44,15 +44,17 @@ Override `UR12E_CONFIG_DIR` and `UR12E_DATA_DIR` with existing writable absolute
 ## Release creation
 
 ```sh
-python3 scripts/release.py ur12e-collection:runtime /path/to/new-bundle
+python3 scripts/release.py ur12e-collection:current /path/to/new-bundle
 ```
 
 The bundle contains the image, exact image identity, package manifests, checksums, launcher, Compose file, example configuration, and this guide. Bundle creation leaves a `.partial` directory on failure and never overwrites an existing destination. The loader checks file integrity before loading; the bundled launcher selects the recorded image ID. These checks establish integrity, not a signature or publisher-authentication scheme.
 
 Keep credentials and real station data outside the bundle. Hardware acceptance and real three-camera throughput remain separate from successful image loading and software diagnostics.
 
-The simulator sprint runtime is `ur12e-collection:sim-runtime-6e48d82`; its
-manifest pins the exact source-matched image ID. The bundle includes
+The daily image is `ur12e-collection:current` for collection, development and
+simulator clients. It includes the runtime plus test tools. Use `UR12E_IMAGE`
+to override it explicitly; the old `UR12E_DEV_IMAGE` split is retired. Bundle
+manifests pin an immutable image ID for both profiles. The bundle includes
 `CALIBRATION.md` and `CAPABILITIES.md`. Calibration solve/verify/setup/activate
 are offline commands and send no motion. Optional LeRobot export requires its
 separately documented dependency environment; Torch/LeRobot are not bundled.

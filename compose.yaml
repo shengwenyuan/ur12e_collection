@@ -2,7 +2,8 @@ name: ur12e-collection
 services:
   dev:
     profiles: [dev]
-    image: ${UR12E_DEV_IMAGE:-ur12e-collection:dev}
+    image: ${UR12E_IMAGE:-ur12e-collection:current}
+    platform: linux/amd64
     build:
       context: .
       target: development
@@ -21,10 +22,11 @@ services:
           create_host_path: false
   station:
     profiles: [station]
-    image: ${UR12E_IMAGE:-ur12e-collection:runtime}
+    image: ${UR12E_IMAGE:-ur12e-collection:current}
+    platform: linux/amd64
     build:
       context: .
-      target: runtime
+      target: development
     network_mode: host
     user: "${UR12E_UID:-10001}:${UR12E_GID:-10001}"
     volumes:

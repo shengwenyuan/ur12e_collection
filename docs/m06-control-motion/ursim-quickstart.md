@@ -67,7 +67,7 @@ The [control increment](simulator-control.md) adds a shared bounded control loop
 and controller watchdog. GELLO hardware and Hand-E control remain excluded;
 keyboard/recording integration is now available in the current commands below.
 
-With the dependency image `ur12e-collection:readonly-runtime` installed and
+With the dependency image `ur12e-collection:current` installed and
 URSim in Remote mode, run these explicitly authorized simulator tests:
 
 ```sh
@@ -127,10 +127,10 @@ Ctrl+C. Keep the application console in a terminal; the source waveform is a
 simulation fixture and Hand-E is explicitly bypassed.
 
 ```sh
-python scripts/sim_control.py console --client-image ur12e-collection:sim-runtime-6e48d82
-python scripts/sim_control.py session-faults --client-image ur12e-collection:sim-runtime-6e48d82
+python scripts/sim_control.py console --client-image ur12e-collection:current
+python scripts/sim_control.py session-faults --client-image ur12e-collection:current
 python scripts/sim_control.py session --episodes 20 --seconds 40 \
-  --client-image ur12e-collection:sim-runtime-6e48d82
+  --client-image ur12e-collection:current
 PYTHONPATH=src python tests/simulation/acceptance.py artifacts/simulator-control/session-RUN
 ```
 

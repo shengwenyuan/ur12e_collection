@@ -42,7 +42,8 @@ CMD ["--help"]
 FROM runtime AS development
 USER root
 COPY requirements/development.txt /opt/requirements/development.txt
-RUN pip install --no-cache-dir --require-hashes -r /opt/requirements/development.txt
+RUN pip install --no-cache-dir --require-hashes -r /opt/requirements/development.txt \
+    && pip freeze > /opt/python-packages.txt
 COPY tests /opt/tests
 COPY pyproject.toml /opt/pyproject.toml
 USER collector

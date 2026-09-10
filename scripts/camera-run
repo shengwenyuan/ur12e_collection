@@ -29,6 +29,6 @@ if [[ -d $config_dir ]]; then
 fi
 network=none
 if [[ ${UR12E_READ_FEEDBACK:-0} == 1 ]]; then network=host; fi
-exec docker run --rm --memory 4g --memory-swap 4g --network "$network" --user "$(id -u):$(id -g)" \
+exec docker run --rm --pull never --memory 4g --memory-swap 4g --network "$network" --user "$(id -u):$(id -g)" \
   "${devices[@]}" "${mounts[@]}" --mount "type=bind,src=$data_dir,dst=/data" \
-  "${UR12E_IMAGE:-ur12e-collection:runtime}" "$@"
+  "${UR12E_IMAGE:-ur12e-collection:current}" "$@"

@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import pathlib
 import subprocess
 import tempfile
@@ -48,7 +49,8 @@ def main() -> None:
     )
     parser.add_argument("--signal", choices=("kill", "stall"), default="kill")
     parser.add_argument(
-        "--client-image", default="ur12e-collection:readonly-runtime"
+        "--client-image",
+        default=os.environ.get("UR12E_IMAGE", "ur12e-collection:current"),
     )
     parser.add_argument("--episodes", type=int, default=2)
     parser.add_argument("--seconds", type=float, default=3)
