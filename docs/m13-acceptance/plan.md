@@ -204,3 +204,8 @@ Source gaps/repeats, queue overflows and unaccounted anchors were zero. See the
 M13-A03's physical duration/file case has passed on the experimental configuration;
 numerical gate adoption, production defaults, semantic role binding and the
 remaining full-module checks are not silently marked accepted.
+
+The [latest wiring recheck](layout-recheck-20260910.md) passed the user-approved
+six-episode scope. Seven episodes completed before the requested stop; the
+report preserves the interrupted batch state. Both D435IF links were USB 2.1
+in this test and still met the current 640x480/30 Hz capture gates.

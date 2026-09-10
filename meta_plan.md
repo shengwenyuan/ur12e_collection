@@ -435,3 +435,25 @@ and interrupted-recording cleanup. No cameras are currently enumerated; physical
 [lab acceptance record](docs/m13-acceptance/lab-20260910.md).
 
 The [accepted software baseline](docs/m13-acceptance/software-baseline.md) defines which checks are closed and the remaining physical-camera test scope. Reopen only affected software cases after relevant changes or a new failure.
+
+
+### Physical camera status (2026-09-10)
+
+Three cameras are connected and real-input recording was exercised. D405 source
+stability failed through its two USB extension stages, also without encoding
+and with D405 alone. Both D435IF cameras passed 20-second diagnostics. After
+bypassing both extenders, D405 solo, three-camera source, and two 40-second
+recording comparisons had zero source gaps/repeats. This strongly implicates the
+extension connection path. Subsequent timing and bounded tail-drain corrections
+passed a complete experimental 20 x 40-second batch: 99.7916% grouping, every
+wrist anchor accounted for, all files verified and zero source gaps/repeats.
+The [resource/gate configuration](docs/m08-frame-matching/resource-gates.md)
+awaits final alignment before production defaults change. Physical third-view positions are still
+unconfirmed; production station configuration is unchanged. See the
+[physical test record](docs/m13-acceptance/physical-20260910.md).
+
+The [latest wiring recheck](docs/m13-acceptance/layout-recheck-20260910.md) passed
+the user-approved six-episode scope with the experimental profile. Both D435IF
+links enumerated as USB 2.1; no source gaps or repeats occurred at the required
+640x480/30 Hz mode. The user stopped the remaining batch; seven episodes had
+completed by shutdown. This does not claim a second full 20-episode pass.

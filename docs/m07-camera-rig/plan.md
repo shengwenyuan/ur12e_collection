@@ -115,3 +115,6 @@ Subsequent timing and end-boundary corrections passed the
 source gaps/repeats across approximately 30,000 frames per camera. Physical
 clock accuracy and role binding still keep full-module acceptance open. The
 connection comparison itself changed no camera code, queue or codec.
+
+The [D405 mount reference](d405-mount-reference.md) records the official 9 mm
+mount-to-optical-origin offset and separates mechanical framing from calibration.
