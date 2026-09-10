@@ -1,6 +1,6 @@
 # UR12e + Robotiq Hand-E Collection: Module Plan
 
-Status: camera-only acceptance is recorded; read-only follower recording passes offline checks. New-image lab deployment, physical joint recording, full control sessions and dataset export remain pending.
+Status: camera acceptance is recorded; URSim control/session, 20 x 40-second capture, optional LeRobot export, offline calibration and read-only ROS observation pass their software/simulation gates. New-image lab deployment and physical control/device/calibration acceptance remain pending. See the current module matrix below.
 
 Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP direction aligned; repository bootstrap precedes M01 implementation.
 
@@ -119,7 +119,7 @@ Mac tests cover builds, fake devices, sample writing, and replay. Physical USB a
 | CUDA / Isaac Sim | Not collector dependencies in v0.1 |
 | Device firmware and UR software | UR Software `5.22.1` and component versions are user-reported in the actual unit inventory; independent readback and Hand-E firmware remain pending; no automatic updates |
 
-The M01 foundation now pins and validates its runtime SDK dependencies and image identity; its formal plan and bundle manifests record the exact tested versions. LeRobot export and full encoding/storage acceptance remain pending. The initial hardware environment is installed; optional LeRobot export is deferred to M11. LeRobot 0.6.1 requires Python >=3.12. ur_rtde is an SDU Robotics project, not an official UR SDK. [LeRobot dependencies](https://github.com/huggingface/lerobot/blob/v0.6.1/pyproject.toml), [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/pages/getting_started/installation.html).
+The M01 foundation now pins and validates its runtime SDK dependencies and image identity; its formal plan and bundle manifests record the exact tested versions. MCAP encoding and optional RGB/arm LeRobot export now pass their software gates. The initial hardware environment is installed; full gripper/depth training projection remains separate M11 work. LeRobot 0.6.1 requires Python >=3.12. ur_rtde is an SDU Robotics project, not an official UR SDK. [LeRobot dependencies](https://github.com/huggingface/lerobot/blob/v0.6.1/pyproject.toml), [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/pages/getting_started/installation.html).
 
 Deliver an image archive, Compose configuration, launcher, identity-free templates, and short instructions. A colleague loads the image and initializes the station without source code or cloud accounts. Persist configuration and data on host mounts. USB/udev, networking, kernel, and scheduling remain host responsibilities; privileged containers do not create hard real-time guarantees.
 
@@ -444,7 +444,7 @@ Acceptance targets: `M15-A01` disabled policy interfaces cannot command hardware
 | M05 | Resolve the preferred server-client endpoint/protocol, device wiring/raw register access, and gripper hold behavior |
 | M06, M09 | Define READY targets/routes, success labels, discard review/retention semantics, and shutdown details. Space / a / Ctrl+C controls are confirmed |
 | M08 | Skew 16.7 ms, default wait 75 ms, eight-frame buffers and non-reuse confirmed; validate live clock mapping and startup behavior |
-| M11 | Offline H.264/PNG + ROS 2 MCAP implemented; real-scene quality/throughput, full playback and local v3 export remain pending |
+| M11 | H.264/PNG MCAP and optional official v3 RGB/arm export are software-tested; full gripper/depth projection and physical task-image export quality remain pending |
 | M12 | Two rounds and taught/scripted motion confirmed; resolve board geometry, controller/checkpoint interface, actual pose reference/TCP offset, pose allocation and validation thresholds in the lab |
 | M13 | Agree numerical acceptance tolerances without expanding the 40-second x 20-episode requirement |
 
@@ -523,9 +523,9 @@ and stop/hold checks. URSim complex trajectories and independent kill/stall
 checks passed; physical control remains disabled. The native PolyScope Home
 node can reuse installation HOME through a dedicated Dashboard-loaded READY
 program, and its speed/stop behavior passed URSim checks. Dashboard disconnect
-alone does not stop that program, so native Home heartbeat/handover integration
-remains pending. Moving-session recording and keyboard lifecycle are also
-pending; no whole-module or physical acceptance is implied.
+alone does not stop that program; the accepted native Home design lets it finish
+without a host watchdog. Exclusive handover, moving-session recording and
+keyboard lifecycle now pass URSim checks; physical acceptance remains separate.
 
 
 ## Current simulator sprint status

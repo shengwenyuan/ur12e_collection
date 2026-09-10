@@ -20,7 +20,7 @@ this autonomous sprint. No GUI automation was required.
 | M10 | Separate intent/sent/actual streams, authority interval, exact clocks, immutable calibration context and optional read-only ROS observer | MCAP source/coverage/pairing and current-verifier readback PASS | Real GELLO mapping, calibrated TF and calibration services remain pending |
 | M11 | Independent H.264 streams, exact uint16 PNG, verified atomic MCAP; optional official LeRobot v3 RGB/arm export | Codec/corruption/failure gates PASS; actual official loader verifies 1,291 frames in two episodes | Full simulator duration gate PASS; gripper/depth training projection and physical task-image export quality NOT RUN |
 | M12 | ChArUco detection, fixed/wrist geometry, independent held-out checks, stationary checkpoint gate, offline solve/verify/setup/activate | 30 offline tests across geometry, real rendered PNG pixels, immutable evidence and failure-preserving activation PASS | Taught physical script/checkpoint transport, TCP-to-flange offset, board dimensions/visibility and real accuracy thresholds NOT RUN |
-| M13 | Hardware-free shadow, actual URSim functional/fault batches, independent final audit and reproducible reports | Software/native ROS/installed-image checks PASS | Twenty 40-second episodes and independent audit PASS; final image/bundle handoff in progress |
+| M13 | Hardware-free shadow, actual URSim functional/fault batches, independent final audit and reproducible reports | Software/native ROS/installed-image checks PASS | Twenty 40-second episodes, independent audit and final-image fault regression PASS; new lab deployment NOT RUN |
 
 ## Current architecture and operator behavior
 
@@ -75,3 +75,12 @@ quality audit. Accepted 23,998 / 24,007 decisions (99.9625%), worst 99.75%, at m
 two consecutive rejections, zero native source gaps/repeats. The last complete
 episode is explicitly discarded for lifecycle validation. See the M13 plan for
 resource limits and synthetic-versus-physical interpretation.
+
+
+Final source-matched runtime: `ur12e-collection:sim-runtime-6e48d82`.
+Image ID: `sha256:3165576f143dede3da111e790e0ade4dcb262d7bac07ebb8cd8e940521e62556`.
+Native regression is 248 PASS / 5 environment skips; installed Jazzy is
+251 PASS / 2 host-only skips, and both mount tests separately PASS. The runtime
+contains 59 hash-matched Python/schema files. Final-image active discard,
+recorder-kill/restart and Ctrl+C/hold regression also PASS. Source and deployment
+instructions are in the M01 plan; physical control remains disabled.

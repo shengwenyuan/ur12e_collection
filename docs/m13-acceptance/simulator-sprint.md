@@ -2,7 +2,7 @@
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: aligned / implementing, 2026-09-10.
+Status: feasible software/simulator scope accepted; hardware work deferred, 2026-09-10.
 
 The user authorized autonomous development, simulation tests and incremental
 commits over their next 6–8 hours away. Write concrete plans before each durable
@@ -97,3 +97,30 @@ work or changing previously accepted behavior.
 - Then refresh final runtime/dev images, package the offline release, update
   `simulator-matrix.md`, and close the scheduled continuation. No lab/physical
   connection or non-Docker GUI control is permitted.
+
+- Final code commit `6e48d82` has source-matched runtime/dev images: 59 package
+  hashes match, installed Jazzy 251 PASS / 2 host-only skips, both mount tests
+  separately PASS. Final-image actual URSim active discard, recorder loss,
+  restart and Ctrl+C/hold PASS (`session-faults-1789031648997204462`).
+- Offline bundle `artifacts/releases/ur12e-simulator-6e48d82` is published: all
+  17 checksums, actual Docker load and source-free bundled doctor/mount smoke
+  PASS. Archive 474,623,488 bytes; exact SHA-256 and image IDs are in M01.
+- Feasible authorized M01–M13 simulation scope is complete. Final documentation
+  is committed separately from image source `6e48d82`; package hashes are
+  unchanged. Stop the continuation automation; do not invent physical acceptance.
+
+
+## Return-to-lab handoff
+
+No physical network/device access occurred and no non-Docker GUI was controlled.
+URSim remains available and stopped after the final fault regression; there is no
+active client, recording or automatic motion loop. The physical backend continues
+to reject control before connecting. Preserve all failed artifacts for diagnosis.
+
+Next work requires the user's return: review site-specific HOME route/clearance,
+confirm actual left/right camera binding and new-image read-only smoke, receive
+real GELLO transport/mapping/holding work, verify Hand-E URCap communication and
+grip retention, and define board dimensions/TCP offset/taught checkpoints for
+physical calibration. Success labels and the full gripper/depth training export
+projection remain explicit product decisions. Calibrated TF/services, Isaac Sim
+and DAgger runtime are deferred interfaces, not simulated physical successes.

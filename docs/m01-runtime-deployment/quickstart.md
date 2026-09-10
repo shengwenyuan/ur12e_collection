@@ -1,6 +1,6 @@
 # UR12e Collection Foundation Quickstart
 
-This foundation provides software diagnostics, incomplete station configuration, and explicit on-site probes. Camera-only shadow now supports persistent camera acquisition, matching and MCAP recording; see the M13 lab runbook. Robot session control, ZERO/READY motion and calibration are not implemented. No command starts robot motion automatically.
+This runtime provides software diagnostics, station configuration, camera-only or output-only observation shadow, verified MCAP recording and offline calibration. Explicit isolated URSim sessions support native HOME and teleoperation tests. Physical control remains disabled; there is one READY/HOME target and no separate ZERO movement. See the capability matrix and M13 lab runbook for acceptance boundaries.
 
 The user-confirmed UR12e controller IP is `10.18.1.106` (2026-09-10).
 The collection PC remains `ssh ur12e-collection`. These are separate devices;
@@ -37,7 +37,7 @@ Initialization creates an incomplete draft and refuses to overwrite an existing 
 ./scripts/camera-probe --seconds 10 --output /data/probes/new-check
 ```
 
-This probe preserves source clocks and does not claim cross-camera synchronization. It is separate from the future `shadow` command. Unknown left/right camera assignments remain unbound. The current source uses one spawned worker per camera and warms alignment before measuring. Review color gaps and repeated/missing depth counters separately; a completed probe is not a guarantee of 30 unique depth frames per second. Only one RGB/depth sample pair is saved per camera, alongside per-frame timestamps; this is not a full video recording.
+This probe preserves source clocks and does not claim cross-camera synchronization. It is separate from the persistent `shadow` command. Unknown left/right camera assignments remain unbound. The current source uses one spawned worker per camera and warms alignment before measuring. Review color gaps and repeated/missing depth counters separately; a completed probe is not a guarantee of 30 unique depth frames per second. Only one RGB/depth sample pair is saved per camera, alongside per-frame timestamps; this is not a full video recording.
 
 Override `UR12E_CONFIG_DIR` and `UR12E_DATA_DIR` with existing writable absolute host directories when needed. The launcher uses the operator UID/GID; explicit `UR12E_UID`/`UR12E_GID` overrides are available for a deliberately configured deployment account. Container replacement preserves these mounts.
 
@@ -50,3 +50,12 @@ python3 scripts/release.py ur12e-collection:runtime /path/to/new-bundle
 The bundle contains the image, exact image identity, package manifests, checksums, launcher, Compose file, example configuration, and this guide. Bundle creation leaves a `.partial` directory on failure and never overwrites an existing destination. The loader checks file integrity before loading; the bundled launcher selects the recorded image ID. These checks establish integrity, not a signature or publisher-authentication scheme.
 
 Keep credentials and real station data outside the bundle. Hardware acceptance and real three-camera throughput remain separate from successful image loading and software diagnostics.
+
+The simulator sprint runtime is `ur12e-collection:sim-runtime-6e48d82`; its
+manifest pins the exact source-matched image ID. The bundle includes
+`CALIBRATION.md` and `CAPABILITIES.md`. Calibration solve/verify/setup/activate
+are offline commands and send no motion. Optional LeRobot export requires its
+separately documented dependency environment; Torch/LeRobot are not bundled.
+The runtime image contains simulator adapters, but this Ubuntu delivery does not
+include the official URSim appliance or authorize physical control. Use the
+repository simulator launcher and setup instructions for local URSim testing.

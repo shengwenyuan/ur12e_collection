@@ -261,3 +261,16 @@ acceptance is inferred. The original frozen client used the previously tested
 dependency image plus its recorded source overlay; current source-matched images
 are validated separately. Full reports and failed predecessors remain under
 ignored `artifacts/simulator-control/`.
+
+
+### Final sprint regression
+
+Current code commit `6e48d82` adds optional bounded read-only ROS observation.
+Seven actual Jazzy observer tests and URSim observer-loss isolation PASS; default
+capture stays independent of DDS. The source-matched final image passes 251
+installed tests plus two explicit mount checks. Its actual URSim discard,
+recorder-kill/restart and Ctrl+C cases pass in
+`session-faults-1789031648997204462`; failed episodes remain partial and held
+position is checked from independent readback. Native tests pass 248 cases;
+all five environment skips have their applicable container/mount checks covered.
+See the M01 delivery record and M10 observer plan for exact boundaries.

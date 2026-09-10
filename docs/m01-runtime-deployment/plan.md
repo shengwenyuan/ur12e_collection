@@ -211,3 +211,39 @@ needed for these checks. Export-only LeRobot/Torch is excluded from this image.
 The offline bundle also includes calibration usage and the capability/acceptance
 matrix. Final bundle publication awaits the simulator batch/audit; lab deployment
 and physical checks remain NOT RUN during this sprint.
+
+
+### Final sprint image acceptance (2026-09-10)
+
+Supersedes the intermediate `36c00b2` image above. Runtime tag
+`ur12e-collection:sim-runtime-6e48d82` resolves to
+`sha256:3165576f143dede3da111e790e0ade4dcb262d7bac07ebb8cd8e940521e62556`.
+The matching development image `ur12e-collection:sim-dev-6e48d82` is
+`sha256:b6f5f246c8abee5a8b75e615173e566e1e1fe1d0d31910d7e7062e4d661ebe62`.
+Both label commit `6e48d829587a3d833292787cfc175704eb7c6b18`. All **59** runtime
+Python/schema files match the committed package by SHA-256. Dependency versions
+remain those recorded above; exact manifests accompany the release.
+
+M01-A01/A02 software **PASS**: runtime/development builds, isolated runtime
+`doctor`, and **251 installed-package tests PASS / 2 host mount tests skipped**.
+M01-A03 **PASS**: both skipped mount tests then ran separately against this
+runtime, including replacement persistence and honest read-only mount failure.
+Native Mac regression: **248 PASS / 5 environment skips**, Black and Pylint 10.
+The three native ROS skips ran in Jazzy; the two mount skips ran separately.
+No test skip is presented as a physical success.
+
+Actual URSim regression on this client image:
+`session-faults-1789031648997204462` **PASS** for active discard, recorder SIGKILL,
+explicit restart and Ctrl+C. Recorder-loss/interrupt SDK release took 546/545 ms;
+independent readback stayed stopped/held away from HOME. Fault data remained
+partial and all parent-owned shared camera slots were removed. Normal release
+was 1.035 s inside the accepted post-settle handover budget.
+
+The local runtime archive is published under
+`artifacts/releases/ur12e-simulator-6e48d82/`. All 17 delivered file checksums
+PASS, the actual bundle loader reloads the recorded image ID, and the source-free
+bundled Compose launcher passes software/mount doctor using disposable local
+mounts. This is Docker Desktop validation, not fresh Ubuntu or lab deployment.
+Archive size: 474,623,488 bytes (452.64 MiB). SHA-256:
+`7cad26c75a48af7e1bdd01d5f8d608528072c6acde1fc778aa3001a22586cfe4`.
+New lab deployment, fresh-machine setup and physical control remain **NOT RUN**.

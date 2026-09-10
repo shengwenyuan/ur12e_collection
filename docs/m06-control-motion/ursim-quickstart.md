@@ -65,7 +65,7 @@ default pose is simulator-only, not an accepted physical approach route.
 
 The [control increment](simulator-control.md) adds a shared bounded control loop
 and controller watchdog. GELLO hardware and Hand-E control remain excluded;
-keyboard/recording integration is not yet implemented.
+keyboard/recording integration is now available in the current commands below.
 
 With the dependency image `ur12e-collection:readonly-runtime` installed and
 URSim in Remote mode, run these explicitly authorized simulator tests:
@@ -83,7 +83,7 @@ configuration. Each watchdog test intentionally kills or freezes the motion
 owner. Native protective-stop recovery is deliberately not automatic.
 Reports, including failures, remain under `artifacts/simulator-control/`.
 
-For the independent native Home probe, use PolyScope Local mode to set installation
+For the historical independent low-speed native Home probe, use PolyScope Local mode to set installation
 Home to READY, create a program containing one Home node, disable program looping,
 set 15 deg/s and 25 deg/s², and save it as `/ursim/programs/ready.urp` with its
 installation. Switch back to Remote and run:
@@ -93,8 +93,10 @@ installation. Switch back to Remote and run:
 ```
 
 This probe invokes the native program after closing the SDK motion program.
-It does not enable the native program as the application's default READY backend.
-The ordinary Home node has no client-loss watchdog; that integration is pending.
+The current application instead uses a dedicated native Home program with the
+accepted 60 deg/s and 80 deg/s² defaults and measured stop/arrival handover. It
+intentionally has no host watchdog while Home owns motion; SDK following has
+its own watchdog. See `simulator-control.md` for the accepted behavior.
 
 ## Persistence and diagnosis
 
@@ -125,10 +127,10 @@ Ctrl+C. Keep the application console in a terminal; the source waveform is a
 simulation fixture and Hand-E is explicitly bypassed.
 
 ```sh
-python scripts/sim_control.py console --client-image ur12e-collection:sim-runtime-36c00b2
-python scripts/sim_control.py session-faults --client-image ur12e-collection:sim-runtime-36c00b2
+python scripts/sim_control.py console --client-image ur12e-collection:sim-runtime-6e48d82
+python scripts/sim_control.py session-faults --client-image ur12e-collection:sim-runtime-6e48d82
 python scripts/sim_control.py session --episodes 20 --seconds 40 \
-  --client-image ur12e-collection:sim-runtime-36c00b2
+  --client-image ur12e-collection:sim-runtime-6e48d82
 PYTHONPATH=src python tests/simulation/acceptance.py artifacts/simulator-control/session-RUN
 ```
 
@@ -138,3 +140,8 @@ image. The official URSim image, identity, internal network and exclusive lease
 are still mandatory; these commands accept no physical host/address argument.
 The complete snapshot/MCAP validation and grouping audit must pass before claiming
 a successful full batch. Failed/partial results remain available for diagnosis.
+
+Add `--ros-observe` to `console` or `session` for optional read-only Jazzy status,
+joint/pose and provenance topics. The observer uses container-local discovery;
+its failure cannot own/restart the robot. Calibration services and TF are not
+provided. See [M10 observation](../m10-data-contract/ros-observation.md).
