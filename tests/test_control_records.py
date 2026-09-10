@@ -103,3 +103,59 @@ def test_cached_feedback_is_not_another_sample(controlled):
     )
     assert len(factory.feedback(state)) == 2
     assert factory.feedback(dataclasses.replace(state, received_ns=2)) == ()
+
+
+@pytest.mark.parametrize("missing", ["last_ur_pair", "tail", "interior"])
+def test_control_stream_cannot_end_with_missing_feedback(controlled, missing):
+    data = samples(controlled)
+    last = data.pop()
+    if missing == "last_ur_pair":
+        state = data[-2]
+        data.append(
+            dataclasses.replace(
+                state,
+                provenance=dataclasses.replace(
+                    state.provenance,
+                    sequence=1,
+                    time=dataclasses.replace(
+                        state.provenance.time,
+                        source_ns=1_020_000_000,
+                        received_monotonic_ns=23_000_000,
+                    ),
+                ),
+            )
+        )
+    else:
+        last = dataclasses.replace(
+            last,
+            provenance=dataclasses.replace(
+                last.provenance,
+                time=contracts.SampleTime(
+                    1_000_000_000, "host_monotonic", 1_000_000_000
+                ),
+            ),
+        )
+        if missing == "interior":
+            state = data[-2]
+            data.append(
+                dataclasses.replace(
+                    state,
+                    provenance=dataclasses.replace(
+                        state.provenance,
+                        sequence=1,
+                        time=dataclasses.replace(
+                            state.provenance.time,
+                            source_ns=1_500_000_000,
+                            received_monotonic_ns=503_000_000,
+                        ),
+                    ),
+                )
+            )
+    data.append(last)
+    validator = control_records.Validator(controlled)
+    with pytest.raises(ValueError, match="required|cover|gap"):
+        for item in data:
+            validator.check(
+                item, item.provenance.time.received_monotonic_ns + OFFSET
+            )
+        validator.finish()

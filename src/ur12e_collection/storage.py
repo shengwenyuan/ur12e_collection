@@ -44,6 +44,7 @@ class EpisodeWriter:
         *,
         simulated: bool,
         capacity: int = 4,
+        feedback_capacity: int = FEEDBACK_CAPACITY,
         crf: int = 20,
         match_config: matching.MatchConfig = matching.MatchConfig(),
         verify=None,
@@ -56,6 +57,12 @@ class EpisodeWriter:
             raise ValueError(
                 "explicit synthetic provenance and positive capacity required"
             )
+        if (
+            not isinstance(feedback_capacity, int)
+            or isinstance(feedback_capacity, bool)
+            or not 1 <= feedback_capacity <= 256
+        ):
+            raise ValueError("feedback capacity must be between 1 and 256")
         if (
             not isinstance(crf, int) or isinstance(crf, bool)
         ) or not 0 <= crf <= 51:
@@ -72,11 +79,12 @@ class EpisodeWriter:
         self.options = {
             "simulated": simulated,
             "capacity": capacity,
+            "feedback_capacity": feedback_capacity,
             "crf": crf,
             "matching": match_config,
             "verify": verify,
         }
-        self._queue = queue.Queue(maxsize=capacity + FEEDBACK_CAPACITY)
+        self._queue = queue.Queue(maxsize=capacity + feedback_capacity)
         self._lock = threading.Lock()
         self._done = threading.Event()
         self._status = {
@@ -90,6 +98,7 @@ class EpisodeWriter:
             "queued": 0,
             "queued_feedback": 0,
             "max_queue_delay_ns": 0,
+            "operations": {},
         }
         self._reservation = destination.with_name(destination.name + ".lock")
         self._reserve()
@@ -124,13 +133,17 @@ class EpisodeWriter:
             peak = "peak_feedback_queue" if is_feedback else "peak_queue"
             count = len(value) if is_feedback else 1
             capacity = (
-                FEEDBACK_CAPACITY if is_feedback else self.options["capacity"]
+                self.options["feedback_capacity"]
+                if is_feedback
+                else self.options["capacity"]
             )
             if self._status[key] + count > capacity:
-                self._status.update(
-                    state="aborted", error="recording queue overflow"
+                error = (
+                    f"recording queue overflow: {key}="
+                    f"{self._status[key]} + {count} > {capacity}"
                 )
-                raise RecordingError("recording queue overflow")
+                self._status.update(state="aborted", error=error)
+                raise RecordingError(error)
             self._queue.put_nowait((operation, value, time.monotonic_ns()))
             self._status[key] += count
             self._status[peak] = max(self._status[peak], self._status[key])
@@ -167,6 +180,11 @@ class EpisodeWriter:
                 "error": self._status["error"],
                 "queued": self._status["queued"],
                 "queued_feedback": self._status["queued_feedback"],
+                "max_queue_delay_ms": self._status["max_queue_delay_ns"] / 1e6,
+                "operations": {
+                    key: dict(value)
+                    for key, value in self._status["operations"].items()
+                },
             }
 
     def finish(self, timeout: float = 30) -> dict:
@@ -221,6 +239,7 @@ class EpisodeWriter:
                     self._status["max_queue_delay_ns"],
                     time.monotonic_ns() - submitted_ns,
                 )
+            started_ns = time.monotonic_ns()
             if operation == "records":
                 for record in value:
                     writer.record(*record)
@@ -228,6 +247,14 @@ class EpisodeWriter:
                 writer.record(*value)
             else:
                 getattr(writer, operation)(value)
+            elapsed_ms = (time.monotonic_ns() - started_ns) / 1e6
+            with self._lock:
+                stats = self._status["operations"].setdefault(
+                    operation, {"count": 0, "total_ms": 0.0, "max_ms": 0.0}
+                )
+                stats["count"] += 1
+                stats["total_ms"] += elapsed_ms
+                stats["max_ms"] = max(stats["max_ms"], elapsed_ms)
         raise RecordingError("recording was aborted")
 
     def _commit(self, report: dict) -> None:
@@ -302,7 +329,8 @@ class EpisodeWriter:
                 "max_queue_delay_ms": self._status["max_queue_delay_ns"] / 1e6,
                 "queue_capacity": self.options["capacity"],
                 "peak_queue": self._status["peak_queue"],
-                "feedback_queue_capacity": FEEDBACK_CAPACITY,
+                "feedback_queue_capacity": self.options["feedback_capacity"],
+                "write_operations": self._status["operations"],
                 "peak_feedback_queue": self._status["peak_feedback_queue"],
                 "elapsed_s": time.monotonic() - started,
                 "libraries": {
@@ -327,7 +355,7 @@ class EpisodeWriter:
             try:
                 _json_file(
                     self.partial / "failure.json",
-                    {"state": "failed", "error": self._status["error"]},
+                    self.health(),
                 )
             except OSError:
                 pass  # An unwritable filesystem cannot hold an error record.

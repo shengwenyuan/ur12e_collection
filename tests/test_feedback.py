@@ -407,3 +407,39 @@ def test_feedback_budget_does_not_consume_image_slots(tmp_path, snapshot):
             writer.abort()
             assert writer.wait_closed()
     assert "queue overflow" in writer.health()["error"]
+
+
+def test_simulator_record_budget_covers_supervision_window(tmp_path, snapshot):
+    entered, release = threading.Event(), threading.Event()
+
+    def blocked(owner, writer):
+        entered.set()
+        assert release.wait(2)
+        raise storage.RecordingError("test stopped")
+
+    with mock.patch.object(storage.EpisodeWriter, "_consume", blocked):
+        writer = storage.EpisodeWriter(
+            tmp_path / "sim-budgets",
+            snapshot,
+            simulated=True,
+            capacity=16,
+            feedback_capacity=128,
+        )
+        try:
+            assert entered.wait(2)
+            # 32 control ticks at four records/tick; image slots stay separate.
+            for _ in range(2):
+                writer.submit_records(tuple((s, 1) for s in _samples()) * 32)
+            assert writer.health()["queued_feedback"] == 128
+            assert writer.health()["queued"] == 0
+            with pytest.raises(
+                storage.RecordingError, match="queued_feedback=128"
+            ):
+                writer.submit_records(((_samples()[0], 1),))
+        finally:
+            release.set()
+            writer.abort()
+            assert writer.wait_closed()
+    failure = json.loads((writer.partial / "failure.json").read_text())
+    assert failure["queued_feedback"] == 128
+    assert "128 + 1 > 128" in failure["error"]

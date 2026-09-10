@@ -149,6 +149,8 @@ def _worker(config, context, channels):
             print(f"capture timings: {dict(capture_owner.timings)}", flush=True)
         print(f"source statistics: {source.statistics()}", flush=True)
         if owner is not None:
+            if owner.writer is not None:
+                print(f"writer health: {owner.writer.health()}", flush=True)
             owner.abort()
         try:
             replies.put_nowait(("error", str(error)))

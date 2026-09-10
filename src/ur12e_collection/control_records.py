@@ -7,6 +7,10 @@ class Validator:
     def __init__(self, snapshot: dict):
         self.context = snapshot.get("control")
         self.previous = {}
+        self.first = {}
+        self.maximum_gap = (self.context or {}).get(
+            "max_control_gap_ns", 250_000_000
+        )
         self.boundaries = {}
         self.receipts = []
         self.pending_intent = None
@@ -67,6 +71,15 @@ class Validator:
             or p.time.source_ns <= previous.time.source_ns
         ):
             raise ValueError("control stream sequence or time did not advance")
+        if (
+            previous is not None
+            and record.kind != "authority_event"
+            and p.time.received_monotonic_ns
+            - previous.time.received_monotonic_ns
+            > self.maximum_gap
+        ):
+            raise ValueError("control stream has an excessive receipt gap")
+        self.first.setdefault(record.kind, p.time.received_monotonic_ns)
         self.previous[record.kind] = p
         if record.kind == "authority_event":
             self._authority(record)
@@ -131,10 +144,23 @@ class Validator:
                 "ur_feedback",
             }
             or self.pending_intent is not None
+            or self.pending_state is not None
         ):
             raise ValueError("controlled episode is missing required records")
         if set(self.boundaries) != {"acquired", "released"}:
             raise ValueError("control authority interval is incomplete")
+        for kind, last in self.previous.items():
+            if kind == "authority_event":
+                continue
+            if (
+                self.first[kind] - self.boundaries["acquired"]
+                > self.maximum_gap
+                or self.boundaries["released"] - last.time.received_monotonic_ns
+                > self.maximum_gap
+            ):
+                raise ValueError(
+                    "control stream does not cover its authority interval"
+                )
         if not (
             self.boundaries["acquired"]
             <= self.receipts[0]

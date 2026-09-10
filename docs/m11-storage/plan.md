@@ -151,3 +151,29 @@ process. Bounded slot/queue failure aborts the episode. Short and two 40-second
 URSim sessions plus fault/restart cases pass; full 20 x 40 remains pending.
 The explicit optional [LeRobot projection](lerobot-export.md) passes real official
 writer/loader validation; it does not replace authoritative RGB-D MCAP storage.
+
+## Simulator queue-budget audit
+
+The shared-memory 20 x 40-second batch completed 14 episodes and then failed
+with a generic writer overflow (`session-1789027660592731838`). Source counters
+showed no lost native frames; source delivery peaked at 126 ms. Completed episodes
+spent approximately 15–16 ms per camera triple encoding, below the 33.3 ms input
+period. This does not establish the exact failing queue, because the previous
+error did not include its category or occupancy.
+
+Add explicit category/occupancy/capacity and writer operation timing to failure
+reports. Match the simulator's lightweight record budget to its bounded 500 ms
+recorder supervision interval: four control records per 50 Hz tick need 100
+slots before supervision expires; reserve 128 in the simulator profile. The
+existing 64-record physical/shadow default remains unchanged. The 16-triple image
+budget already represents approximately 533 ms. Queues still fail closed, actual
+control freshness/watchdog and camera matching remain unchanged, and queued
+records cannot drive new motion. Validate independent record/image capacity and
+a deliberately stalled writer, then rerun the full batch. Do not describe this
+budget correction alone as proof of the previous failure's root cause.
+
+The budget/diagnostic increment passes 69 targeted storage/feedback/session tests,
+then the full Mac suite (232 PASS / 4 skipped) with Black/Pylint 10.00/10.
+A deliberately blocked writer accepts the configured 128 small records without
+consuming image slots and rejects the next record with exact occupancy evidence.
+The new frozen 20-episode batch is running; its acceptance remains pending.

@@ -78,11 +78,21 @@ work or changing previously accepted behavior.
   Black/Pylint passed. Committed as `429b701`.
 - Native Home: default parameters, asymmetric return, stop/hold, client loss and
   exclusive SDK handover pass actual URSim tests; see M06 simulator-control.md.
-- Next: persistent moving session and independent recording/provenance.
+- Persistent moving session and optional offline export committed as `60bf3da`.
 - M09/M10/M11: short moving episodes and actual URSim discard/recorder-loss/SIGINT
-  gates pass; the 20 x 40-second batch is being diagnosed (not accepted). Changes
-  are uncommitted until the coherent session increment passes its recorded gates.
+  gates pass; the 20 x 40-second batch is being diagnosed (not accepted). Functional slice committed; the separate long-duration gate remains pending.
 - M12: offline geometry, ChArUco detection and pure stationary checkpoints pass
-  19 software tests. Result persistence/activation remains the next M12 increment.
-- Subsequent work: configuration/device audit, LeRobot export and release remain
-  pending. Preserve the earlier physical acceptance boundaries.
+  19 software tests. Offline result/activation now passes 11 additional tests and is committed as
+  `4bb00e1`; current full checks are 228 native / 230 Jazzy PASS.
+- LeRobot official 0.6.1 writer/loader: 1,291 frames in two episodes pass, exact
+  numeric readback and sampled RGB MAE <0.719/255, offline; see M11 export plan.
+- Latest long batch `session-1789027660592731838` completed 14 x 40 s then failed
+  a generic writer overflow. Parent-owned shared slots fixed recorder-kill leaks.
+  Explicit simulator record budget is now 128 (four records x 50 Hz against a
+  500 ms recorder heartbeat), media queue 16, camera slots 8 per role. Hardware
+  shadow defaults remain unchanged. Detailed overflow/operation diagnostics added;
+  69 targeted tests and Pylint pass. New frozen full batch is running with log
+  `artifacts/simulator-control/long-budgeted.log`.
+- Remaining: long-batch diagnosis/acceptance, source-matched runtime/dev build,
+  release bundle, M01–M13 audit/matrix and optional ROS observability gaps.
+  No physical connection is permitted. Preserve failed logs and current commits.

@@ -51,6 +51,9 @@ class Session:
             capacity=self.snapshot.get("control", {}).get(
                 "writer_queue_capacity", 4
             ),
+            feedback_capacity=self.snapshot.get("control", {}).get(
+                "writer_feedback_capacity", storage.FEEDBACK_CAPACITY
+            ),
             verify=self.verify,
         )
         self.matcher = matching.Matcher(self.snapshot["clock_id"], self.config)

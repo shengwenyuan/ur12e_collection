@@ -94,3 +94,19 @@ validation requires matching declared setup, simulation flag, device serial and
 observed RGB optics. Old snapshots retain their original result copies when the
 station's mount generation changes. Software tests pass; physical calibration
 accuracy is not inferred from metadata consistency.
+
+## Controlled-stream completeness audit
+
+Require every controlled stream to span its authority interval within the shared
+250 ms freshness tolerance, with no internal receipt gap above that bound. Paired
+UR/follower records must be complete at finalization, including the final pair.
+This closes a verifier gap where one early state plus a much later release could
+otherwise look structurally valid. The bound is an optional explicit snapshot
+field with a backward-compatible 250 ms default. It does not interpolate or
+manufacture missing records. Test missing final UR pairs, long interior gaps,
+missing tails and completed simulator episodes against the stronger validator.
+
+Completeness checks PASS for missing final pairs, missing interval tails and long
+internal gaps. A completed actual 40-second URSim episode (1,200 triples, 1,946
+intent/sent pairs) also passes independent full-file verification with the stronger
+validator. Full Mac suite: 232 PASS / 4 skipped, Black/Pylint PASS.
