@@ -5,8 +5,8 @@
 - Module: M03
 - Status: implemented / hardware acceptance pending (read-only slice)
 - Parent: [meta plan](../../meta_plan.md)
-- Dependencies: M01; robot address supplied by the user
-- Updated: 2026-09-09
+- Dependencies: M01; user-confirmed UR12e controller address `10.18.1.106`
+- Updated: 2026-09-10
 - Alignment: the user approved prioritized on-site UR identity/software/state inspection on 2026-09-09. Joint targets remain unknown and no motion test is included.
 
 ## Scope and design
@@ -26,6 +26,17 @@ The diagnostic sampling interval is not a servo-loop commitment or production ti
 
 ## Results and remaining work
 
+The user-reported [actual unit inventory](controller-inventory.md) records UR
+Software `5.22.1`, controller hostname/serial, component versions and installed
+URCaps. The pendant reports DHCP and `Not connected to network!` despite reported
+ping reachability. Reconcile this discrepancy and compare independent identity
+readback with the inventory; these observations do not satisfy M03-A01.1.
+
 The camera diagnostic refinement shares a small bounded worker-cleanup helper with this probe. It allows a reported worker to exit, then uses bounded terminate/kill joins. No UR query or control behavior was added; the read-only software checks pass after this refactor.
 
-The diagnostic command is implemented. Software tests verify the fixed read-only Dashboard allowlist, socket timeouts, failure reporting, and preservation of existing output files. Actual UR identity and RTDE acquisition remain NOT RUN because the controller IP is pending. The station Ethernet link is up but has no IPv4 address at inspection; configure the dedicated robot subnet after the user supplies the robot address. M03-A02 stop/hold and M03-A03 controller-side fault handling are NOT IMPLEMENTED and cannot be accepted by this probe.
+The diagnostic command is implemented. Software tests verify the fixed read-only Dashboard allowlist, socket timeouts, failure reporting, and preservation of existing output files. At the initial inspection the controller IP was unknown. On 2026-09-10 the user identified `10.18.1.106` as the UR12e controller. Read-only ICMP checks passed from Mac and the collection PC (three replies each, no packet loss). The collection PC reached it through its Wi-Fi gateway; a dedicated Ethernet subnet is not a prerequisite for basic reachability. Dashboard identity and RTDE acquisition remain NOT RUN in this address-confirmation check. Ping does not establish identity, controller mode or control-loop suitability. M03-A02 stop/hold and M03-A03 controller-side fault handling are NOT IMPLEMENTED and cannot be accepted by this probe.
+
+## Read-only integration increment
+
+Read-only preflight captured the configured serial, Dashboard status and 60 RTDE samples. Persistent output-only acquisition is implemented and software-tested; its new-image physical integration remains NOT RUN. The powered-off raw zero values do not establish physical joint posture. See the
+[shared plan and results](../m13-acceptance/readonly-integration.md).

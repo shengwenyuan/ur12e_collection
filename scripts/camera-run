@@ -27,6 +27,8 @@ mounts=()
 if [[ -d $config_dir ]]; then
   mounts+=(--mount "type=bind,src=$config_dir,dst=/config,readonly")
 fi
-exec docker run --rm --network none --user "$(id -u):$(id -g)" \
+network=none
+if [[ ${UR12E_READ_FEEDBACK:-0} == 1 ]]; then network=host; fi
+exec docker run --rm --memory 4g --memory-swap 4g --network "$network" --user "$(id -u):$(id -g)" \
   "${devices[@]}" "${mounts[@]}" --mount "type=bind,src=$data_dir,dst=/data" \
   "${UR12E_IMAGE:-ur12e-collection:runtime}" "$@"

@@ -119,3 +119,8 @@ The user subsequently aligned the diagnostic/correction experiment scope.
 alignment. A bounded M09/M13 end-drain correction and targeted physical-timing /
 depth-integrity regressions are implemented under the diagnosis plan; runtime
 wait/poll/codec default changes remain experimental until that final alignment.
+
+## Read-only integration increment
+
+The user approved productionizing the measured profile: default 75 ms wait/tail drain with unchanged 16.7 ms skew and non-reuse. Snapshot/runtime mismatches fail before writer startup. Legacy wait values remain explicit in older recorded metadata. See the
+[shared plan and results](../m13-acceptance/readonly-integration.md).

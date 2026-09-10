@@ -33,12 +33,12 @@ def depth_digest(depth: np.ndarray) -> str:
 
 
 def encode_depth(depth: np.ndarray) -> bytes:
-    """Encode and verify every raw depth value, including zeros and 65535."""
+    """Encode raw depth; final archive verification checks every pixel."""
     if depth.shape != (480, 640) or depth.dtype != np.uint16:
         raise ValueError("depth must be aligned 640x480 uint16")
     ok, encoded = cv2.imencode(".png", depth, [cv2.IMWRITE_PNG_COMPRESSION, 1])
-    if not ok or not np.array_equal(depth, decode_depth(encoded.tobytes())):
-        raise RuntimeError("depth PNG did not preserve every pixel")
+    if not ok:
+        raise RuntimeError("depth PNG encoding failed")
     return encoded.tobytes()
 
 

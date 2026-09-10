@@ -136,3 +136,72 @@ class FollowerState:
             raise ValueError("sample provenance is required")
         _joints(self.joint_positions_rad)
         _raw(self.gripper_position_raw)
+
+
+@dataclasses.dataclass(frozen=True)
+class URFeedback:
+    """Controller-reported values, including modes needed to judge validity."""
+
+    provenance: Provenance
+    joint_positions_rad: tuple[float, ...]
+    joint_velocities_rad_s: tuple[float, ...]
+    joint_currents_a: tuple[float, ...]
+    tcp_pose_m_rotvec_rad: tuple[float, ...]
+    robot_mode: int
+    safety_mode: int
+    kind: str = dataclasses.field(default="ur_feedback", init=False)
+    schema_version: int = dataclasses.field(default=SCHEMA_VERSION, init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.provenance, Provenance):
+            raise ValueError("feedback requires provenance")
+        if (
+            self.provenance.time.source_clock != "ur_controller_uptime"
+            or self.provenance.time.source_ns is None
+        ):
+            raise ValueError("UR requires controller uptime")
+        for values in (
+            self.joint_positions_rad,
+            self.joint_velocities_rad_s,
+            self.joint_currents_a,
+            self.tcp_pose_m_rotvec_rad,
+        ):
+            if values is None:
+                raise ValueError("UR readback fields cannot be missing")
+            _joints(values)
+        for value in (self.robot_mode, self.safety_mode):
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise ValueError("controller modes must be integers")
+
+
+@dataclasses.dataclass(frozen=True)
+class HandEFeedback:
+    """Non-atomic register poll; PRE is a device echo, never leader action."""
+
+    provenance: Provenance
+    registers: tuple[tuple[str, int], ...]
+    poll_started_monotonic_ns: int
+    kind: str = dataclasses.field(default="hande_feedback", init=False)
+    schema_version: int = dataclasses.field(default=SCHEMA_VERSION, init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.provenance, Provenance):
+            raise ValueError("feedback requires provenance")
+        clock = self.provenance.time
+        if clock.source_ns is not None or clock.source_clock != "unavailable":
+            raise ValueError("Hand-E does not provide acquisition timestamps")
+        _nonnegative_integer(self.poll_started_monotonic_ns, "poll start")
+        if (
+            not 0
+            <= (clock.received_monotonic_ns - self.poll_started_monotonic_ns)
+            <= 250_000_000
+        ):
+            raise ValueError("invalid Hand-E polling interval")
+        if not isinstance(self.registers, tuple) or tuple(
+            k for k, _ in self.registers
+        ) != ("POS", "PRE", "STA", "OBJ", "FLT", "COU"):
+            raise ValueError("Hand-E register set differs")
+        for pair in self.registers:
+            if not isinstance(pair, tuple) or pair[1] is None:
+                raise ValueError("raw registers must be immutable and present")
+            _raw(pair[1])

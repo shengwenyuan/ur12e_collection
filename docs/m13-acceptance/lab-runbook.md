@@ -13,11 +13,20 @@ Target: Ubuntu 24.04 amd64, ROS 2 Jazzy, Python 3.12, librealsense Python
 2.56.5.9235, PyAV 15.1.0, OpenCV 4.12.0.88, MCAP 1.4.0 and ROS 2 support 0.5.7.
 Use the pinned Dockerfile/base digest and hashed requirements. Deployment host
 alias: `ur12e-collection`; it is reachable only when the lab network is available.
-Do not infer the robot address from this SSH alias.
+The user-confirmed UR12e controller IP is `10.18.1.106`; do not infer it from the collection-PC SSH alias. Camera-only commands do not connect to that address.
 
 This batch starts cameras only. It neither connects to UR/GELLO/Hand-E nor moves
 joints. Move scene objects by hand for RGB motion/detail assessment. Physical
 leading, Space/READY/hold and calibration tests are separate, pending modules.
+
+Robot follow-up reference: the [actual unit inventory](../m03-ur-adapter/controller-inventory.md)
+records user-reported UR Software `5.22.1`, identity, component versions and
+installed URCaps, including `External Control` and `Robotiq_Grippers`. For a
+separate read-only robot inspection, reconcile DHCP and the pendant message
+`Not connected to network!` with reported ping reachability; confirm the current
+address and controller identity before checking Dashboard, RTDE or the candidate
+Hand-E service. Package presence and ping do not establish service readiness.
+These checks are outside this camera-only batch and remain pending.
 
 ## Deploy a prepared bundle
 

@@ -14,6 +14,7 @@ from mcap_ros2.writer import Writer
 
 from ur12e_collection import codecs
 from ur12e_collection import contracts
+from ur12e_collection import feedback_records
 from ur12e_collection import matching
 from ur12e_collection import snapshots
 
@@ -41,11 +42,15 @@ RECORD_TYPES = {
     "leader_intent": contracts.LeaderIntent,
     "sent_command": contracts.SentCommand,
     "follower_state": contracts.FollowerState,
+    "ur_feedback": contracts.URFeedback,
+    "hande_feedback": contracts.HandEFeedback,
 }
 RECORD_TOPICS = {
     "leader_intent": "leader/state",
     "sent_command": "control/command",
     "follower_state": "follower/state",
+    "ur_feedback": "follower/state",
+    "hande_feedback": "follower/state",
 }
 TIME_SEMANTICS = "ordered_log_acquisition_publish_v1"
 
@@ -85,6 +90,11 @@ class GroupValidator:
             raise ValueError("synthetic provenance must be an explicit boolean")
         if snapshot["simulated"] != simulated:
             raise ValueError("snapshot simulation provenance differs")
+        if "capture" in snapshot and (
+            config.wait_ns != snapshot["capture"]["wait_ns"]
+            or config.max_skew_ns != snapshot["station"]["max_skew_ns"]
+        ):
+            raise ValueError("runtime matching differs from snapshot")
         self.snapshot = snapshot
         self.simulated = simulated
         self.config = config
@@ -172,6 +182,7 @@ class ArchiveWriter:
             r: codecs.VideoEncoder(crf) for r in contracts.CAMERA_ROLES
         }
         self.validator = GroupValidator(snapshot, simulated, config)
+        self.feedback = feedback_records.Validator(snapshot)
         self.counts = collections.Counter()
         self.payload_bytes = collections.Counter()
         self.encode_ns = collections.Counter()
@@ -296,6 +307,7 @@ class ArchiveWriter:
             raise ValueError("unsupported M10 record")
         if record.provenance.simulated != self.validator.simulated:
             raise ValueError("mixed synthetic and physical record provenance")
+        self.feedback.check(record, timestamp_ns)
         topic = RECORD_TOPICS[record.kind]
         self._write(
             topic,
@@ -307,23 +319,33 @@ class ArchiveWriter:
 
     def finish(self) -> None:
         """Flush every encoder and write the MCAP summary/footer."""
+        self.feedback.finish()
         for video in self.video.values():
             video.finish()
         self.writer.finish()
 
 
-def _record_check(info: dict, simulated: bool) -> None:
+def _record_check(info: dict, simulated: bool):
     kind = info.pop("kind")
     if info.pop("schema_version") != 1:
         raise ValueError("unsupported control schema version")
     provenance = info["provenance"]
     provenance["time"] = contracts.SampleTime(**provenance["time"])
     info["provenance"] = contracts.Provenance(**provenance)
-    if info.get("joint_positions_rad") is not None:
-        info["joint_positions_rad"] = tuple(info["joint_positions_rad"])
+    for name in (
+        "joint_positions_rad",
+        "joint_velocities_rad_s",
+        "joint_currents_a",
+        "tcp_pose_m_rotvec_rad",
+    ):
+        if info.get(name) is not None:
+            info[name] = tuple(info[name])
+    if "registers" in info:
+        info["registers"] = tuple(tuple(pair) for pair in info["registers"])
     record = RECORD_TYPES[kind](**info)
     if record.provenance.simulated != simulated:
         raise ValueError("mixed provenance in control record")
+    return record
 
 
 class _Verifier:
@@ -339,6 +361,7 @@ class _Verifier:
             r: av.CodecContext.create("h264", "r")
             for r in contracts.CAMERA_ROLES
         }
+        self.feedback = feedback_records.Validator(snapshot)
         self.counts = collections.Counter()
         self.expected = collections.deque()
         self._log_time = -1
@@ -447,7 +470,8 @@ class _Verifier:
         elif topic in RECORD_TOPICS.values():
             if topic != RECORD_TOPICS[info["kind"]]:
                 raise ValueError("control topic semantics changed")
-            _record_check(info, self.validator.simulated)
+            record = _record_check(info, self.validator.simulated)
+            self.feedback.check(record, message.publish_time)
         elif topic == "diagnostics/frame_rejection":
             frame = frame_from_dict(info["anchor"])
             if (
@@ -464,6 +488,7 @@ class _Verifier:
 
     def finish(self) -> None:
         """Reject missing payloads, empty recordings and delayed frames."""
+        self.feedback.finish()
         if self.expected or not self.counts["camera/frame_set"]:
             raise ValueError("empty or incomplete episode")
         if any(decoder.decode(None) for decoder in self.decoders.values()):

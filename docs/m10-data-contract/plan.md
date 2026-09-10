@@ -70,3 +70,8 @@ The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) close
 the tested software slice of this module. Remaining hardware or unimplemented
 full-module cases stay open; repeat software checks only for affected changes
 or new failures.
+
+## Read-only integration increment
+
+New ur_feedback and hande_feedback records share follower/state while retaining independent identities and clocks. MCAP feedback publish_time explicitly maps host receipt to Unix; controller uptime and Hand-E polling intervals remain separate. This is observation data with no fabricated action. The snapshot declares read-only sources, timing basis and effective camera settings. See the
+[shared plan and results](../m13-acceptance/readonly-integration.md).

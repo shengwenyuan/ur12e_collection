@@ -95,7 +95,7 @@ class MatchConfig:
     """Aligned limits; latency uses host monotonic time, not camera clocks."""
 
     max_skew_ns: int = 16_700_000
-    wait_ns: int = 50_000_000
+    wait_ns: int = 75_000_000
     capacity: int = 8
 
     def __post_init__(self) -> None:

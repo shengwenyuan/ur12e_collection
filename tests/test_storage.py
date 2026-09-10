@@ -367,6 +367,7 @@ def test_nondefault_matching_contract_survives_recording(
     tmp_path, snapshot, group_factory
 ):
     config = matching.MatchConfig(max_skew_ns=20_000_000)
+    snapshot["station"]["max_skew_ns"] = config.max_skew_ns
     matcher = matching.Matcher(snapshot["clock_id"], config)
     writer = storage.EpisodeWriter(
         tmp_path / "custom-skew", snapshot, simulated=True, match_config=config
@@ -380,7 +381,7 @@ def test_nondefault_matching_contract_survives_recording(
             )
         results += matcher.push(frame, 21_000_000)
     assert len(results) == 1 and results[0].accepted
-    with pytest.raises(ValueError, match="skew"):
+    with pytest.raises(ValueError, match="matching"):
         archive.GroupValidator(snapshot, True).check(results[0])
     writer.submit(results[0])
     report = writer.finish()

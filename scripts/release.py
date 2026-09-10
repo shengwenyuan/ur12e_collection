@@ -15,6 +15,43 @@ def digest(path: pathlib.Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def source_hashes(image_id: str, root: pathlib.Path) -> dict:
+    """Require delivered package sources to match the reviewed working tree."""
+    program = (
+        "import hashlib,json,pathlib,ur12e_collection; "
+        "root=pathlib.Path(ur12e_collection.__file__).parent; "
+        "print(json.dumps({str(p.relative_to(root)):"
+        "hashlib.sha256(p.read_bytes()).hexdigest() "
+        "for p in root.rglob('*') if p.suffix in ('.py','.json')}))"
+    )
+    installed = json.loads(
+        subprocess.check_output(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--entrypoint",
+                "python",
+                image_id,
+                "-c",
+                program,
+            ],
+            text=True,
+        )
+    )
+    package = root / "src/ur12e_collection"
+    local = {
+        str(p.relative_to(package)): digest(p)
+        for p in package.rglob("*")
+        if p.suffix in (".py", ".json")
+    }
+    if installed != local:
+        raise ValueError("image source files differ from working tree")
+    return installed
+
+
 def main() -> None:
     """Build a bundle in a new directory; never replace an existing release."""
     parser = argparse.ArgumentParser()
@@ -33,6 +70,7 @@ def main() -> None:
     )[0]
     if (image["Os"], image["Architecture"]) != ("linux", "amd64"):
         parser.error("production bundles require a linux/amd64 image")
+    sources = source_hashes(image["Id"], root)
     partial.mkdir(parents=True)
     (partial / "scripts").mkdir()
     (partial / "config").mkdir()
@@ -47,6 +85,7 @@ def main() -> None:
         "scripts/camera-probe",
         "scripts/camera-run",
         "scripts/camera-shadow",
+        "scripts/observation-shadow",
         "config/station.example.json",
     ):
         shutil.copy2(root / relative, partial / relative)
@@ -57,8 +96,13 @@ def main() -> None:
     shutil.copy2(
         root / "docs/m13-acceptance/lab-runbook.md", partial / "LAB-RUNBOOK.md"
     )
+    shutil.copy2(
+        root / "docs/m13-acceptance/readonly-quickstart.md",
+        partial / "READONLY.md",
+    )
     manifest = {
         "schema_version": 1,
+        "source_files_sha256": sources,
         "image_id": image["Id"],
         "image_tag": args.image,
         "platform": f"{image['Os']}/{image['Architecture']}",

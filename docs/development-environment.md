@@ -61,6 +61,11 @@ PyAV reported libavcodec 61.19.101 and libavformat 61.7.100; this does not estab
 
 ## Lab station
 
+Address update, 2026-09-10: the user identifies `10.18.1.106` as the UR12e
+controller. ICMP reachability from Mac and the collection PC passed. This does
+not validate Dashboard/RTDE, establish gripper communication, or authorize motion.
+
+
 Connect explicitly with `ssh ur12e-collection` when on the lab network. The alias is optional for local development and is never probed by default. Its resolved address and credentials are not part of the project.
 
 The station inventory is recorded in M01.2 of the meta plan. The previously observed Ubuntu Docker socket permission problem remains unresolved; local Mac success does not fix it. At Ubuntu deployment time, inspect the current account and available Docker access, then present any necessary sudo operation for the user to execute. Do not change socket modes, group membership, Docker versions, or the installed OEM kernel merely as part of documentation bootstrap.

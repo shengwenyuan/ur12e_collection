@@ -36,5 +36,9 @@
   },
   "max_skew_ns": 16700000,
   "motion_accepted": false,
-  "calibration": null
+  "calibration": null,
+  "capture": {
+    "wait_ns": 75000000,
+    "empty_poll_ns": 1000000
+  }
 }

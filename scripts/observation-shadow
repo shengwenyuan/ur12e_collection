@@ -1,0 +1,5 @@
+#!/bin/bash
+# Explicit output/GET-only robot feedback alongside camera recording.
+set -euo pipefail
+export UR12E_READ_FEEDBACK=1
+exec "$(dirname "$0")/camera-run" shadow --backend hardware --read-feedback "$@"

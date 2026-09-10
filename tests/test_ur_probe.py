@@ -8,9 +8,9 @@ from ur12e_collection import ur
 def test_dashboard_only_sends_read_queries():
     """The probe cannot send play, load, power, or protective-stop commands."""
     connection = mock.MagicMock()
-    connection.makefile.return_value.__enter__.return_value.readline.return_value = (
-        b"OK\n"
-    )
+    connection.recv.side_effect = [
+        bytes([v]) for v in b"OK\n" * (len(ur.DASHBOARD_QUERIES) + 1)
+    ]
     with mock.patch("socket.create_connection") as connect:
         connect.return_value.__enter__.return_value = connection
         report = ur.dashboard("fixture")
@@ -18,7 +18,9 @@ def test_dashboard_only_sends_read_queries():
     assert sent == [(query + "\n").encode() for query in ur.DASHBOARD_QUERIES]
     assert report["state"] == "available"
     connect.assert_called_once_with(("fixture", 29999), timeout=2)
-    connection.settimeout.assert_called_once_with(2)
+    assert all(
+        0 < call.args[0] <= 2 for call in connection.settimeout.call_args_list
+    )
 
 
 def test_dashboard_connection_failure_is_reported():

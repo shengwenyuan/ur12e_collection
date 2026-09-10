@@ -1,6 +1,6 @@
 # UR12e + Robotiq Hand-E Collection: Module Plan
 
-Status: the camera-only software baseline is accepted for its documented scope; physical collection acceptance, full robot sessions, dataset export and motion remain pending.
+Status: camera-only acceptance is recorded; read-only follower recording passes offline checks. New-image lab deployment, physical joint recording, full control sessions and dataset export remain pending.
 
 Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP direction aligned; repository bootstrap precedes M01 implementation.
 
@@ -16,11 +16,19 @@ This document preserves confirmed requirements, proposed choices, and unresolved
 
 | Device | Count | Role |
 | --- | ---: | --- |
-| UR12e | 1 | Six-axis follower connected over the network |
+| UR12e | 1 | Six-axis follower; user-confirmed controller IP `10.18.1.106` (2026-09-10) |
 | Robotiq Hand-E | 1 | Follower gripper; wiring and access path pending |
 | Custom GELLO with DYNAMIXEL XL430-W250-T | 1 | Leader with position-control interfaces; assembled-arm load capability pending |
 | RealSense D405 | 1 | `wrist` |
 | RealSense D435i family; attached units report D435IF | 2 | `third_left` and `third_right`, on either side of the arm base |
+
+The [actual unit inventory](docs/m03-ur-adapter/controller-inventory.md) records
+the user-reported UR12e identity, UR Software `5.22.1`, component versions and
+installed URCaps (`Remote TCP & Toolpath`, `UR Connect`, `External Control`,
+`Robotiq_Grippers`). DHCP is enabled; the pendant displays
+`Not connected to network!` despite reported ping reachability. Reconcile this
+discrepancy and recheck the current address before robot integration. These are
+inventory observations, not motion or Hand-E communication acceptance.
 
 Confirmed scope includes initialization, UR ZERO, powered positioning of both arms to READY, Space-based simultaneous leading/recording, stopping and holding, separate visual calibration, RGB-D collection, local storage, and Docker delivery. Digital-twin and DAgger interfaces are reserved; their full runtime implementations are outside the first release.
 
@@ -85,7 +93,7 @@ RealSense rig -> RGB-D alignment -> wrist-anchored groups -> EpisodeWriter
 
 The initial local inspection found a MacBook Air, Apple M5 with 10 CPU cores, 16 GB unified memory, macOS 26.4, and approximately 552 GiB free storage. Docker Desktop is now installed and its local engine is running. See [development environment](docs/development-environment.md) for the bootstrap checks and shell setup. A simultaneous 40-second three-camera diagnostic has now passed on Ubuntu; sustained encoding/storage throughput remains untested. See the M07 plan for evidence and limits.
 
-The production collection PC is reached through the user-managed SSH alias **`ur12e-collection`** (`ssh ur12e-collection`). This is the collection computer, not the UR controller address. Do not hardcode the alias's resolved IP, credentials, or SSH configuration into the repository or image.
+The production collection PC is reached through the user-managed SSH alias **`ur12e-collection`** (`ssh ur12e-collection`). This is the collection computer. The user confirmed **`10.18.1.106`** as the **UR12e controller address** on 2026-09-10; it is distinct from the collection PC. ICMP reachability passed from Mac and the collection PC; controller identity readback, RTDE and motion acceptance remain separate. Do not hardcode the alias's resolved IP, credentials, or SSH configuration into the repository or image.
 
 The host is intermittently reachable: the developer may be outside the lab network. Local editing, fake-device checks, and previously provisioned development containers must not require SSH, a lab VPN, or physical devices. Remote checks are explicit and bounded; an unavailable host defers Ubuntu/hardware acceptance without blocking independent local work. Dependency downloads for initial setup still require network access. Do not install a background reconnect loop or make remote probing part of normal test startup.
 
@@ -109,7 +117,7 @@ Mac tests cover builds, fake devices, sample writing, and replay. Physical USB a
 | ROS 2 | Jazzy confirmed; matching rosbag2/MCAP package set, exact package versions recorded at release |
 | OpenCV | 4.12.0 with aruco/ChArUco and calib3d; avoid conflicting cv2 installations |
 | CUDA / Isaac Sim | Not collector dependencies in v0.1 |
-| Device firmware and UR software | Read from actual hardware; unknown until verified; no automatic updates |
+| Device firmware and UR software | UR Software `5.22.1` and component versions are user-reported in the actual unit inventory; independent readback and Hand-E firmware remain pending; no automatic updates |
 
 The M01 foundation now pins and validates its runtime SDK dependencies and image identity; its formal plan and bundle manifests record the exact tested versions. LeRobot export and full encoding/storage acceptance remain pending. The initial hardware environment is installed; optional LeRobot export is deferred to M11. LeRobot 0.6.1 requires Python >=3.12. ur_rtde is an SDU Robotics project, not an official UR SDK. [LeRobot dependencies](https://github.com/huggingface/lerobot/blob/v0.6.1/pyproject.toml), [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/pages/getting_started/installation.html).
 
@@ -186,6 +194,8 @@ Expose raw position requests, actual raw position, activation/motion/contact sta
 
 Use a server-client integration as the preferred application boundary: one server owns the gripper device connection, and the collector client sends requests and reads actual raw feedback. The server location, implementation, framing, endpoint, startup ownership, and underlying wiring remain to be verified in M05. Use bounded request timeouts and explicit connection health; a reconnect must not replay stale movement requests. The base device interface is RS-485/Modbus RTU; the server may bridge the UR installation or an external converter. Server-client does not imply that Hand-E itself offers an arbitrary TCP protocol. Do not presume a universal TCP port or obtain fictitious gripper feedback from UR joint RTDE. [Hand-E manual](https://assets.robotiq.com/website-assets/support_documents/document/Hand-E_Manual_UniversalRobots_PDF_20220114.pdf).
 
+The [M05 communication research](docs/m05-hande-adapter/communication-notes.md) identifies `10.18.1.106:63352` as a candidate Robotiq URCap bridge, not a confirmed endpoint. The user reports `Robotiq_Grippers` in the installed URCaps list; its version, wiring and read-only responses remain unverified. Hand-E runtime configuration stays unresolved.
+
 Preserve GELLO gripper input separately from the mapped Robotiq command. Never substitute a requested value for missing actual feedback. Initial stop behavior is to retain the current grasp, not release automatically. This remains a proposed default.
 
 Acceptance targets: `M05-A01` raw request/feedback distinction; `M05-A02` health/contact/fault readback; `M05-A03` no unintended release on episode completion.
@@ -193,6 +203,15 @@ Acceptance targets: `M05-A01` raw request/feedback distinction; `M05-A02` health
 ## M06. Control Ownership, Limits, ZERO and READY
 
 ### M06.1 Motion and ownership
+
+Current offline proposal: use one application READY/HOME and remove the separate
+all-zero startup waypoint. Candidate UR joint angles in base/shoulder/elbow/
+wrist1/wrist2/wrist3 order are `[0, -90, -90, -90, 90, 0]` degrees. The user confirmed on the real arm that this exact target is L-shaped
+with the end effector pointing vertically downward. See the
+[HOME proposal](docs/m06-control-motion/home-proposal.md). This is not encoder
+zeroing, an accepted route, or authority to move. The earlier ZERO contract below
+is historical pending final adoption of this proposed lifecycle; do not implement
+that intermediate waypoint while this decision is open.
 
 ZERO is confirmed as UR joint angles `[0, 0, 0, 0, 0, 0] rad`. It is a motion target, not an instruction to rewrite encoder offsets or factory calibration.
 
@@ -228,13 +247,13 @@ Acceptance targets: `M07-A01` three correctly identified persistent pipelines; `
 
 ## M08. Frame Matching and Time Semantics
 
-The [M08 plan](docs/m08-frame-matching/plan.md) records the offline implementation and tests. On 2026-09-09 the user confirmed a 50 ms bounded wait, eight references per role, and no accepted frame reuse.
+The [M08 plan](docs/m08-frame-matching/plan.md) records the offline implementation and tests. The original 50 ms wait was superseded by the user-approved camera productionization: 75 ms by default, eight references per role, and no accepted frame reuse. Effective wait/poll/verification settings are captured in each new snapshot.
 
 Use wrist RGB acquisition time as the anchor. In comparable clock domains, select the closest real left and right RGB-D pairs. The initial confirmed threshold is **16.7 ms** (`max_skew_ns=16700000`), applied independently to each third view relative to the wrist anchor. Reject the whole group if either `abs(t_view - t_wrist)` exceeds this threshold or a member is missing. Equality is accepted; this does not impose a 16.7 ms left-to-right span limit. Preserve per-camera RGB/Depth skew and the complete group span.
 
 - Matching can choose frames before or after the anchor. Use a bounded waiting window; matching latency never blocks servo control.
 - Only accepted groups enter image storage. Retain rejection reasons, timestamps, and counts. M08/M11 share freshness rules and matching configuration; accepted RGB times advance by at least the current encoder resolution (1000 ns), and depth times strictly increase. Encode images in their selected temporal order.
-- Do not consume a color or depth source image in multiple accepted groups. Use the nearest eligible real candidate within the fixed skew; reject when no unused candidate exists. Wait at most 50 ms after wrist receipt, retain at most eight references per role, and report expiry/overflow explicitly.
+- Do not consume a color or depth source image in multiple accepted groups. Use the nearest eligible real candidate within the fixed skew; reject when no unused candidate exists. Wait at most the configured receipt budget (75 ms by default) after wrist receipt, retain at most eight references per role, and report expiry/overflow explicitly.
 - Keep device timestamps, time domains, monotonic receipt timestamps, frame/group IDs, and robot-state age. Do not subtract unrelated raw clocks or equate ROS publication time with acquisition time.
 - Preserve low-bandwidth UR/GELLO/Hand-E state at its actual rate. A camera group does not force every device onto the camera clock. Training projection and future online observations define their own state/action association and freshness policy.
 - Rejected groups may reduce accepted frequency below sensor 30 Hz. Report this; do not duplicate images, compress gaps, or invent uniformly sampled `index/fps` timestamps. Training FPS/resampling is a separate decision.
@@ -347,15 +366,19 @@ Acceptance targets: `M11-A01` pixel-exact depth round trip; `M11-A02` independen
 
 ## M12. Independent Visual Calibration
 
-Proposed entrypoint: `ur-collect calibrate`, separate from production episodes. Load 20-40 predefined poses from configuration, including joint targets, needed waypoints, and expected visible cameras; `dwell_s=2.0`.
+The [M12 development plan](docs/m12-calibration/plan.md) records the two-round workflow aligned on 2026-09-09. The immediate goal is a common world reference and traceable camera extrinsics across episodes. Providing extrinsics to a future VLM prompt is a possible consumer, not a first-release prompt feature or a claim that calibration removes viewpoint changes. Numerical accuracy targets remain open.
 
-Check configuration/board/cameras -> acquire exclusive UR motion ownership -> traverse validated poses -> verify arrival/stability -> dwell for two seconds while capturing -> solve and validate -> atomically update environment calibration. Motion time is not part of the dwell. Report invisible boards or failed detection rather than accepting missing samples.
+Proposed entrypoint: `ur-collect calibrate`, separate from production episodes. The user first teaches key poses and verifies routes, then converts them into a fixed motion script. Both rounds, including the first held-board round, execute by script. M12 consumes capture checkpoints, actual robot pose feedback and images; it does not generate exploratory motion. Script execution must respect M06 exclusive ownership and limits. The script/checkpoint transport remains to be chosen with the lab controller. Keep the existing 20-40-pose overall budget; the split between rounds and held-out validation is not yet agreed. Store pose IDs, joint targets, required waypoints and expected visible cameras; `dwell_s=2.0`.
+
+Check configuration/board/cameras -> enter exclusive calibration motion ownership -> execute the verified script -> verify arrival/stability at each checkpoint -> dwell for two seconds while capturing -> solve and validate -> atomically update environment calibration. Motion time is not part of the dwell. Report invisible boards, stale pose feedback or failed detection rather than accepting missing samples.
 
 Select clear frames with sufficient corners during each dwell. Approximately 60 frames at one pose are candidates, not 60 independent poses. Include varied rotations and coverage, not only translation or one rotation axis.
 
-The user-specified arrangement has Hand-E gripping a printed ChArUco or AprilGrid board while fixed left/right cameras observe it for eye-to-hand calibration. Use a flat rigid backing, known dimensions/spacing/dictionary/print scale, and a constant board-to-tool attachment throughout the sequence.
+Round 1: Hand-E grips a printed ChArUco or AprilGrid board while the left/right D435IF cameras remain stationary and observe the scripted motion for eye-to-hand calibration. Use a flat rigid backing, known dimensions/spacing/dictionary/print scale, and a constant board-to-tool attachment throughout the round. Each fixed camera needs sufficient valid observations; simultaneous visibility of both cameras at every pose is not assumed.
 
-For wrist calibration, camera and held board share the same moving assembly. Wrist images alone cannot identify both unknown board-to-tool and wrist-to-tool transforms. First consider reusing the held-board sequence: if fixed-camera calibration reliably estimates board-to-tool and wrist sees the board, combine it with wrist PnP and validate independently. Otherwise add a stationary tabletop board sequence while moving the wrist camera. Separate pose lists and the allocation of the 20-40 poses remain to be aligned; do not silently require 40 poses for each arrangement.
+Round 2: secure the board independently on the table and move the rigidly mounted D405 through its scripted eye-in-hand poses. The board stays fixed throughout this round. Wrist visibility of the gripper-held board is no longer required, but the tabletop board must still be in focus, sufficiently visible and resolvable by D405 at the selected poses. The board may be relocated between rounds; its world pose must not be assumed unchanged.
+
+The D435IF cameras are frequently repositioned, with millimeter-scale placement differences reported by the user. An unchanged serial number or approximate return to the same mount location does not establish unchanged extrinsics. Repositioning invalidates the affected camera's active extrinsics and requires a fresh fixed-camera calibration before claiming a calibrated setup. Propose reusing wrist-to-flange calibration while its mounting remains unchanged, with a validity check; do not require round 2 solely because a third-view camera moved. Bind each episode to an immutable calibration/configuration snapshot and retain earlier versions. Exact invalidation UI and startup policy remain M02/M09 integration decisions.
 
 Prefer OpenCV 4.12.0 with ChArUco for corner detection, PnP, and hand-eye/robot-world solving. AprilGrid remains possible with the corresponding detector and corner-ID mapping. No full visual-inertial toolkit is needed for this scope. [ChArUco](https://docs.opencv.org/4.12.0/df/d4a/tutorial_charuco_detection.html), [OpenCV calibration](https://docs.opencv.org/4.12.0/d9/d0c/group__calib3d.html). The wrist observability constraint follows from this installation's geometry.
 
@@ -410,9 +433,9 @@ Acceptance targets: `M15-A01` disabled policy interfaces cannot command hardware
 | M04 | Register load, supply, transport and joint range; decide whether hands-off leading requires mechanical support |
 | M05 | Resolve the preferred server-client endpoint/protocol, device wiring/raw register access, and gripper hold behavior |
 | M06, M09 | Define READY targets/routes, success labels, discard review/retention semantics, and shutdown details. Space / a / Ctrl+C controls are confirmed |
-| M08 | Skew 16.7 ms, wait 50 ms, eight-frame buffers and non-reuse confirmed; validate live clock mapping and startup behavior |
+| M08 | Skew 16.7 ms, default wait 75 ms, eight-frame buffers and non-reuse confirmed; validate live clock mapping and startup behavior |
 | M11 | Offline H.264/PNG + ROS 2 MCAP implemented; real-scene quality/throughput, full playback and local v3 export remain pending |
-| M12 | Establish wrist visibility/required extrinsics and held-board versus fixed-board sampling allocation |
+| M12 | Two rounds and taught/scripted motion confirmed; resolve board geometry, controller/checkpoint interface, actual pose reference/TCP offset, pose allocation and validation thresholds in the lab |
 | M13 | Agree numerical acceptance tolerances without expanding the 40-second x 20-episode requirement |
 
 ## Existing Project References
@@ -457,3 +480,39 @@ the user-approved six-episode scope with the experimental profile. Both D435IF
 links enumerated as USB 2.1; no source gaps or repeats occurred at the required
 640x480/30 Hz mode. The user stopped the remaining batch; seven episodes had
 completed by shutdown. This does not claim a second full 20-episode pass.
+
+
+### Offline read-only integration
+
+[Steps 1-3](docs/m13-acceptance/readonly-integration.md) now pass offline
+software and amd64 Jazzy checks. `shadow --read-feedback` and the explicit
+`observation-shadow` launcher add UR output-only and Hand-E GET-only acquisition;
+no control interface, activation or motion command is present. Independent
+feedback records retain source time and host receipt, raw registers and modes,
+and do not create action/command records. The ordinary writer queue retains four
+items; feedback has a separate 64-record admission budget in the same ordered
+FIFO. The immutable v3 offline image is packaged with matching source hashes;
+new-image lab integration is deferred until access resumes.
+
+### Local control simulator
+
+On 2026-09-10 the user selected the official Universal Robots URSim Docker image
+for local basic motion simulation. Gazebo is excluded from this tool's simulation
+scope. The [M06 setup plan](docs/m06-control-motion/ursim-setup.md) records the
+pinned image, local-only interfaces and checks. Simulator setup does not accept
+the production M06/M09 control lifecycle or any physical route.
+Official URSim 5.22.2 with its built-in UR12e profile is installed and running in
+Mac Docker Desktop. PolyScope, RTDE feedback, HOME / base +5 degrees / HOME
+motion and persistent configuration after replacement passed. The physical
+controller remains on 5.22.1; no lab device was accessed for this setup.
+
+
+The [simulator-control increment](docs/m06-control-motion/simulator-control.md)
+now implements shared UR motion ownership, limits, source selection, watchdog
+and stop/hold checks. URSim complex trajectories and independent kill/stall
+checks passed; physical control remains disabled. The native PolyScope Home
+node can reuse installation HOME through a dedicated Dashboard-loaded READY
+program, and its speed/stop behavior passed URSim checks. Dashboard disconnect
+alone does not stop that program, so native Home heartbeat/handover integration
+remains pending. Moving-session recording and keyboard lifecycle are also
+pending; no whole-module or physical acceptance is implied.

@@ -2,6 +2,10 @@
 
 This foundation provides software diagnostics, incomplete station configuration, and explicit on-site probes. Camera-only shadow now supports persistent camera acquisition, matching and MCAP recording; see the M13 lab runbook. Robot session control, ZERO/READY motion and calibration are not implemented. No command starts robot motion automatically.
 
+The user-confirmed UR12e controller IP is `10.18.1.106` (2026-09-10).
+The collection PC remains `ssh ur12e-collection`. These are separate devices;
+recording-camera commands do not initialize either robot or gripper control.
+
 ## Source development
 
 Use Python 3.12. Install `requirements/development.txt` with hash verification into a virtual environment, then install this package with `pip install --no-deps -e .`. Run `pytest`, `black --check src tests scripts/release.py`, and `pylint src/ur12e_collection` with this repository's configuration. The Mac does not need lab SSH access. Hardware SDK availability differs between arm64 development and amd64 production.

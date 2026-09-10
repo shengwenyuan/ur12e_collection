@@ -133,3 +133,8 @@ The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) close
 the tested software slice of this module. Remaining hardware or unimplemented
 full-module cases stay open; repeat software checks only for affected changes
 or new failures.
+
+## Read-only integration increment
+
+Mandatory final-file depth hashes replace inline PNG decode checks. A reproduced runtime queue failure led to independent bounded admission for four ordinary group/event items and 64 feedback records, with one ordered FIFO and writer. Both overflow paths fail explicitly. Corrupted feedback identity is rejected by independent file verification; pixel-corruption regression coverage remains in place. See the
+[shared plan and results](../m13-acceptance/readonly-integration.md).

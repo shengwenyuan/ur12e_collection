@@ -8,7 +8,13 @@ import time
 import uuid
 from typing import Any
 
-from ur12e_collection import contracts, realsense_source, station, synthetic
+from ur12e_collection import (
+    capture,
+    contracts,
+    realsense_source,
+    station,
+    synthetic,
+)
 from ur12e_collection import workers
 
 QUEUE_CAPACITY = 4
@@ -166,7 +172,7 @@ class Rig:
             self.close()
             raise
 
-    def read(self, timeout: float = 0.01) -> list:
+    def read(self, timeout: float | None = None) -> list:
         """Drain bounded queues fairly and check source/clock health."""
         if self._closed:
             raise RuntimeError("rig is closed")
@@ -200,7 +206,11 @@ class Rig:
             ):
                 raise TimeoutError(f"camera stream stalled: {role}")
         if not result:
-            self._stop.wait(timeout)
+            self._stop.wait(
+                capture.resolve(self.config)["empty_poll_ns"] / 1e9
+                if timeout is None
+                else timeout
+            )
         return result
 
     def statistics(self) -> dict:

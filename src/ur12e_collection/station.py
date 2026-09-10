@@ -57,6 +57,7 @@ def example() -> dict[str, Any]:
         },
         "camera_profile": {"width": 640, "height": 480, "fps": 30},
         "max_skew_ns": 16700000,
+        "capture": {"wait_ns": 75000000, "empty_poll_ns": 1000000},
         "motion_accepted": False,
         "calibration": None,
     }

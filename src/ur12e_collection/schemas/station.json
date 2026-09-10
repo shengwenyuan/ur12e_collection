@@ -214,6 +214,26 @@
     },
     "calibration": {
       "type": "null"
+    },
+    "capture": {
+      "type": "object",
+      "properties": {
+        "wait_ns": {
+          "type": "integer",
+          "minimum": 1000000,
+          "maximum": 200000000
+        },
+        "empty_poll_ns": {
+          "type": "integer",
+          "minimum": 100000,
+          "maximum": 10000000
+        }
+      },
+      "required": [
+        "wait_ns",
+        "empty_poll_ns"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

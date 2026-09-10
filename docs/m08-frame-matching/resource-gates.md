@@ -2,7 +2,7 @@
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: candidate passed the complete physical batch; final configuration awaiting user alignment.
+Status: candidate passed the physical batch; the user approved productionizing the profile. See the current read-only integration results for released-code and deployment boundaries.
 The user approved timing/concurrency experiments on 2026-09-10. This document
 defines the proposed production settings; it does not silently change defaults
 or declare untested robot control accepted.
@@ -145,3 +145,9 @@ with arguments `batch20-drain-01 75 1 final 20 memory drain`; the base image and
 overlay/probe/runner hashes are in `drain-manifest.json`. The local
 `batch20-drain-01/batch-summary.json` checks receipt identity accounting as well
 as counts; reports, original source traces and failure evidence remain retained.
+
+The [read-only increment](../m13-acceptance/readonly-integration.md) promotes
+the runtime profile and introduces a separately bounded 64-record feedback
+admission budget. The original image/group queue stays at four; new-image
+physical integration is pending. Earlier experimental measurements below remain
+historical evidence, not claims about a newly deployed image.

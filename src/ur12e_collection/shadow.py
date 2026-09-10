@@ -10,6 +10,8 @@ import sys
 import time
 
 from ur12e_collection import (
+    capture,
+    feedback,
     matching,
     rig,
     session,
@@ -30,8 +32,11 @@ class Options:
     episodes: int = 20
     seconds: float = 40.0
     station_path: pathlib.Path | None = None
+    read_feedback: bool = False
 
     def __post_init__(self):
+        if not isinstance(self.read_feedback, bool):
+            raise ValueError("read_feedback must be explicit boolean")
         if self.backend not in ("hardware", "synthetic"):
             raise ValueError("shadow requires an explicit backend")
         if not isinstance(self.episodes, int) or not 1 <= self.episodes <= 20:
@@ -55,10 +60,15 @@ def _write_report(path: pathlib.Path, report: dict) -> None:
 
 
 def _collect(
-    source: rig.Rig, owner: session.Session, options: Options, report: dict
+    source: rig.Rig,
+    owner: session.Session,
+    options: Options,
+    report: dict,
+    readers: feedback.Feedback | None = None,
 ) -> None:
     while len(report["episodes"]) < options.episodes:
         frames = source.read()
+        samples = readers.read() if readers else []
         now = time.monotonic_ns()
         completed = owner.poll()
         if completed is not None:
@@ -70,6 +80,8 @@ def _collect(
                 flush=True,
             )
             report["cameras"] = source.statistics()
+            if readers:
+                report["feedback"] = readers.statistics()
             _write_report(options.output / "report.json", report)
             if len(report["episodes"]) == options.episodes:
                 return
@@ -83,6 +95,14 @@ def _collect(
             # Drain frames before the boundary; exclude later arrivals.
             if frame.color.time.received_monotonic_ns < deadline:
                 owner.submit(frame, now)
+        if readers:
+            owner.submit_feedback(
+                [
+                    s
+                    for s in samples
+                    if s.provenance.time.received_monotonic_ns < deadline
+                ]
+            )
         owner.advance(now)
         # Receipt precedes alignment/IPC: drain pre-cutoff tails without
         # admitting later acquisitions or extending the sample window.
@@ -110,6 +130,9 @@ def run(options: Options) -> dict:
         "simulated": options.backend == "synthetic",
         "clock_accuracy": "not_validated",
         "motion": "not_started",
+        "mode": (
+            "read_only_observation" if options.read_feedback else "camera_only"
+        ),
         "requested_episodes": options.episodes,
         "seconds_per_episode": options.seconds,
         "software_revision": options.revision,
@@ -124,14 +147,33 @@ def run(options: Options) -> dict:
         },
     }
     source = rig.Rig(config, options.backend)
+    readers = None
     owner = None
     try:
         _write_report(options.output / "report.json", report)
         source.start()
+        feedback_context = {}
+        if options.read_feedback:
+            readers = feedback.Feedback(config, options.backend)
+            readers.start(source.read)
+            feedback_context = {
+                "feedback": {
+                    "read_only": True,
+                    "publish_time_basis": "host_receipt_mapped_unix",
+                    "monotonic_to_unix_ns": time.time_ns()
+                    - time.monotonic_ns(),
+                    "stale_ns": feedback.STALE_NS,
+                    "ur_read_hz": 30,
+                    "hande_poll_interval_ns": 100_000_000,
+                    "association": "independent_receipts_no_interpolation",
+                    "devices": readers.observations,
+                }
+            }
         snapshot = snapshots.build(
             config,
             source.observations,
             {
+                **feedback_context,
                 "task": options.task,
                 "software_revision": options.revision,
                 "clock_epoch": "unix",
@@ -146,10 +188,15 @@ def run(options: Options) -> dict:
             },
         )
         owner = session.Session(
-            snapshot, matching.MatchConfig(max_skew_ns=config["max_skew_ns"])
+            snapshot,
+            matching.MatchConfig(
+                max_skew_ns=config["max_skew_ns"],
+                wait_ns=capture.resolve(config)["wait_ns"],
+            ),
         )
+        report["capture"] = snapshot["capture"]
         report["limits"]["capture_tail_drain_ns"] = owner.config.wait_ns
-        _collect(source, owner, options, report)
+        _collect(source, owner, options, report, readers)
         report["state"] = "completed"
     except BaseException as error:
         if isinstance(error, matching.SourceFault):
@@ -179,9 +226,9 @@ def run(options: Options) -> dict:
             }
         already_failed = report["state"] in ("failed", "interrupted")
         cleanup_errors = []
-        for closer in ([owner.close] if owner is not None else []) + [
-            source.close
-        ]:
+        closers = [readers.close] if readers else []
+        closers += ([owner.close] if owner is not None else []) + [source.close]
+        for closer in closers:
             try:
                 closer()
             except Exception as error:  # pylint: disable=broad-exception-caught
@@ -189,6 +236,8 @@ def run(options: Options) -> dict:
         if cleanup_errors:
             report.update(state="failed", cleanup_errors=cleanup_errors)
         report["cameras"] = source.statistics()
+        if readers:
+            report["feedback"] = readers.statistics()
         _write_report(options.output / "report.json", report)
         if cleanup_errors and not already_failed:
             raise RuntimeError("; ".join(cleanup_errors))

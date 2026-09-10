@@ -14,6 +14,8 @@ Use the [plan-module-work skill](../.agents/skills/plan-module-work/SKILL.md) an
 
 The [development environment record](development-environment.md) documents the initial Docker and repository bootstrap, separately from M01 implementation acceptance.
 
+[M12: Independent Visual Calibration](m12-calibration/plan.md) records the aligned two-round requirements and the proposed script/capture interfaces. Implementation and hardware acceptance have not started.
+
 Temporary ideas belong in the ignored root `plans/` directory. Never rely on that directory as the only record of an accepted requirement or an acceptance result. Create it locally when needed; a fresh checkout does not contain its ignored contents.
 
 The [M13 camera batch](m13-acceptance/plan.md) and
@@ -23,3 +25,10 @@ robot-session boundaries.
 
 The [accepted software baseline](m13-acceptance/software-baseline.md) closes the
 passed software scope and lists the remaining physical-camera acceptance checks.
+
+[M05 communication research](m05-hande-adapter/communication-notes.md) records the confirmed UR12e IP and unverified Hand-E transport candidates.
+
+The official [URSim environment](m06-control-motion/ursim-setup.md) and
+[quickstart](m06-control-motion/ursim-quickstart.md) cover local basic motion
+simulation in Docker Desktop. Gazebo is excluded; physical control acceptance
+remains separate.

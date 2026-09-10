@@ -51,3 +51,29 @@ def test_invalid_snapshot_fails_before_recording(snapshot, change):
         value["simulated"] = False
     with pytest.raises(ValueError):
         snapshots.copy(value)
+
+
+def test_capture_profile_legacy_and_mismatch(snapshot):
+    legacy = copy.deepcopy(snapshot)
+    legacy.pop("capture")
+    legacy["station"].pop("capture", None)
+    assert snapshots.copy(legacy) == legacy
+    changed = copy.deepcopy(snapshot)
+    changed["capture"]["wait_ns"] = 50_000_000
+    with pytest.raises(ValueError, match="capture differs"):
+        snapshots.copy(changed)
+
+
+def test_custom_capture_is_explicit_and_validated(snapshot):
+    config = snapshot["station"]
+    config["capture"] = {"wait_ns": 100_000_000, "empty_poll_ns": 500_000}
+    context = {
+        k: v
+        for k, v in snapshot.items()
+        if k not in ("station", "cameras", "calibration", "capture")
+    }
+    result = snapshots.build(config, snapshot["cameras"], context)
+    assert result["capture"]["wait_ns"] == 100_000_000
+    result["capture"]["depth_verification"] = "disabled"
+    with pytest.raises(ValueError):
+        snapshots.copy(result)

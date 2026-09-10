@@ -54,3 +54,8 @@ The corrected physical 20 x 40-second batch passed: every episode retains an
 exact 40-second receipt window and every in-boundary wrist receipt has one
 decision. No over-budget tail fault or cross-episode leakage was observed.
 See the [candidate results](../m08-frame-matching/resource-gates.md).
+
+## Read-only integration increment
+
+Read-only observation recording now shares camera receipt boundaries with independently sampled follower feedback, requires both declared devices and rejects action/command records. This does not implement keyboard leading, HOME movement or stop/hold control. See the
+[shared plan and results](../m13-acceptance/readonly-integration.md).

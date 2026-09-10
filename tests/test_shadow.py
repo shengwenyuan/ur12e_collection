@@ -21,8 +21,8 @@ def test_end_boundary_drains_delayed_receipts_without_extending_capture(
         [
             (0, []),
             (401_000_000, [before, after]),
-            (450_000_000, []),
-            (451_000_000, []),
+            (475_000_000, []),
+            (476_000_000, []),
         ]
     )
     clock = [0]
@@ -52,7 +52,7 @@ def test_end_boundary_drains_delayed_receipts_without_extending_capture(
     with mock.patch.object(shadow.time, "monotonic_ns", lambda: clock[0]):
         shadow._collect(source, owner, options, {"episodes": []})
     owner.submit.assert_called_once_with(before, 401_000_000)
-    owner.stop.assert_called_once_with(450_000_000, cutoff_ns=400_000_000)
+    owner.stop.assert_called_once_with(475_000_000, cutoff_ns=400_000_000)
 
 
 def test_two_real_process_episodes_keep_one_rig(tmp_path):

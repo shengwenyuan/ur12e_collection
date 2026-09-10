@@ -37,9 +37,9 @@ def test_late_arrival_cannot_recover_expired_anchor(frame_factory):
     matcher = matching.Matcher("fixture-unix")
     matcher.push(frame_factory("wrist", 0), 0)
     matcher.push(frame_factory("third_left", 0), 0)
-    assert not matcher.advance(49 * MS)
+    assert not matcher.advance(74 * MS)
     result = matcher.push(
-        frame_factory("third_right", 0, receipt=51 * MS), 51 * MS
+        frame_factory("third_right", 0, receipt=76 * MS), 76 * MS
     )
     assert [r.reason for r in result] == ["missing_view"]
 

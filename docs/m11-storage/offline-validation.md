@@ -63,7 +63,7 @@ These are planned actions, not completed deployment results:
 3. Run the software suite with ROS Jazzy plugins, then `scripts/run station doctor --backend hardware --format json --require-mounts`.
 4. Verify an offline fixture through the installed runtime and inspect ROS 2/Foxglove video replay. Build the delivery bundle with `scripts/release.py` only from the validated amd64 runtime.
 5. Resolve actual camera roles and clock mapping before connecting M08/M11 to a persistent camera source. Run three-camera shadow encoding once that M13 integration exists. The previous 40-second camera diagnostic did not encode every frame.
-6. Keep UR address/feedback, Hand-E protocol, GELLO hardware, ZERO/READY routes, and motion acceptance separate. This deployment does not authorize movement.
+6. The confirmed UR12e controller address is `10.18.1.106`; keep actual UR feedback, Hand-E protocol, GELLO hardware, ZERO/READY routes, and motion acceptance separate. This deployment does not authorize movement.
 
 LeRobot v3 export and the complete 20-episode hardware acceptance remain pending. Do not mark all of M11 accepted from these software checks.
 

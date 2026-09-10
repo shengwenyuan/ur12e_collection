@@ -7,7 +7,7 @@ from importlib import resources
 import jsonschema
 from referencing import Registry, Resource
 
-from ur12e_collection import contracts, station
+from ur12e_collection import capture, contracts, station
 
 
 @functools.lru_cache(maxsize=1)
@@ -44,6 +44,24 @@ def copy(snapshot: dict) -> dict:
             raise ValueError(f"observed camera differs from station: {role}")
     if result["calibration"] != result["station"]["calibration"]:
         raise ValueError("snapshot calibration differs from station")
+    if "capture" in result and result["capture"] != capture.resolve(
+        result["station"]
+    ):
+        raise ValueError("snapshot capture differs from station")
+    if "feedback" in result:
+        devices = result["feedback"]["devices"]
+        for device in devices.values():
+            if (device["transport"] == "synthetic") != result["simulated"]:
+                raise ValueError("feedback simulation differs from snapshot")
+        if not result["simulated"]:
+            config = result["station"]
+            if devices["ur"]["source_id"] != config["ur"]["serial"]:
+                raise ValueError("UR source differs from station")
+            endpoint = (
+                f"hande@{config['hande']['host']}:{config['hande']['port']}"
+            )
+            if devices["hande"]["source_id"] != endpoint:
+                raise ValueError("Hand-E source differs from station")
     return result
 
 
@@ -53,6 +71,7 @@ def build(config: dict, observed: dict, context: dict) -> dict:
         context
         | {
             "schema_version": 1,
+            "capture": capture.resolve(config),
             "station": config,
             "cameras": observed,
             "calibration": config["calibration"],

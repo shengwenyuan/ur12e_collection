@@ -70,6 +70,11 @@ def parser() -> argparse.ArgumentParser:
         "--backend", choices=("hardware", "synthetic"), required=True
     )
     shadow.add_argument("--station", type=pathlib.Path)
+    shadow.add_argument(
+        "--read-feedback",
+        action="store_true",
+        help="observe UR and Hand-E only; never send control",
+    )
     shadow.add_argument("--output", type=pathlib.Path, required=True)
     shadow.add_argument("--revision", required=True)
     shadow.add_argument("--task", default="camera-shadow")
@@ -195,6 +200,7 @@ def _shadow(args: argparse.Namespace) -> int:
                 episodes=args.episodes,
                 seconds=args.seconds,
                 station_path=args.station,
+                read_feedback=args.read_feedback,
             )
         )
     except KeyboardInterrupt:

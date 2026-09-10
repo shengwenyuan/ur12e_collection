@@ -1,0 +1,57 @@
+name: ur12e-sim
+
+services:
+  ursim:
+    image: universalrobots/ursim_e-series:5.22.2@sha256:39909bad9a8247980a1c9144da322ff7c4d34db0e89870f4c6b4dabd7c55c95d
+    platform: linux/amd64
+    hostname: ursim
+    environment:
+      ROBOT_MODEL: UR12
+    ports:
+      - "127.0.0.1:6080:6080"
+      - "127.0.0.1:29999:29999"
+      - "127.0.0.1:30002:30002"
+      - "127.0.0.1:30004:30004"
+    volumes:
+      - programs:/ursim/programs
+      - gui:/ursim/GUI
+      - urcaps:/ursim/.urcaps
+      - controller:/ursim/.urcontrol
+      - polyscope:/ursim/.polyscope
+    networks:
+      sim:
+      control:
+        aliases: [ursim-control]
+    mem_limit: 4g
+    memswap_limit: 4g
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - |
+          import socket
+          with socket.create_connection(("127.0.0.1", 29999), timeout=2) as conn:
+              stream = conn.makefile("rwb", buffering=0)
+              assert stream.readline().startswith(b"Connected:")
+              stream.write(b"PolyscopeVersion\n")
+              assert b"5.22.2" in stream.readline()
+      interval: 10s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+    restart: "no"
+    stop_grace_period: 20s
+
+networks:
+  control:
+    internal: true
+  sim:
+    driver: bridge
+
+volumes:
+  programs:
+  gui:
+  urcaps:
+  controller:
+  polyscope:

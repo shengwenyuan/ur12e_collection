@@ -58,6 +58,111 @@
         "third_right"
       ],
       "additionalProperties": false
+    },
+    "capture": {
+      "type": "object",
+      "properties": {
+        "wait_ns": {
+          "type": "integer",
+          "minimum": 1000000,
+          "maximum": 200000000
+        },
+        "empty_poll_ns": {
+          "type": "integer",
+          "minimum": 100000,
+          "maximum": 10000000
+        },
+        "depth_verification": {
+          "const": "final_file_pixel_hash"
+        }
+      },
+      "required": [
+        "wait_ns",
+        "empty_poll_ns",
+        "depth_verification"
+      ],
+      "additionalProperties": false
+    },
+    "feedback": {
+      "type": "object",
+      "properties": {
+        "read_only": {
+          "const": true
+        },
+        "publish_time_basis": {
+          "const": "host_receipt_mapped_unix"
+        },
+        "monotonic_to_unix_ns": {
+          "type": "integer"
+        },
+        "stale_ns": {
+          "const": 500000000
+        },
+        "ur_read_hz": {
+          "const": 30
+        },
+        "hande_poll_interval_ns": {
+          "const": 100000000
+        },
+        "association": {
+          "const": "independent_receipts_no_interpolation"
+        },
+        "devices": {
+          "type": "object",
+          "properties": {
+            "ur": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "transport": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "source_id",
+                "transport"
+              ]
+            },
+            "hande": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "transport": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "source_id",
+                "transport"
+              ]
+            }
+          },
+          "required": [
+            "ur",
+            "hande"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "read_only",
+        "publish_time_basis",
+        "monotonic_to_unix_ns",
+        "stale_ns",
+        "ur_read_hz",
+        "hande_poll_interval_ns",
+        "association",
+        "devices"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

@@ -35,7 +35,16 @@ class Session:
 
     def submit(self, frame: matching.Frame, now_ns: int) -> None:
         """Record current-episode frames; drain but ignore other periods."""
-        receipt = frame.color.time.received_monotonic_ns
+        if not self._recordable(frame.color.time.received_monotonic_ns):
+            return
+        try:
+            for result in self.matcher.push(frame, now_ns):
+                self.writer.submit(result)
+        except Exception:
+            self.abort()
+            raise
+
+    def _recordable(self, receipt: int) -> bool:
         if (
             self.state == "finalizing"
             and self.boundaries["start_receipt_ns"]
@@ -44,13 +53,22 @@ class Session:
         ):
             self.abort()
             raise storage.RecordingError("frame arrived after capture drain")
-        if self.state != "recording":
-            return
-        if receipt < self.boundaries["start_receipt_ns"]:
-            return
+        return (
+            self.state == "recording"
+            and receipt >= self.boundaries["start_receipt_ns"]
+        )
+
+    def submit_feedback(self, samples: list) -> None:
+        """Keep independent feedback clocks and the same receipt window."""
+        records = []
+        offset = self.snapshot["feedback"]["monotonic_to_unix_ns"]
         try:
-            for result in self.matcher.push(frame, now_ns):
-                self.writer.submit(result)
+            for sample in samples:
+                receipt = sample.provenance.time.received_monotonic_ns
+                if self._recordable(receipt):
+                    records.append((sample, receipt + offset))
+            if records:
+                self.writer.submit_records(tuple(records))
         except Exception:
             self.abort()
             raise

@@ -13,7 +13,7 @@
 
 Provide a reproducible Ubuntu collection environment that colleagues can launch from a delivered image without a source checkout or cloud account. Development must continue on the Mac outside the lab network. The collector must not need an SSH connection from the Mac to operate on the Ubuntu station.
 
-The user-managed alias `ssh ur12e-collection` reaches the collection PC when the lab network is available. It is not the robot controller address. SSH configuration and credentials stay outside the repository, image, and release archive.
+The user-managed alias `ssh ur12e-collection` reaches the collection PC when the lab network is available. The separate UR12e controller address is `10.18.1.106`, confirmed by the user on 2026-09-10. This is a documented station fact, not a new image default or permission to start control. SSH configuration and credentials stay outside the repository, image, and release archive.
 
 ## Scope and Non-goals
 
@@ -168,3 +168,8 @@ The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) close
 the tested software slice of this module. Remaining hardware or unimplemented
 full-module cases stay open; repeat software checks only for affected changes
 or new failures.
+
+## Read-only integration increment
+
+Offline read-only v3 amd64 runtime/development images built with the pinned Jazzy base. The bundle records exact installed source hashes and includes an explicit observation launcher. New-image Ubuntu deployment remains NOT RUN. See the
+[shared plan and results](../m13-acceptance/readonly-integration.md).

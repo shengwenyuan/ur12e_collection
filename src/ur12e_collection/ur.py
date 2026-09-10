@@ -7,7 +7,7 @@ import socket
 import time
 from typing import Any
 
-from ur12e_collection import workers
+from ur12e_collection import wire, workers
 
 DASHBOARD_QUERIES = (
     "PolyscopeVersion",
@@ -24,17 +24,20 @@ def dashboard(host: str) -> dict:
     result = {"responses": {}, "state": "failed"}
     try:
         with socket.create_connection((host, 29999), timeout=2) as connection:
-            connection.settimeout(2)
-            with connection.makefile("rb") as stream:
-                result["greeting"] = stream.readline(4096).decode().strip()
-                for query in DASHBOARD_QUERIES:
-                    connection.sendall((query + "\n").encode("ascii"))
-                    reply = stream.readline(4096)
-                    if not reply:
-                        raise OSError("Dashboard closed the connection")
-                    result["responses"][query] = reply.decode().strip()
+            result["greeting"] = (
+                wire.line(connection, time.monotonic_ns() + 2_000_000_000, 4096)
+                .decode()
+                .strip()
+            )
+            for query in DASHBOARD_QUERIES:
+                connection.settimeout(2)
+                connection.sendall((query + "\n").encode("ascii"))
+                reply = wire.line(
+                    connection, time.monotonic_ns() + 2_000_000_000, 4096
+                )
+                result["responses"][query] = reply.decode().strip()
         result["state"] = "available"
-    except (OSError, UnicodeError) as error:
+    except (OSError, UnicodeError, ValueError) as error:
         result["error"] = str(error)
     return result
 
@@ -123,3 +126,15 @@ def probe(host: str, seconds: float, output: pathlib.Path) -> dict:
     with output.open("x", encoding="utf-8") as stream:
         stream.write(json.dumps(report, indent=2, allow_nan=False) + "\n")
     return report
+
+
+def coherent_sample(receiver: Any) -> dict:
+    """Reject getter reads spanning timestamp changes; not a servo interface."""
+    for _ in range(5):
+        result = _sample(receiver)
+        if (
+            result["controller_timestamp_start_s"]
+            == result["controller_timestamp_end_s"]
+        ):
+            return result
+    raise RuntimeError("UR feedback changed during every timestamp bracket")

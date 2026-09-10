@@ -209,3 +209,8 @@ The [latest wiring recheck](layout-recheck-20260910.md) passed the user-approved
 six-episode scope. Seven episodes completed before the requested stop; the
 report preserves the interrupted batch state. Both D435IF links were USB 2.1
 in this test and still met the current 640x480/30 Hz capture gates.
+
+## Read-only integration increment
+
+Offline read-only integration passes native, amd64 Jazzy and source-free runtime checks. Two 2-second synthetic episodes completed with 60 image groups each and independently verified feedback. New-image real input acceptance remains NOT RUN; no lab access or control commands occurred during offline resumption. See the
+[shared plan and results](readonly-integration.md).

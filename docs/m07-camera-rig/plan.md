@@ -118,3 +118,8 @@ connection comparison itself changed no camera code, queue or codec.
 
 The [D405 mount reference](d405-mount-reference.md) records the official 9 mm
 mount-to-optical-origin offset and separates mechanical framing from calibration.
+
+## Read-only integration increment
+
+The aligned 1 ms empty-poll profile is now mainline and snapshot-visible. The new read-only recording image has not yet repeated a physical smoke; previous source continuity evidence remains scoped to its recorded images and setups. See the
+[shared plan and results](../m13-acceptance/readonly-integration.md).

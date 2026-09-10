@@ -17,6 +17,8 @@ from mcap.exceptions import McapError
 from ur12e_collection import archive
 from ur12e_collection import matching
 
+FEEDBACK_CAPACITY = 64
+
 
 class RecordingError(RuntimeError):
     """An episode cannot be accepted; any partial data is retained."""
@@ -73,13 +75,14 @@ class EpisodeWriter:
         self.snapshot = archive.snapshot_copy(snapshot)
         if not isinstance(match_config, matching.MatchConfig):
             raise ValueError("recording requires a validated MatchConfig")
+        archive.GroupValidator(self.snapshot, simulated, match_config)
         self.options = {
             "simulated": simulated,
             "capacity": capacity,
             "crf": crf,
             "matching": match_config,
         }
-        self._queue = queue.Queue(maxsize=capacity)
+        self._queue = queue.Queue(maxsize=capacity + FEEDBACK_CAPACITY)
         self._lock = threading.Lock()
         self._done = threading.Event()
         self._status = {
@@ -88,6 +91,9 @@ class EpisodeWriter:
             "deadline": None,
             "report": None,
             "peak_queue": 0,
+            "peak_feedback_queue": 0,
+            "queued": 0,
+            "queued_feedback": 0,
             "max_queue_delay_ns": 0,
         }
         self._reservation = destination.with_name(destination.name + ".lock")
@@ -118,16 +124,21 @@ class EpisodeWriter:
                 raise RecordingError(
                     self._status["error"] or "writer is closed"
                 )
-            try:
-                self._queue.put_nowait((operation, value, time.monotonic_ns()))
-            except queue.Full as error:
+            is_feedback = operation == "records"
+            key = "queued_feedback" if is_feedback else "queued"
+            peak = "peak_feedback_queue" if is_feedback else "peak_queue"
+            count = len(value) if is_feedback else 1
+            capacity = (
+                FEEDBACK_CAPACITY if is_feedback else self.options["capacity"]
+            )
+            if self._status[key] + count > capacity:
                 self._status.update(
                     state="aborted", error="recording queue overflow"
                 )
-                raise RecordingError("recording queue overflow") from error
-            self._status["peak_queue"] = max(
-                self._status["peak_queue"], self._queue.qsize()
-            )
+                raise RecordingError("recording queue overflow")
+            self._queue.put_nowait((operation, value, time.monotonic_ns()))
+            self._status[key] += count
+            self._status[peak] = max(self._status[peak], self._status[key])
 
     def submit(self, group: matching.Match) -> None:
         """Submit image groups or rejection diagnostics without blocking."""
@@ -137,11 +148,20 @@ class EpisodeWriter:
         """Supply M10 data with its mapped Unix acquisition time."""
         self._submit("record", (record, timestamp_ns))
 
+    def submit_records(self, records: tuple) -> None:
+        """Batch at most one bounded drain from each feedback source."""
+        if not isinstance(records, tuple) or not 1 <= len(records) <= 64:
+            raise ValueError("feedback batch must contain 1-64 records")
+        self._submit("records", records)
+
     def abort(self) -> None:
         """Prevent future commit; leave partial data for explicit inspection."""
         with self._lock:
             if self._status["state"] != "committed":
-                self._status.update(state="aborted", error="operator aborted")
+                self._status.update(
+                    state="aborted",
+                    error=self._status["error"] or "operator aborted",
+                )
 
     def health(self) -> dict:
         """Expose asynchronous failure without waiting for file completion."""
@@ -149,7 +169,8 @@ class EpisodeWriter:
             return {
                 "state": self._status["state"],
                 "error": self._status["error"],
-                "queued": self._queue.qsize(),
+                "queued": self._status["queued"],
+                "queued_feedback": self._status["queued_feedback"],
             }
 
     def finish(self, timeout: float = 30) -> dict:
@@ -198,11 +219,16 @@ class EpisodeWriter:
                 return
             operation, value, submitted_ns = item
             with self._lock:
+                key = "queued_feedback" if operation == "records" else "queued"
+                self._status[key] -= len(value) if operation == "records" else 1
                 self._status["max_queue_delay_ns"] = max(
                     self._status["max_queue_delay_ns"],
                     time.monotonic_ns() - submitted_ns,
                 )
-            if operation == "record":
+            if operation == "records":
+                for record in value:
+                    writer.record(*record)
+            elif operation == "record":
                 writer.record(*value)
             else:
                 getattr(writer, operation)(value)
@@ -278,6 +304,8 @@ class EpisodeWriter:
                 "max_queue_delay_ms": self._status["max_queue_delay_ns"] / 1e6,
                 "queue_capacity": self.options["capacity"],
                 "peak_queue": self._status["peak_queue"],
+                "feedback_queue_capacity": FEEDBACK_CAPACITY,
+                "peak_feedback_queue": self._status["peak_feedback_queue"],
                 "elapsed_s": time.monotonic() - started,
                 "libraries": {
                     name: importlib.metadata.version(name)
