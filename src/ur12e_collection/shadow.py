@@ -84,8 +84,13 @@ def _collect(
             if frame.color.time.received_monotonic_ns < deadline:
                 owner.submit(frame, now)
         owner.advance(now)
-        if owner.state == "recording" and now >= deadline:
-            owner.stop(now)
+        # Receipt precedes alignment/IPC: drain pre-cutoff tails without
+        # admitting later acquisitions or extending the sample window.
+        if (
+            owner.state == "recording"
+            and now >= deadline + owner.config.wait_ns
+        ):
+            owner.stop(now, cutoff_ns=deadline)
         report["supervisor_peak_rss_bytes"] = resource.getrusage(
             resource.RUSAGE_SELF
         ).ru_maxrss * (1 if sys.platform == "darwin" else 1024)
@@ -143,6 +148,7 @@ def run(options: Options) -> dict:
         owner = session.Session(
             snapshot, matching.MatchConfig(max_skew_ns=config["max_skew_ns"])
         )
+        report["limits"]["capture_tail_drain_ns"] = owner.config.wait_ns
         _collect(source, owner, options, report)
         report["state"] = "completed"
     except BaseException as error:

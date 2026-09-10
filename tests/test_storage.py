@@ -177,6 +177,35 @@ def test_corrupted_mcap_is_not_accepted(tmp_path, snapshot, group_factory):
         storage.verify_episode(writer.destination)
 
 
+@pytest.mark.parametrize("changed_camera", [0, 1, 2])
+def test_final_verification_rejects_valid_png_with_wrong_pixels(
+    tmp_path, snapshot, group_factory, changed_camera
+):
+    encode = codecs.encode_depth
+    calls = 0
+
+    def changed_payload(depth):
+        nonlocal calls
+        pixels = depth.copy()
+        if calls == changed_camera:
+            pixels[0, 0] ^= 1
+        calls += 1
+        return encode(pixels)
+
+    # A decodable PNG can still differ from the acquired depth. The final
+    # archive check must catch this independently of any inline codec check.
+    with mock.patch.object(codecs, "encode_depth", changed_payload):
+        writer = storage.EpisodeWriter(
+            tmp_path / "wrong-pixels", snapshot, simulated=True
+        )
+        writer.submit(group_factory())
+        with pytest.raises(storage.RecordingError, match="pixel digest"):
+            writer.finish()
+        assert writer.wait_closed()
+    assert not writer.destination.exists()
+    assert (writer.partial / "failure.json").exists()
+
+
 def test_matcher_writer_integration_preserves_depth_time_and_rejections(
     tmp_path, snapshot, group_factory, capsys
 ):

@@ -105,3 +105,17 @@ tests with two Docker-in-Docker skips; the two opt-in Docker persistence tests
 passed separately from the host. See M11 for image identity and fixture evidence.
 No lab access or motion occurred. Live-clock and persistent-source acceptance
 remain NOT RUN.
+
+## Live grouping diagnosis (2026-09-10)
+
+After direct USB connection removed observed D405 source discontinuities, two
+40-second recordings still rejected 213 and 82 wrist anchors. See the
+[timing diagnosis and proposed correction](timing-diagnosis.md). The user requires
+resolving grouping and aligning timing/concurrency changes first. The 50 ms wait,
+16.7 ms skew and implementation are unchanged; hardware acceptance remains open.
+
+The user subsequently aligned the diagnostic/correction experiment scope.
+[Results and resource gates](resource-gates.md) remain subject to final settings
+alignment. A bounded M09/M13 end-drain correction and targeted physical-timing /
+depth-integrity regressions are implemented under the diagnosis plan; runtime
+wait/poll/codec default changes remain experimental until that final alignment.

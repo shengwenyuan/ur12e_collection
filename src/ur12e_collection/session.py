@@ -35,12 +35,18 @@ class Session:
 
     def submit(self, frame: matching.Frame, now_ns: int) -> None:
         """Record current-episode frames; drain but ignore other periods."""
+        receipt = frame.color.time.received_monotonic_ns
+        if (
+            self.state == "finalizing"
+            and self.boundaries["start_receipt_ns"]
+            <= receipt
+            < self.boundaries["stop_receipt_ns"]
+        ):
+            self.abort()
+            raise storage.RecordingError("frame arrived after capture drain")
         if self.state != "recording":
             return
-        if (
-            frame.color.time.received_monotonic_ns
-            < self.boundaries["start_receipt_ns"]
-        ):
+        if receipt < self.boundaries["start_receipt_ns"]:
             return
         try:
             for result in self.matcher.push(frame, now_ns):
@@ -59,14 +65,18 @@ class Session:
                 self.abort()
                 raise
 
-    def stop(self, now_ns: int) -> None:
-        """Close the sample boundary and finalize asynchronously."""
+    def stop(self, now_ns: int, *, cutoff_ns: int | None = None) -> None:
+        """Finalize after draining; the caller enforces any earlier cutoff."""
         if self.state != "recording":
             raise RuntimeError("episode stop requires recording state")
+        cutoff = now_ns if cutoff_ns is None else cutoff_ns
+        if not self.boundaries["start_receipt_ns"] <= cutoff <= now_ns:
+            raise ValueError("capture cutoff must be inside the session")
         try:
             for result in self.matcher.finish(now_ns):
                 self.writer.submit(result)
-            self.boundaries["stop_receipt_ns"] = now_ns
+            self.boundaries["stop_receipt_ns"] = cutoff
+            self.boundaries["finalize_requested_ns"] = now_ns
             self._completion = concurrent.futures.Future()
             self.state = "finalizing"
             threading.Thread(

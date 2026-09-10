@@ -17,6 +17,13 @@ Use PyAV 15.1.0/libx264, initial CRF 20, veryfast preset, YUV420P, GOP 30, zero 
 
 Depth uses OpenCV 4.12.0 uint16 PNG compression level 1, preserving zeros and all raw values. Verify every encoded depth frame against its input. Store no raw-image duplicates. Record per-camera depth scale and intrinsics from the supplied snapshot; an uncalibrated snapshot must explicitly say so.
 
+The 2026-09-10 [timing experiments](../m08-frame-matching/timing-diagnosis.md)
+evaluate moving immediate PNG decode/equality checks out of the hot path while
+retaining mandatory complete-file depth hash verification. This is a proposed
+verification-placement change, not weaker losslessness or an already changed
+codec default. New tests corrupt a single pixel in a valid PNG for each camera;
+all three cases fail final verification and prevent episode completion.
+
 Write a ROS 2-profile MCAP using the official Python `mcap`/`mcap-ros2-support` serializer. This enables native Mac tests without rclpy while retaining ROS 2 CDR schemas: `foxglove_msgs/msg/CompressedVideo` for RGB and `sensor_msgs/msg/CompressedImage` for PNG depth. Versioned provenance/group/control JSON is carried in `std_msgs/msg/String`; records retain `leader/state`, `control/command`, and `follower/state` topics. An explicit snapshot message precedes observations in both file and log-time order. Each log_time is max(acquisition_ns, previous_log_ns + 1), an ordered timeline rather than measured write time. Separate exact RGB/depth acquisition times remain in publish_time and ROS headers; group metadata preserves wrist anchors and signed skews. Images are payload bytes, not file paths. MCAP indexes and CRCs are enabled; chunk recompression is disabled. Direct rosbag2 playback will be checked in the next Jazzy deployment; the offline reader verifies all schemas and message counts now.
 
 One worker owns codecs and the file; a non-blocking bounded submission queue defaults to four groups/events. Full queues or worker errors fail the episode explicitly, never silently drop required data. Ownership transfers on successful submission; callers must not mutate payloads afterward. A caller requests completion, waits with a bounded timeout, and receives the worker result. A timed-out or aborted writer cannot commit later. No storage wait belongs in the future robot control loop.

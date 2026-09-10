@@ -5,7 +5,54 @@ from unittest import mock
 
 import pytest
 
-from ur12e_collection import shadow, storage, synthetic
+from ur12e_collection import matching, shadow, storage, synthetic
+
+
+def test_end_boundary_drains_delayed_receipts_without_extending_capture(
+    tmp_path, frame_factory
+):
+    options = shadow.Options(
+        "synthetic", tmp_path / "batch", "test", episodes=1, seconds=0.4
+    )
+    options.output.mkdir()
+    before = frame_factory("wrist", 399_000_000)
+    after = frame_factory("wrist", 400_000_000, 1)
+    reads = iter(
+        [
+            (0, []),
+            (401_000_000, [before, after]),
+            (450_000_000, []),
+            (451_000_000, []),
+        ]
+    )
+    clock = [0]
+    source, owner = mock.Mock(), mock.Mock()
+    source.statistics.return_value = {}
+    owner.state = "idle"
+    owner.config = matching.MatchConfig()
+
+    def read():
+        clock[0], frames = next(reads)
+        return frames
+
+    def start(_path, now_ns):
+        owner.boundaries = {"start_receipt_ns": now_ns}
+        owner.state = "recording"
+
+    def stop(_now_ns, *, cutoff_ns):
+        assert cutoff_ns == 400_000_000
+        owner.state = "finalizing"
+
+    source.read.side_effect = read
+    owner.start.side_effect = start
+    owner.stop.side_effect = stop
+    owner.poll.side_effect = lambda: (
+        {"episode": "episode-0000"} if owner.state == "finalizing" else None
+    )
+    with mock.patch.object(shadow.time, "monotonic_ns", lambda: clock[0]):
+        shadow._collect(source, owner, options, {"episodes": []})
+    owner.submit.assert_called_once_with(before, 401_000_000)
+    owner.stop.assert_called_once_with(450_000_000, cutoff_ns=400_000_000)
 
 
 def test_two_real_process_episodes_keep_one_rig(tmp_path):

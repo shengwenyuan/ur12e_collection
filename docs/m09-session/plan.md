@@ -33,3 +33,24 @@ The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) close
 the tested software slice of this module. Remaining hardware or unimplemented
 full-module cases stay open; repeat software checks only for affected changes
 or new failures.
+
+## End-of-episode transport correction (2026-09-10)
+
+The aligned [timing diagnosis](../m08-frame-matching/timing-diagnosis.md) found
+pre-cutoff SDK receipts arriving after immediate finalization. Shadow now keeps
+the acquisition cutoff fixed while draining transport for one matching-wait
+budget. `Session.stop` records the logical cutoff and finalization-request time
+separately; a pre-cutoff frame arriving after draining explicitly fails instead
+of disappearing during finalization. Robot leading/stop behavior is unaffected.
+
+M09-A04 targeted tests cover delayed pre-cutoff admission, exclusion exactly at
+the cutoff, bounded drain, invalid cutoffs, late-after-drain failure and continued
+nonblocking finalization. The combined M08/M09/M11/M13 target run passed 59 tests
+on Mac Python 3.12; Black and Pylint 10.00/10 passed for the changed runtime code.
+Physical verification of the correction uses explicit source overlays; the
+released baseline image and proposed performance defaults remain separate.
+
+The corrected physical 20 x 40-second batch passed: every episode retains an
+exact 40-second receipt window and every in-boundary wrist receipt has one
+decision. No over-budget tail fault or cross-episode leakage was observed.
+See the [candidate results](../m08-frame-matching/resource-gates.md).

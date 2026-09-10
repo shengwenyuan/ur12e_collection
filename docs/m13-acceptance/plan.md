@@ -153,3 +153,54 @@ closes these cases and defines the remaining hardware evidence. Stable M13 IDs
 retain their original meta-plan meanings: A01 no-motion shadow, A02 diagnostics,
 A03 twenty full-duration episodes, A04 truthful software/hardware separation.
 Duplicate, conflicting draft labels were corrected; physical A03 remains NOT RUN.
+
+## Physical camera run (2026-09-10)
+
+The user connected all three cameras and authorized the existing pipeline's
+physical acceptance sequence. Use the deployed image corresponding byte-for-byte
+to software baseline commit `4f046a9`. Do not repeat closed software acceptance.
+Inventory/preflight: D405 and two D435IF units, all USB 3.2; each yielded 90
+640x480 aligned RGB-D frames in three seconds with no color/depth counter gaps
+or repeated depth and an exact depth PNG round trip. This is a preflight, not
+recording-throughput acceptance. Actual third-view role confirmation is pending.
+Proceed with a two-episode smoke, then 20 x 40 seconds if its timing and recording
+results support continuation. Record failures before repairs; preserve partials.
+Physical clock accuracy and scene quality remain open until measured/reviewed.
+
+Physical results: the short and 40-second hardware-input recordings produced
+valid MCAP files, but D405 source stability failed. The problem also reproduced
+with no encoding and in the original diagnostic with D405 alone. Both D435IF
+cameras passed their 20-second diagnostic. The subsequent direct-connection
+comparison passed 40-second solo and three-source tests plus two 40-second
+recordings with zero source gaps/repeats. Both recordings independently verified,
+but accepted only 987 and 1117 groups; timing/grouping remains unresolved.
+M13-A03 stays NOT RUN pending grouping diagnosis and physical role confirmation. See the
+[physical test record](physical-20260910.md) for measured results and restart steps.
+No source or image changes were made; original role binding remains unconfirmed.
+
+## Timing and resource experiments (2026-09-10)
+
+The user approved the [timing correction experiments](../m08-frame-matching/timing-diagnosis.md)
+and requested final resource/gate alignment. A 75 ms wait and 1 ms polling remove
+the bulk of deadline-related grouping losses. Moving immediate PNG decode checks
+to mandatory final-file verification provides writer headroom without weakening
+pixel integrity. These settings remain explicit experimental overrides.
+
+An uncorrected no-CPU-quota, 4 GiB run completed 20 x 40 seconds with all files
+verified and zero source gaps/repeats. Its accounting gate FAILS: three pre-cutoff
+wrist receipts arrived after immediate finalization and were not represented in
+decisions. M09/M13 now implement bounded tail draining while preserving the exact
+sample cutoff; an over-budget tail fails explicitly. The corrected candidate is
+undergoing a separate full batch. This supersedes the earlier NOT RUN status:
+duration/file checks have run, but final candidate acceptance is still pending.
+The [resource/gate proposal](../m08-frame-matching/resource-gates.md) separates
+experimental evidence, numerical gates awaiting alignment and production defaults.
+
+Corrected candidate result: PASS against the proposed gates for 20 exact
+40-second episodes in one persistent physical rig. All 23,995 wrist receipts
+were accounted for, 23,945 groups accepted, and all files independently verified.
+Source gaps/repeats, queue overflows and unaccounted anchors were zero. See the
+[final measurements](../m08-frame-matching/resource-gates.md#final-candidate-results-2026-09-10).
+M13-A03's physical duration/file case has passed on the experimental configuration;
+numerical gate adoption, production defaults, semantic role binding and the
+remaining full-module checks are not silently marked accepted.

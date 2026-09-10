@@ -44,6 +44,38 @@ def test_late_arrival_cannot_recover_expired_anchor(frame_factory):
     assert [r.reason for r in result] == ["missing_view"]
 
 
+@pytest.mark.parametrize(
+    "wait_ms,delivery_ns,reason",
+    [
+        (50, 51_389_560, "missing_view"),
+        (75, 51_389_560, "accepted"),
+        (75, 75_000_001, "missing_view"),
+    ],
+)
+def test_camera_transport_budget_preserves_skew_gate(
+    frame_factory, wait_ms, delivery_ns, reason
+):
+    # Relative receipt/delivery times from the 2026-09-10 physical trace.
+    matcher = matching.Matcher(
+        "fixture-unix", matching.MatchConfig(wait_ns=wait_ms * MS)
+    )
+    assert not matcher.push(frame_factory("wrist", 0, receipt=0), 9 * MS)
+    assert not matcher.push(
+        frame_factory("third_left", 6_113_000, receipt=32_843_506),
+        47_965_013,
+    )
+    result = matcher.push(
+        frame_factory("third_right", 2_970_900, receipt=36_055_616),
+        delivery_ns,
+    )
+    assert [item.reason for item in result] == [reason]
+    if result[0].accepted:
+        assert all(
+            abs(value) <= 16_700_000
+            for value in result[0].metadata()["skews_ns"].values()
+        )
+
+
 def test_depth_is_not_reused_even_with_new_color(frame_factory):
     matcher = matching.Matcher("fixture-unix")
     results = []

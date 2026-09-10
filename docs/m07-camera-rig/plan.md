@@ -99,3 +99,19 @@ The 2026-09-10 [software baseline](../m13-acceptance/software-baseline.md) close
 the tested software slice of this module. Remaining hardware or unimplemented
 full-module cases stay open; repeat software checks only for affected changes
 or new failures.
+
+
+## Physical pipeline evidence (2026-09-10)
+
+The deployed baseline now has [real-camera evidence](../m13-acceptance/physical-20260910.md).
+Both D435IF units passed 20-second diagnostics; D405 through two extension stages
+showed gaps and repeated RGB, including with no encoding and when streaming alone.
+The source supervisor rejected repeated input. A later direct USB comparison
+passed: D405 alone for 40 seconds, three persistent sources for 40 seconds, and
+two 40-second recordings all had zero source counter gaps/repeats. The extension
+connection path is strongly implicated; a specific component fault is not proven.
+Subsequent timing and end-boundary corrections passed the
+[20-episode candidate gates](../m08-frame-matching/resource-gates.md), with zero
+source gaps/repeats across approximately 30,000 frames per camera. Physical
+clock accuracy and role binding still keep full-module acceptance open. The
+connection comparison itself changed no camera code, queue or codec.
