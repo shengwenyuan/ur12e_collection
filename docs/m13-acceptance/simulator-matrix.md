@@ -107,6 +107,15 @@ queue overflows remain unexplained despite passing unchanged rechecks; Mac
 long-load reliability is not declared accepted. Production speed, acceleration,
 freshness and queue bounds were not relaxed.
 
+
+The follow-up 40-second physical read-only workload also PASSed on `2e584b8`:
+UR output-only diagnostics observed 125 Hz while leader reads stayed at 120 Hz,
+three-camera grouping reached 99.75%, and Hand-E GET replies stayed healthy
+(FLT=0, STA=0). Mainline shadow archives UR at approximately 30 Hz and Hand-E at
+9.8 Hz; the full-rate UR trace is a separate diagnostic artifact. This does not
+establish gripper activation or authorize physical motion. See the linked lab
+load record for exact boundaries and evidence.
+
 ## Evidence and delivery
 
 - Current scope and node results: [offline completion](offline-completion.md).
