@@ -176,7 +176,7 @@ Use single-turn Position Mode=3 where the mechanical range permits it. A joint r
 
 Before enabling motion, resolve the actual position branch, seed the current pose, set bounded nonzero motion profiles, and verify the handover. Only then command READY when requested. Block UR following if a torque transition or restart makes continuous-angle mapping ambiguous. Disable or exclude goal-update auto-enabling behavior; leading does not write position goals.
 
-The initial design uses calibrated absolute joint mapping. Check mapped leader targets against actual UR posture at engagement; never hide a mismatch by silently changing offsets.
+The aligned design uses episode-relative arm mapping: configured follower HOME plus the calibrated leader joint delta from one immutable recording-start reference. Verify the follower is stationary at HOME before each episode; never accumulate prior episode targets or re-anchor during an episode. Calibrate signs, ratios, ranges and HOME, but exact leader/follower startup equality is not required. Keep gripper OPEN/CLOSED mapping absolute. Persist baseline and mapping provenance; HOME/HOLD accuracy remains an independent acceptance gate.
 
 ### M04.2 Holding and gravity boundary
 
@@ -403,9 +403,9 @@ The D435IF cameras are frequently repositioned, with millimeter-scale placement 
 
 Prefer OpenCV 4.12.0 with ChArUco for corner detection, PnP, and hand-eye/robot-world solving. AprilGrid remains possible with the corresponding detector and corner-ID mapping. No full visual-inertial toolkit is needed for this scope. [ChArUco](https://docs.opencv.org/4.12.0/df/d4a/tutorial_charuco_detection.html), [OpenCV calibration](https://docs.opencv.org/4.12.0/d9/d0c/group__calib3d.html). The wrist observability constraint follows from this installation's geometry.
 
-Use RealSense intrinsics, distortion, and depth scale initially; do not redo factory calibration by default. Save transform direction, units, identities, version, reprojection error, independent-pose validation error, and source observations/report. Selected calibration RGB images are lossless. GELLO mapping, gripper endpoints, and TCP/payload setup are device configuration concerns, not part of this visual solver.
+Use RealSense intrinsics, distortion, and depth scale initially; do not redo factory calibration by default. Save transform direction, units, identities, version, reprojection error, independent-pose validation error, and source observations/report. Selected calibration RGB images are lossless. GELLO joint/HOME/direction and gripper-endpoint calibration form a parallel mainline workflow under `ur-collect calibrate`, sharing versioned configuration principles but not the visual solver. M04 owns device mechanics. TCP/payload setup remains a separate device configuration concern.
 
-Acceptance targets: `M12-A01` configuration-driven traversal and two-second stationary capture; `M12-A02` visibility/detection failures are explicit; `M12-A03` geometrically observable solving and independent validation; `M12-A04` failed calibration preserves the prior valid result.
+Acceptance targets: `M12-A05` leader reference/sign/range/endpoint validation and versioned activation; `M12-A01` configuration-driven traversal and two-second stationary capture; `M12-A02` visibility/detection failures are explicit; `M12-A03` geometrically observable solving and independent validation; `M12-A04` failed calibration preserves the prior valid result.
 
 ## M13. Shadow Diagnostics and Release Acceptance
 
@@ -587,3 +587,47 @@ PC under `ur12e-collection:current`; the PC bundle selector is
 `/home/robot2026fall/ur12e-current`. Installed Jazzy regression: 300 PASS, plus
 two host mount checks PASS. Station configuration is unchanged and no collection
 container remains running. See `docs/m01-runtime-deployment/closeout-20260911.md`.
+
+
+### GELLO integration alignment (2026-09-11)
+
+The user approved the six-stage [physical leader / URSim plan](docs/m04-gello-adapter/hardware-integration.md).
+The subsequent review selects follower-HOME-anchored episode-relative joint
+deltas, superseding absolute-only engagement. Verify HOME/directions/ranges and
+persist each immutable episode baseline. Do not accept the historical 1-2 degree
+positioning error as the new HOME/HOLD criterion. Leader calibration is a parallel
+M12 workflow. Prioritize 1 Mbps on the current U2D2; neither Mac receive latency
+nor dock involvement is conclusively diagnosed. Episode-relative mapping and
+its failure/baseline tests are implemented as an isolated intent generator;
+real-source session integration and MCAP baseline persistence remain pending.
+The guarded baud-maintenance tool completed the explicitly approved seven-axis
+migrations to 1 Mbps and then the user-requested 3 Mbps with torque off.
+Both 60-second position/velocity runs produced 3,751 groups at 62.50 Hz without
+communication errors; maximum source gaps were 20.62/21.57 ms. The active bus
+is 3 Mbps. The 120 Hz trial target was not met. The isolated 50 Hz minimum
+passes. The user selected nominal 60 Hz leader acquisition and deferred higher
+rates to Ubuntu; the existing 50 Hz command loop is unchanged. Source-to-control
+age and combined-load gates remain open. No motion was sent.
+Read-only leader access is authorized. Every motor register write awaits explicit
+confirmation. ID3 cable clearance remains unresolved, and the current base/desk/
+hand support is not powered-holding acceptance. Physical UR12e control stays
+disabled. Read-only communication, offline calibration and removable lab-image
+replay preparation are the initial implementation slices.
+
+The 60 Hz continuation adds a persistent read-only worker, immutable latest/history
+views, independent bounded recording, fault latching and M12-compatible evidence.
+A 30-second isolated slice measured 54.57 Hz and passed the existing 50 Hz minimum;
+two loaded read attempts failed and did not reconnect automatically. Disposable
+three-view replay now uses the real matcher/encoder/writer with explicit replay
+provenance. Native short replay passed, but the 40-second grouping rate and amd64
+Mac throughput failed; no full combined acceptance is claimed. The production
+GELLO stub remains unavailable. Clock bridging, mixed-source MCAP, shared-session
+integration and physical calibration/HOME/HOLD remain open; see the detailed
+[M04 record](docs/m04-gello-adapter/hardware-integration.md).
+
+Priority update (2026-09-11): at the user's request, defer multi-camera alignment
+and resource-pressure debugging with all existing failures retained. Proceed
+first with isolated M12 leader input calibration and M04 per-axis command
+acceptance. Begin with passive OPEN/CLOSED and joint-direction observations;
+active torque/goal operations need a concrete per-test start confirmation.
+Loaded capture failures remain open but do not block passive calibration.

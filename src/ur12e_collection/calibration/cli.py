@@ -27,10 +27,21 @@ def configure(parser: argparse.ArgumentParser) -> None:
     )
     setup.add_argument("--station", type=pathlib.Path, required=True)
     setup.add_argument("--input", type=pathlib.Path, required=True)
+    reference = commands.add_parser(
+        "leader-reference", help="summarize a stable local encoder trace"
+    )
+    reference.add_argument("input", type=pathlib.Path)
+    reference.add_argument("--output", type=pathlib.Path, required=True)
+    leader = commands.add_parser(
+        "leader-validate", help="validate joint calibration without hardware"
+    )
+    leader.add_argument("input", type=pathlib.Path)
 
 
 def run(args: argparse.Namespace) -> int:
     """Run local filesystem and OpenCV work only after explicit selection."""
+    if args.operation.startswith("leader-"):
+        return _leader(args)
     # Optional calibration dependencies do not belong in general CLI startup.
     # pylint: disable=import-outside-toplevel
     import cv2
@@ -51,5 +62,27 @@ def run(args: argparse.Namespace) -> int:
     # pylint: disable-next=catching-non-exception
     except (KeyError, TypeError, cv2.error) as error:
         raise ValueError(f"invalid calibration input: {error}") from error
+    print(json.dumps(value, indent=2))
+    return 0
+
+
+def _leader(args: argparse.Namespace) -> int:
+    # No SDK, serial device or robot controller is imported by calibration.
+    # pylint: disable-next=import-outside-toplevel
+    from ur12e_collection.leader import mapping
+
+    if args.operation == "leader-reference":
+        value = mapping.reference(args.input)
+        with args.output.open("x", encoding="utf-8") as stream:
+            stream.write(json.dumps(value, indent=2) + "\n")
+    else:
+        calibration = mapping.load(args.input)
+        value = {
+            "state": "valid_structure",
+            "physical_alignment": "not_checked",
+            "motion_ready": False,
+            "reference": calibration.reference,
+            "calibration_id": calibration.identity(),
+        }
     print(json.dumps(value, indent=2))
     return 0

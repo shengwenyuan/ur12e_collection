@@ -59,6 +59,7 @@ def parser() -> argparse.ArgumentParser:
     robot.add_argument("--host", required=True)
     robot.add_argument("--seconds", type=float, default=2)
     robot.add_argument("--output", type=pathlib.Path, required=True)
+    _leader_arguments(devices)
     episodes = commands.add_parser("episode").add_subparsers(dest="operation")
     verify = episodes.add_parser(
         "verify", help="decode and check a local episode"
@@ -98,9 +99,23 @@ def parser() -> argparse.ArgumentParser:
     session.add_argument("--revision")
     session.add_argument("--ros-observe", action="store_true")
     calibration_cli.configure(
-        commands.add_parser("calibrate", help="offline visual calibration")
+        commands.add_parser(
+            "calibrate", help="offline camera and leader calibration"
+        )
     )
     return root
+
+
+def _leader_arguments(devices):
+    leader = devices.add_parser("leader", help="read-only DYNAMIXEL diagnostic")
+    leader.add_argument("--port", required=True)
+    leader.add_argument("--baudrate", type=int, default=57600)
+    leader.add_argument("--seconds", type=float, default=0)
+    leader.add_argument(
+        "--layout", choices=("position", "motion", "full"), default="position"
+    )
+    leader.add_argument("--output", type=pathlib.Path, required=True)
+    leader.add_argument("--fast-sync", action="store_true")
 
 
 def _doctor(args: argparse.Namespace) -> int:
@@ -139,6 +154,19 @@ def _devices(args: argparse.Namespace) -> int:
     elif args.device == "ur":
         result = ur.probe(args.host, args.seconds, args.output)
         passed = result["rtde"]["state"] == "available"
+    elif args.device == "leader":
+        # pylint: disable-next=import-outside-toplevel
+        from ur12e_collection.leader import probe
+
+        result = probe.run(
+            args.port,
+            args.baudrate,
+            args.seconds,
+            args.layout,
+            args.output,
+            fast=args.fast_sync,
+        )
+        passed = result["state"] == "completed"
     else:
         raise ValueError("a device operation is required")
     print(json.dumps(result, indent=2))

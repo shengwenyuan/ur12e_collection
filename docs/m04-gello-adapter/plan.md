@@ -25,3 +25,14 @@ URSim uses an explicitly named waveform under `simulation/targets.py`, not this
 adapter. No DYNAMIXEL serial access, fabricated torque hold or physical readiness
 was added. Real joint mapping/transport/torque/thermal gates remain blocked by
 external hardware work; further speculative GELLO implementation is deferred.
+
+
+## Physical integration increment (2026-09-11)
+
+The user approved the six-stage [hardware integration plan](hardware-integration.md)
+with calibrated episode-relative joint deltas after a subsequent review,
+superseding the earlier absolute-only policy. Read-only
+hardware access is authorized; every motor register write requires separate
+confirmation. Current positioning error is an investigation target, not an
+accepted tolerance. The production unavailable stub remains in place while the
+new diagnostic, calibration and replay foundations are tested.

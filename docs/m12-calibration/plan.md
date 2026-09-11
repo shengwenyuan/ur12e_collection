@@ -295,3 +295,89 @@ visibility and physical held-out thresholds remain NOT RUN.
 Final increment checks: Mac **228 PASS / 4 skipped**, Ubuntu 24.04 / ROS 2
 Jazzy amd64 **230 PASS / 2 skipped**, Black and Pylint **10.00/10 PASS**.
 The additional concurrent-update test confirms serialized configuration changes.
+
+
+## Parallel leader calibration workflow (2026-09-11)
+
+Aligned addition: leader joint/HOME/direction/range and gripper-endpoint
+calibration belong to the mainline calibration entrypoint alongside the existing
+three-camera workflows. Preserve all existing M12 visual acceptance IDs.
+M04 owns the transport, joint mechanics and powered tests; M02 owns versioned
+configuration. Share activation/snapshot principles without mixing geometric
+solvers with motor operations. Capture/validation must not implicitly write
+motor registers or enable torque.
+
+Append M12-A05: validate stable raw reference, physical HOME/directions, safe
+ranges and gripper endpoints; preserve evidence and calibration identity; reject
+invalid activation without replacing a previous result. A stable stationary
+trace alone does not attest physical HOME. Episode-relative mapping still needs
+calibrated directions/ratios/ranges, while each recording baseline belongs to
+M04/M09/M10 episode state rather than rewriting calibration.
+
+Current implementation provides `calibrate leader-reference` and
+`calibrate leader-validate` offline foundations. Complete physical validation and
+leader activation/snapshot integration remain NOT RUN / pending implementation.
+The former absolute-only engagement is superseded; follow the
+[M04 integration plan](../m04-gello-adapter/hardware-integration.md).
+
+
+### Leader calibration foundation update
+
+The revised joint calibration schema 2 describes fixed joint coordinates and
+source evidence independently of the episode-relative mapping mode. The offline
+leader validator reports its canonical calibration ID and keeps motion readiness
+false; an unreleased schema-1 absolute-only file is rejected. Round-trip, unknown
+fields, calibration identity changes and offline CLI behavior pass software tests.
+M12-A05 physical direction/HOME/range/endpoint and activation gates remain pending;
+this is not accepted physical calibration. See the M04 execution record for the
+full software suite and the boundary before motor register writes.
+
+### Persistent leader evidence compatibility (2026-09-11)
+
+M12's reference analyzer now accepts the persistent reader's flat position JSONL
+with raw velocity and source epoch retained. The same offline entrypoint rejects
+mixed epochs; stable values still do not attest physical HOME or directions.
+This software slice passed the 355-test native suite recorded in the
+[M04 integration plan](../m04-gello-adapter/hardware-integration.md).
+Physical joint reference, direction/range checks and activation remain pending.
+
+### Operator-assisted leader round (2026-09-11)
+
+The user reprioritized passive input calibration and subsequent explicitly
+started motor tests ahead of deferred camera/resource workloads. Follow the
+[operator sequence in M04](../m04-gello-adapter/hardware-integration.md): ID7
+OPEN/CLOSED captures first, individual joint identity/direction, supported HOME
+and validated branch/range/scale, then separately confirmed one-axis active tests.
+A read-only preflight found all torque disabled and no reported motor errors;
+ID5's historical range conflict and ID3 cable block remain unresolved.
+No endpoint, direction or physical HOME acceptance has yet been recorded.
+
+The user replaced per-pose chat with a single 250-second guided capture and
+post-run analysis. [The runbook](leader-batch.md) describes the native entrypoint,
+fixed cues, raw evidence, consolidated review and unverified physical fields.
+Final software regression: 362 passed / 5 skipped; the operator run remains
+NOT RUN. No motor configuration or control writes were issued.
+
+The completed 150-second batch is reviewed in
+[operator-review-20260911.md](operator-review-20260911.md). Isolated input readback
+and the initial stable reference passed. Operator-reversed wrist2 labels are
+preserved separately from raw evidence. Fixed-window motion and the lever OPEN
+endpoint prevent complete calibration acceptance. Signed torque-off coordinates
+must be supported separately from powered single-turn goals before active tests.
+
+### HOME and lever semantics correction (2026-09-11)
+
+The operator clarified that HOME is the initial/final reference posture, never a
+median of intermediate excursions. Select one actual sample at the end of the
+initial stable reference interval as this run's HOME anchor; retain its epoch,
+sequence and acquisition times. Compare the final actual reference sample with
+that anchor, without averaging or overwriting it. Stability statistics may gate
+a reference and summarize movement, but they do not define a synthetic HOME.
+Update the standalone reference analyzer and batch review accordingly.
+
+The operator permits an arbitrary independent lever mapping and accepts 3388 as
+the previously proposed CLOSED value. Adopt initial lever count 3256 as software
+OPEN=0 and count 3388 as CLOSED=255. These are assigned input endpoints, not
+claimed mechanical limits or repeatability measurements. Saturation outside this
+assigned range is the intended lever mapping policy; arm limits and signed-input
+handling remain separate. Save the convention without activating motor control.
