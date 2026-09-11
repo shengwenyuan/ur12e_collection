@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 
+import release
 import sim_program
 import sim_source
 
@@ -66,6 +67,11 @@ def _arguments():
         "--camera-volume", choices=("ur12e-replay-cache-20260911",)
     )
     parser.add_argument("--client-memory", choices=("2g", "5g"), default="2g")
+    parser.add_argument(
+        "--installed-package",
+        action="store_true",
+        help="verify source hashes and use the installed package",
+    )
     args = parser.parse_args()
     if (
         args.camera_cache or args.camera_volume or args.leader_trace
@@ -84,6 +90,8 @@ def main() -> None:
     client = inspect("image", args.client_image)
     if (client["Os"], client["Architecture"]) != ("linux", "amd64"):
         raise ValueError("simulator client requires a local linux/amd64 image")
+    if args.installed_package:
+        release.source_hashes(client["Id"], ROOT)
     sim = inspect("container", SIMULATOR)
     image = inspect("image", IMAGE)
     network = inspect("network", NETWORK)
@@ -124,6 +132,9 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="permit-", dir=output) as temporary:
         frozen = sim_source.freeze(ROOT, pathlib.Path(temporary))
         frozen["client_image"] = client["Id"]
+        frozen["package_origin"] = (
+            "installed" if args.installed_package else "frozen_source_overlay"
+        )
         frozen["source_revision"] += (
             "-image-" + client["Id"].split(":")[-1][:12]
         )
@@ -165,8 +176,11 @@ def main() -> None:
                 "--read-only",
                 "--tmpfs",
                 "/tmp:rw,nosuid,size=128m",
-                "-v",
-                f"{temporary}/src:/workspace/src:ro",
+                *(
+                    []
+                    if args.installed_package
+                    else ["-v", f"{temporary}/src:/workspace/src:ro"]
+                ),
                 "-v",
                 f"{temporary}/checks:/checks:ro",
                 "-v",
@@ -194,7 +208,11 @@ def main() -> None:
                     else []
                 ),
                 "-e",
-                "PYTHONPATH=/workspace/src",
+                (
+                    "PYTHONPATH="
+                    if args.installed_package
+                    else "PYTHONPATH=/workspace/src"
+                ),
                 "-e",
                 "PYTHONDONTWRITEBYTECODE=1",
                 "--entrypoint",

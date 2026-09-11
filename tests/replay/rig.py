@@ -30,6 +30,10 @@ class Rig:
         self.started = 0
 
     def start(self):
+        # Fault the bounded replay fixture into cache before motion ownership.
+        # This is replay preparation, not a claimed camera acquisition cost.
+        for array in self.cache.arrays.values():
+            array.reshape(-1).view("u1")[::4096].sum()
         self.started = time.monotonic_ns() + 200_000_000
         for role in contracts.CAMERA_ROLES:
             thread = threading.Thread(
@@ -120,6 +124,12 @@ def configuration(path):
                     "kind": "recorded_rgbd_replay",
                     "cache_sha256": cache.identity,
                     "frames_per_role": len(cache.groups),
+                    "sequence_stride": cache.sequence_stride,
+                    "wrist_sequences": [
+                        cache.member("wrist", i)["color"]["sequence"]
+                        for i in range(len(cache.groups))
+                    ],
+                    "cache_prefault_before_control": True,
                     "original_source": cache.manifest["source_metadata"],
                     "replays_usb_or_alignment_cost": False,
                 },

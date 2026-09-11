@@ -35,3 +35,31 @@ Looped inputs retain original timestamps in provenance while replay timestamps
 and sequence numbers advance. Memory maps use bounded owned frame copies, but
 reported RSS can include resident file-backed pages; do not treat it as anonymous
 heap usage or compare native Mac and emulated amd64 performance directly.
+
+
+## Shared control replay
+
+`rig.py` injects three persistent recorded-image producers into the standard
+recorder. The verified local URSim launcher accepts `--leader-trace`,
+`--leader-speed`, `--camera-cache` (host path) or the explicit temporary
+`--camera-volume ur12e-replay-cache-20260911`. The 5 GiB replay profile prefaults
+the cache before control and uses three encoder jobs. It preserves all source
+identities, original capture metadata and explicit non-contemporaneous provenance.
+The old camera-only runner above remains a distinct four-slot serial profile;
+do not compare its result as though it used the shared-control resource layout.
+
+```bash
+python scripts/sim_control.py session --client-image YOUR_CANDIDATE \
+  --installed-package --client-memory 5g --episodes 20 --seconds 40 \
+  --leader-trace /path/to/samples.jsonl --leader-speed 3.5 \
+  --camera-volume ur12e-replay-cache-20260911
+PYTHONPATH=tests python -m simulation.acceptance artifacts/simulator-control/BATCH
+PYTHONPATH=tests python -m replay.report artifacts/simulator-control/BATCH
+```
+
+The first command can control only the verified isolated local URSim service.
+It cannot use a physical host argument. The two audit/report commands only read
+files: acceptance reopens and decodes MCAP; timing-cost reports summarize source
+age, view skew, command gaps, queue/encode metrics and bytes without changing
+acceptance. Full-load failure on Mac remains failure until a fresh unchanged
+gate passes; Ubuntu with live devices needs separate acceptance.

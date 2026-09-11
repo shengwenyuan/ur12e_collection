@@ -1,6 +1,6 @@
 # UR12e + Robotiq Hand-E Collection: Module Plan
 
-Status: camera acceptance is recorded; URSim control/session, 20 x 40-second capture, optional LeRobot export, offline calibration and read-only ROS observation pass their software/simulation gates. The unified current image is deployed on the lab PC; physical control/device/calibration acceptance remains pending. See the current module matrix below.
+Status: prior lab camera/readback and READY-interruption evidence is retained. The 2026-09-11 offline completion sprint adds recorded leader integration, coordinated fake-motor handovers, real RGB-D replay, calibration traversal and twin/policy interfaces. New batch/image acceptance is in progress; full physical acceptance remains pending. The current [module matrix](docs/m13-acceptance/simulator-matrix.md) supersedes historical availability notes below.
 
 Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP direction aligned; repository bootstrap precedes M01 implementation.
 
@@ -631,3 +631,10 @@ first with isolated M12 leader input calibration and M04 per-axis command
 acceptance. Begin with passive OPEN/CLOSED and joint-direction observations;
 active torque/goal operations need a concrete per-test start confirmation.
 Loaded capture failures remain open but do not block passive calibration.
+
+
+### Offline completion sprint (2026-09-11)
+
+The user authorized the seven-node [offline completion plan](docs/m13-acceptance/offline-completion.md), coherent commits and obsolete-image cleanup. N1-N5 software is implemented with native and actual URSim evidence. No physical UR, Hand-E or leader writes, and no lab SSH are authorized for this sprint. Signed leader calibration schema 3, immutable episode baselines, separate raw intent/conditioned command audit and injected motor coordination replace the earlier unavailable-only simulation path. The physical device factory remains gated.
+
+M12 now includes configuration-bound leader calibration and taught traversal software alongside the visual solver. M14/M15 have bounded read-only trajectory/policy contracts, not Isaac or inference implementation. Recorded RGB-D replay uses the actual matcher/codec/writer and explicit non-contemporaneous provenance. A strict single 40-second real-image run passes, but the repeated full-load attempt fails; retain both facts and the unchanged gates. New batch, image and lab follow-up results are recorded in M13 rather than inherited from earlier synthetic-only acceptance.

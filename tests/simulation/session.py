@@ -6,7 +6,8 @@ import pathlib
 import time
 import traceback
 
-from ur12e_collection import storage
+from ur12e_collection import projection, storage
+from acceptance import decisions
 from ur12e_collection.simulation import connection, session
 
 
@@ -111,6 +112,24 @@ def main():
                     assert counts["camera/frame_set"] / seconds >= 28.5
                     assert counts["control/command"] / seconds >= 45
                     report["episodes"].append(completed)
+                    if args.seconds >= 40:
+                        context = completed["recording"]["snapshot"]["control"]
+                        rows = [
+                            json.loads(message.data)
+                            for _, message in projection.messages(
+                                owner.active.destination / "episode.mcap",
+                                (
+                                    "camera/frame_set",
+                                    "diagnostics/frame_rejection",
+                                ),
+                            )
+                        ]
+                        completed["quality"] = decisions(
+                            rows,
+                            completed["start_receipt_ns"],
+                            completed["stop_receipt_ns"],
+                            context.get("inputs", {}).get("cameras"),
+                        )
                     (output / "report.json").write_text(
                         json.dumps(report, indent=2)
                     )

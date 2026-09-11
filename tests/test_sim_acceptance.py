@@ -73,3 +73,37 @@ def test_host_receipt_jitter_is_reported_without_inventing_source_gaps():
     result = acceptance.decisions(items, 0, 40_000_000_000)
     assert result["accepted"] == result["decisions"] == 1200
     assert result["max_receipt_gap_ms"] > 90
+
+
+def replay_entries():
+    """A recorded source omits two original identities on each replay cycle."""
+    items = entries()
+    source = {"sequence_stride": 6, "wrist_sequences": [1, 2, 4, 5]}
+    for index, item in enumerate(items):
+        cycle, position = divmod(index, 4)
+        item["anchor"]["color"]["sequence"] = (
+            cycle * 6 + source["wrist_sequences"][position]
+        )
+    return items, source
+
+
+def test_known_recorded_gaps_are_not_new_replay_loss():
+    items, source = replay_entries()
+    result = acceptance.decisions(items, 0, 40_000_000_000, source)
+    assert result["accepted"] == 1200
+    with pytest.raises(ValueError, match="identities"):
+        acceptance.decisions(items, 0, 40_000_000_000)
+
+
+@pytest.mark.parametrize("failure", ["gap", "repeat", "rejection"])
+def test_replay_provenance_cannot_hide_new_loss(failure):
+    items, source = replay_entries()
+    if failure == "gap":
+        items.pop(30)
+    elif failure == "repeat":
+        items[30] = copy.deepcopy(items[29])
+    else:
+        for index in range(30, 33):
+            items[index]["reason"] = "missing_view"
+    with pytest.raises(ValueError):
+        acceptance.decisions(items, 0, 40_000_000_000, source)

@@ -54,9 +54,15 @@ def _advance(previous, current, age_ns):
         current.sequence <= previous.sequence
         or current.start_ns < previous.end_ns
         or current.start_ns <= previous.start_ns
-        or current.start_ns - previous.start_ns > age_ns
     ):
-        raise ValueError("repeated, reordered or interrupted leader stream")
+        raise ValueError("repeated or reordered leader stream")
+    gap_ns = current.start_ns - previous.start_ns
+    if gap_ns > age_ns:
+        raise ValueError(
+            f"interrupted leader stream: {gap_ns / 1e6:.3f} ms gap "
+            f"exceeds {age_ns / 1e6:.3f} ms "
+            f"(sequence {previous.sequence} to {current.sequence})"
+        )
 
 
 class EpisodeMapper:

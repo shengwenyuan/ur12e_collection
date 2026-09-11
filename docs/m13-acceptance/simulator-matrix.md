@@ -1,107 +1,77 @@
-# M01–M13 Simulator Handoff
+# Current Module and Simulator Handoff
 
-> **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
+**Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Updated: 2026-09-10. This matrix distinguishes implemented software from physical
-acceptance. No lab SSH, physical robot, gripper or camera connection occurred in
-this autonomous sprint. No GUI automation was required.
+Updated: 2026-09-11. The current offline sprint uses recorded leader input,
+recorded or synthetic RGB-D and official URSim. No physical device writes or lab
+SSH occur. This table supersedes older availability summaries; historical lab
+acceptance keeps its original revision and scope.
 
-| Module | Implemented behavior | Current evidence | Remaining boundary |
+| Module | Implemented behavior | Current software/simulation evidence | Remaining physical or delivery gate |
 | --- | --- | --- | --- |
-| M01 | Ubuntu 24.04/Jazzy runtime/dev images, pinned dependencies, non-root mounts, offline delivery | Source-matched amd64 images; installed-package and mount checks PASS | Current image deployed to lab PC with software gates PASS (2026-09-11); new physical checks NOT RUN |
-| M02 | Strict station config, serialized atomic updates, explicit setup/mount declarations and calibration activation | Configuration, concurrent updates, failed replacement and identity tests PASS | Physical identities/setup and production motion configuration require lab verification |
-| M03 | Output-only UR readback; shared UR transport behind verified simulator-only connection | Actual URSim control gates PASS; powered physical Manual/Local short readback PASS (2026-09-11) | Physical control factory remains disabled |
-| M04 | Explicit unavailable GELLO API; isolated test waveform | Missing state and rejected physical requests PASS | Real DYNAMIXEL transport, mapping, torque/holding and load tests remain externally blocked |
-| M05 | GET-only Robotiq URCap reader with raw registers and bounded polling | Raw values, malformed/stale replies and bypass provenance PASS | Real Hand-E actuation/grip retention NOT RUN; simulator values remain null |
-| M06 | Exclusive native Home/SDK ownership, branch-preserving limits, freshness, stop and fault latch | Complex/asymmetric/near-limit URSim routes, native Home defaults and client-loss behavior PASS | Physical routes/cable clearance and coordinated GELLO READY/HOLD NOT RUN |
-| M07 | Persistent three-camera rig, RGB-D alignment boundary, source health; optional parent-owned shared slots for simulator | Earlier physical camera acceptance retained; new simulator slot/restart tests PASS | New release camera smoke and semantic left/right binding remain lab work |
-| M08 | Wrist-anchored real-frame matching, 16.7 ms skew, 75 ms wait/drain, no reuse | Deterministic/failure tests and earlier physical grouping gates PASS | Physical clock accuracy/exposure synchronization is not established by SDK global time |
-| M09 | Space HOME/start/stop, held review, a discard, Ctrl+C, recorder supervision and explicit authority handover | Short/40-second URSim sessions and discard/recorder-kill/restart/SIGINT PASS | 20 x 40 controlled batch and independent audit PASS; physical GELLO/Hand-E coordination NOT RUN |
-| M10 | Separate intent/sent/actual streams, authority interval, exact clocks, immutable calibration context and optional read-only ROS observer | MCAP source/coverage/pairing and current-verifier readback PASS | Real GELLO mapping, calibrated TF and calibration services remain pending |
-| M11 | Independent H.264 streams, exact uint16 PNG, verified atomic MCAP; optional official LeRobot v3 RGB/arm export | Codec/corruption/failure gates PASS; actual official loader verifies 1,291 frames in two episodes | Full simulator duration gate PASS; gripper/depth training projection and physical task-image export quality NOT RUN |
-| M12 | ChArUco detection, fixed/wrist geometry, independent held-out checks, stationary checkpoint gate, offline solve/verify/setup/activate | 30 offline tests across geometry, real rendered PNG pixels, immutable evidence and failure-preserving activation PASS | Taught physical script/checkpoint transport, TCP-to-flange offset, board dimensions/visibility and real accuracy thresholds NOT RUN |
-| M13 | Hardware-free shadow, actual URSim functional/fault batches, independent final audit and reproducible reports | Software/native ROS/installed-image checks PASS | Twenty 40-second episodes, independent audit and final-image fault regression PASS; new lab deployment NOT RUN |
+| M01 | Pinned Ubuntu 24.04 / ROS 2 Jazzy, non-root unified development/runtime image, mounted station/data and offline bundle | Previous `ec64004` current image is deployed; new candidate checks are N7 | Rebuild and verify the new source-matched candidate, then lab software deployment |
+| M02 | Strict configuration, atomic updates, camera mount and leader assembly identities, versioned activation/invalidation | Bad identity, stale calibration, changed HOME/assembly and failed replacement tests PASS | Confirm real setup identities; no physical calibration attestation is inferred |
+| M03 | Read-only UR state; authorized control transport shared through one owner | Existing actual URSim motion/readback and prior lab readback/READY interruption evidence retained | Real coordinated teleoperation and physical disconnect/watchdog acceptance remain open |
+| M04 | Persistent read-only DYNAMIXEL acquisition; signed calibration; immutable episode delta; conditioned target; injected HOME/HOLD coordinator | Passive capture and 3 Mbps migration previously observed; new replay, source-fault and stateful motor tests PASS | No physical motor-write transport in this sprint; ID3 cable, torque profiles, supported holding, powered coordinate binding and accuracy remain open |
+| M05 | Read-only raw URCap registers; explicit authorized-socket command client; request versus measured feedback | Local wire fixture tests PASS, including bounded acknowledgements and no implicit release | Full shared sessions explicitly bypass Hand-E; live command/contact/retention tests pending |
+| M06 | Exclusive native Home/SDK ownership, configured limits, actual stopped handover and fault latch | Actual URSim replay motion and source/recorder faults PASS; new coordinated leader handover uses fake motors | Physical HOME route, motion limits, motor support and coordinated arrival require lab validation |
+| M07 | Persistent RealSense rig; three recorded RGB-D producer fixtures under tests | Prior physical camera slice retained; real-image replay files independently decode | Replay omits USB and SDK alignment cost; new-image camera smoke and labels remain lab work |
+| M08 | Wrist anchors, 16.7 ms skew, 75 ms wait/drain, bounded buffers and no accepted reuse | Matching/failure tests PASS; single strict real-image 40 s run PASS; repeated full-load attempt FAIL | Mac amd64 long-load stability is not accepted; unchanged gate must pass on Ubuntu |
+| M09 | Space HOME/start/stop, held review, `a` discard, Ctrl+C and fault latch; leader coordinator shares this lifecycle | Short replay sessions and leader/recorder faults PASS; fresh 20 x 40 s control batch running | Real leader/Hand-E coordination remains pending |
+| M10 | Separate raw acquisition, desired intent, conditioned sent target and actual feedback; immutable baseline/calibration; original versus replay clocks | Independent MCAP audits and mutation tests PASS; prior read-only ROS observer evidence retained | Physical sign/scale validation and verified TF publication are separate gates |
+| M11 | Streaming H.264/uint16 PNG MCAP; bounded writer; optional three camera encoding workers; official v3 RGB/arm export | Codec/corruption/atomic-write tests PASS; real replay round trips exact depth; serial/parallel payloads match | Real-image sustained throughput remains open; gripper/depth training projection is outside this sprint |
+| M12 | Offline board solver and held-out checks; taught traversal with 2 s stationary capture; parallel leader configuration workflow | Native geometry/config tests PASS; actual URSim 20 checkpoints / 30 synthetic image-readback pairs PASS | Real board geometry, TCP offset, taught routes, visibility and accuracy thresholds remain open |
+| M13 | Shadow, isolated actual URSim checks, strict independent episode audit and fault campaigns | Current native baseline 389 PASS / 5 environment skips; updated batch/release gates in progress | Full-load replay failure is retained; new Ubuntu/device acceptance NOT RUN |
+| M14 | Verified typed trajectory export and bounded optional observation mailbox | Export from completed MCAP PASS; stalled/full mailbox cannot own or block control | Isaac scene/integration is interface-only future work |
+| M15 | Disabled policy interface and explicit future handover requests | Policy cannot issue commands; handover metadata does not grant ownership: PASS | Policy inference and takeover behavior require future alignment |
 
-## Current architecture and operator behavior
+## Current behavior and resource boundaries
 
-The application has one READY/HOME target: `[0, -90, -90, -90, 90, 0]` degrees.
-There is no separate all-zero startup motion. Native Home uses its installed
-60 deg/s and 80 deg/s² defaults. Its controller-owned motion may finish after a
-client disappears; SDK following retains a 5 Hz controller watchdog. Programs
-cannot overlap ownership, and actual stopped arrival is required for handover.
+One follower READY/HOME target remains `[0, -90, -90, -90, 90, 0]` degrees.
+Each episode binds a new stable leader baseline to that HOME and preserves the
+baseline in its authority record. Signed encoder coordinates are not wrapped.
+Desired intent and derivative-bounded commands are archived separately; the
+conditioner does not claim an explicit jerk limit. The 60 Hz leader setting and
+50 Hz command cadence remain unchanged; replay timing is not a new serial-rate
+measurement. More than 100 ms without valid input faults the session.
 
-Space advances only the current allowed phase: HOME, start, stop/hold, then HOME.
-Held-key repeats cannot cross phases. `a` discards the current/latest episode;
-verified files remain with an explicit outcome marker. Ctrl+C stops and preserves
-unfinished data without asking for HOME or releasing a gripper. A normal stop
-leaves task success unknown. The test leader is explicitly under `simulation/`.
+The leader HOME/HOLD fixture requires measured arrival within two counts for
+200 ms. This tests sequencing and refusal behavior, not real motor accuracy.
+Physical ID3 active motion remains blocked. No automatic torque release occurs
+on close, stop or fault; torque-off engagement requires explicit verified support.
+The shared simulation session keeps Hand-E unavailable/bypassed, with null actual
+feedback rather than invented object or grasp state.
 
-The simulator profile uses three camera processes, eight shared slots per role,
-one matching/recording process with a writer thread, and one independent final-file
-verifier. Only frame headers cross camera IPC. The control process never waits for
-encoding or storage. The explicit simulator queues hold 16 image triples and 128
-small control records. Active recorder supervision is 500 ms; a 3 s allowance
-exists only after confirmed stop while the SDK releases ownership. This is not
-a relaxed active-control deadline. Physical/shadow defaults remain unchanged.
+Space performs only the action allowed in the current phase. Stop holds the
+follower, requests leader current-position HOLD and waits before finalization.
+A normal stop leaves task success unknown. `a` preserves files with a discarded
+outcome; Ctrl+C and faults retain unfinished data as partial. Recovery requires
+an explicit new engagement. Optional ROS/twin observers never acquire control.
 
-ROS 2 Jazzy and native ROS-CDR/rosbag2 interoperability are tested. Optional
-`--ros-observe` publishes separate actual/intent/sent JointState streams, TCP
-PoseStamped, original M10 records and retained phase/context. Seven real Jazzy
-tests and actual URSim observer-kill isolation pass. It is a bounded read-only
-process; main collection is independent of its delivery. Joint/pose publication
-covers recorded windows only. Calibration services and TF remain unimplemented;
-no unverified TCP-to-flange transform is broadcast.
+Recorded-image replay uses three bounded producers and three independent camera
+encoding jobs in the recorder process; each codec has one worker. The MCAP writer
+remains single-owned. Control never waits for image encoding. RealSense hardware
+defaults remain unchanged. The Mac replay client uses a 5 GiB cap, a prefaulted
+Docker-internal test cache, and the existing 16-triple writer bound. Prefaulting
+is fixture preparation and does not stand in for camera acquisition/alignment.
 
-## Evidence and follow-up
+The first strict 40-second real-image run produced 1,196 accepted groups from
+1,197 decisions, but a repeated full-load attempt failed (1,188/1,196, 72 ms first
+anchor and up to 134 ms producer lateness). The latter remains FAIL. A complete
+20-episode performance acceptance cannot be inferred from the single pass.
+Its independently decoded 460 MB file contains roughly 431 MB lossless depth
+and 20 MB RGB payload; noisy aligned depth dominates local storage cost.
 
-- Functional commits: `429b701`, `9ad0137`, `535fe69`, `60bf3da`, `4bb00e1`,
-  `36c00b2`, `57f152c`. Their module plans retain actual checks and limitations.
-- Native Home and complex-motion evidence: M06 `simulator-control.md`.
-- Latest physical camera layout acceptance predates this sprint; see
-  `layout-recheck-20260910.md`. It is not a new physical test of this image.
-- M11 optional export and M12 offline usage have separate reproducible instructions.
-- Failed long batches remain under ignored `artifacts/simulator-control/`. They
-  never count toward a successful 20-episode batch. The latest run is frozen and
-  independent of ongoing documentation/test edits.
+## Evidence and delivery
 
-When the user returns, prioritize lab read-only image/camera smoke, physical
-left/right labels and controller installation/Home review. Physical control needs
-new explicit authorization, site bounds/clearance and validated Hand-E/GELLO
-interfaces. No such authorization is inferred from simulator success.
+- Current scope and node results: [offline completion](offline-completion.md).
+- M04 implementation and physical limitations: [leader integration](../m04-gello-adapter/hardware-integration.md).
+- New N5 interfaces: [M14](../m14-digital-twin/plan.md), [M15](../m15-dagger/plan.md).
+- Historical physical camera layout: [layout recheck](layout-recheck-20260910.md).
+- Latest prior lab closeout: [M01 closeout](../m01-runtime-deployment/closeout-20260911.md).
+- Previous simulator control/fault gates: [M06 simulation](../m06-control-motion/simulator-control.md).
 
-
-Full controlled batch: **20 x 40 s PASS**, including current independent file and
-quality audit. Accepted 23,998 / 24,007 decisions (99.9625%), worst 99.75%, at most
-two consecutive rejections, zero native source gaps/repeats. The last complete
-episode is explicitly discarded for lifecycle validation. See the M13 plan for
-resource limits and synthetic-versus-physical interpretation.
-
-
-Final source-matched runtime: `ur12e-collection:sim-runtime-6e48d82`.
-Image ID: `sha256:3165576f143dede3da111e790e0ade4dcb262d7bac07ebb8cd8e940521e62556`.
-Native regression is 248 PASS / 5 environment skips; installed Jazzy is
-251 PASS / 2 host-only skips, and both mount tests separately PASS. The runtime
-contains 59 hash-matched Python/schema files. Final-image active discard,
-recorder-kill/restart and Ctrl+C/hold regression also PASS. Source and deployment
-instructions are in the M01 plan; physical control remains disabled.
-
-## Current image consolidation (2026-09-11)
-
-The daily collector image is now `ur12e-collection:current`, shared by dev,
-station, camera and URSim-client launchers. It uses the tested runtime plus test
-tools; official URSim remains separate. Current image ID:
-`sha256:a3d22d1ffa6c36331116a4c870f7bb841d84ec036cd9a2d23460345ce15bab96`,
-source `bbc56a8c714e7a8bc1b6f9124af80339352a2b97`. A discovered cancellation
-race was corrected without changing control or capture semantics. Native checks
-pass 252 cases; installed Jazzy checks pass 255 cases, and the two host mount
-checks pass separately. No motion or physical device tests were run for image
-consolidation. Earlier motion/camera evidence retains its original image identity.
-See M01 `image-consolidation.md` for bundle selection and pending cleanup.
-
-
-The consolidated image is now deployed on `ssh ur12e-collection`; native Ubuntu
-255 installed tests, both host mount tests, all 59 source hashes and unchanged
-production config PASS. No cameras, Hand-E or UR controller were accessed.
-See `lab-20260911.md` for deployment. A subsequent user-authorized powered
-Manual/Local read-only check passed; see M03 `live-state-20260911.md`. Physical
-control remains prohibited and motion gates remain open.
+The accepted `ur12e-collection:current` remains the lab baseline until the new
+candidate's applicable gates pass. N7 records immutable image/source identity,
+installed tests, bundle checksums, exact cleanup and the remaining lab commands.
+Simulation success never authorizes a physical control connection.

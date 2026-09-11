@@ -7,14 +7,26 @@ import pathlib
 from ur12e_collection import projection, storage
 
 
-def decisions(items: list, start: int, stop: int) -> dict:
+def decisions(items: list, start: int, stop: int, replay=None) -> dict:
     """Count every anchor, including boundary rejections, without resampling."""
     items.sort(key=lambda value: value["anchor"]["color"]["sequence"])
     if not items:
         raise ValueError("no wrist decisions")
     anchors = [item["anchor"]["color"] for item in items]
+    if replay is None:
+        expected_next = lambda value: value + 1
+    else:
+        stride = replay["sequence_stride"]
+        positions = replay["wrist_sequences"]
+        following = dict(
+            zip(positions, positions[1:] + [positions[0] + stride])
+        )
+        expected_next = (
+            lambda value: (value // stride) * stride + following[value % stride]
+        )
     if any(
-        b["sequence"] != a["sequence"] + 1 for a, b in zip(anchors, anchors[1:])
+        b["sequence"] != expected_next(a["sequence"])
+        for a, b in zip(anchors, anchors[1:])
     ):
         raise ValueError("wrist decisions have missing or repeated identities")
     receipts = [item["time"]["received_monotonic_ns"] for item in anchors]
@@ -65,8 +77,13 @@ def audit(root: pathlib.Path, count: int = 20, duration: float = 40) -> dict:
         verified = storage.verify_episode(root / name)
         if verified["counts"]["control/command"] / elapsed < 45:
             raise ValueError("recorded control rate gate failed")
+        context = episode["recording"]["snapshot"]["control"]
+        replay = context.get("inputs", {}).get("cameras")
         for source in episode["sources"].values():
-            if any(
+            if replay:
+                if source["error"] or source["frames"] < 1:
+                    raise ValueError("replay source integrity gate failed")
+            elif any(
                 source[key]
                 for key in ("color_gaps", "depth_gaps", "depth_repeats")
             ):
@@ -79,7 +96,10 @@ def audit(root: pathlib.Path, count: int = 20, duration: float = 40) -> dict:
             )
         ]
         quality = decisions(
-            items, episode["start_receipt_ns"], episode["stop_receipt_ns"]
+            items,
+            episode["start_receipt_ns"],
+            episode["stop_receipt_ns"],
+            replay,
         )
         if quality["accepted"] != verified["counts"]["camera/frame_set"]:
             raise ValueError("decision and payload counts differ")

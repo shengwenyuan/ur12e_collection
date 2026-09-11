@@ -72,6 +72,7 @@ def main():
                             break
                     assert error and active.state == "fault"
                     assert not active.completed
+                    fault_and_release_s = time.monotonic() - started
                     samples = []
                     until = time.monotonic() + 3
                     while time.monotonic() < until:
@@ -101,7 +102,7 @@ def main():
                             "fault": fault,
                             "status": "PASS",
                             "error": error,
-                            "detected_s": time.monotonic() - started - 3,
+                            "fault_and_release_s": fault_and_release_s,
                             "hold_observation_s": 3,
                         }
                     )

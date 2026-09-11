@@ -199,3 +199,15 @@ never used concurrently with themselves. Preserve H.264 CRF20/veryfast, PNG leve
 depth hashes, FIFO order and all queue/freshness gates. Serial remains the default
 for previously accepted physical profiles. Reap workers after success or failure.
 Performance and final-image acceptance remain NOT RUN for this increment.
+
+
+### Offline replay resource follow-up (2026-09-11)
+
+The actual URSim plus recorded RGB-D 40-second file independently verifies all
+RGB/depth payloads and uses 460.0 MB for 1,196 groups. Three concurrent camera
+codec jobs retain byte-identical outputs in regression, while one MCAP writer
+keeps archive order. Both simulation input variants use this explicit three-job
+profile; physical/shadow encoding defaults are unchanged. Repeated Mac amd64
+full-load quality remains FAIL. See M13 `offline-completion.md` for gate values,
+exact failure records and extrapolated storage cost; a short success is not a
+sustained-throughput acceptance.

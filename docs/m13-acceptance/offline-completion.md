@@ -38,7 +38,7 @@ hardware acceptance. Earlier failed combined-load runs remain failed evidence.
 ## Ordered nodes
 
 Node numbers describe this execution sequence; they do not replace stable module
-or acceptance IDs. All new acceptance below is NOT RUN.
+or acceptance IDs. Actual results are recorded below; the table defines scope.
 
 | Node | Modules | Deliverable | Acceptance scope |
 | --- | --- | --- | --- |
@@ -133,3 +133,45 @@ Parallel/serial codec payloads are byte-identical in regression; injected codec
 failures reap all encoding threads. Local trajectory export was verified against
 an actual completed URSim/replay MCAP. New source-fault and full-load campaigns
 remain N6; no throughput failure is hidden by this functional commit.
+
+
+## N6 gates and repeated-load findings
+
+The new leader fault campaign PASSes stale input, changed epoch, out-of-range
+encoder values and recorder-process death on actual URSim. Each case archives
+three seconds of post-fault readback, confirms stopped/unchanged tail posture and
+rejects normal episode commitment. Evidence:
+`artifacts/simulator-control/leader-faults-1789111015828397008/`. Its initial
+`detected_s` field includes shutdown/release; the runner now names and measures
+this interval `fault_and_release_s`, separately from its three-second observation.
+It is not a pure first-detection or emergency-stop latency measurement.
+
+Prefaulted Docker-internal real-image replay completed one strict 40-second
+episode: 1,196/1,197 groups (99.9165%), one rejection, writer peak 4/16 and
+maximum queue delay 105.3 ms. All depth hashes and RGB payloads verify. Evidence:
+`session-1789111147726326930`. The 460,040,972-byte MCAP averages 11.50 MB/s,
+about 431 MB depth and 20 MB RGB payload. This scene implies about 9.2 GB for
+20 episodes or 41.4 GB/hour if sustained; these are extrapolations, not measured
+long-batch totals. Source acquisition age p95/max was 7.49/13.42 ms in replay,
+not a physical USB measurement. Maximum accepted view skew was 16.6923 ms.
+
+A fresh 20-episode real-image attempt FAILed on episode 0: 1,188/1,196 groups,
+72.3 ms first-anchor offset and producer lateness up to 133.6 ms. Evidence:
+`session-1789111417406940222`; container observations are under
+`artifacts/offline-completion/n6-container-resources.jsonl`. This repeats the
+Mac sustained-load limitation. No gate is loosened. The strict audit now knows
+original omitted source identities from the immutable replay manifest; it still
+rejects newly missing/repeated replay anchors, boundary loss and rejection bursts
+(12 focused tests PASS).
+
+The first recorded-leader/synthetic-camera 20-episode attempt completed three
+40-second episodes, then faulted on an input gap over 100 ms during episode 3
+(`session-1789111515061668419`). It remains FAIL. Error messages now distinguish
+reordering from an excessive interval and record exact gap/sequence values.
+Both simulation input variants now use the same three-camera encoding jobs;
+physical defaults remain unchanged. Fresh batch and installed-image checks follow.
+
+N6 checkpoint regression: 393 native PASS / 5 environment skips (10.38 s),
+Black PASS (149 files), production/script Pylint PASS. The replay identity/gap
+audit has positive and adversarial tests. This commit accepts software changes
+and records failed batch evidence; it does not accept the pending long batch.
