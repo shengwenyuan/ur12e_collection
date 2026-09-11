@@ -1,6 +1,6 @@
 # UR12e + Robotiq Hand-E Collection: Module Plan
 
-Status: prior lab camera/readback and READY-interruption evidence is retained. The 2026-09-11 offline completion sprint adds recorded leader integration, coordinated fake-motor handovers, real RGB-D replay, calibration traversal and twin/policy interfaces. New batch/image acceptance is in progress; full physical acceptance remains pending. The current [module matrix](docs/m13-acceptance/simulator-matrix.md) supersedes historical availability notes below.
+Status: prior lab camera/readback and READY-interruption evidence is retained. The 2026-09-11 offline completion sprint adds recorded leader integration, coordinated fake-motor handovers, real RGB-D replay, calibration traversal and twin/policy interfaces. Software regression passes (431 native; 434 installed), with final-image fault/watchdog checks passed and candidate delivery tracked in M01/M13. The fresh real-pixel 20-episode batch failed after 13 completed files on a 114.276 ms leader gap; full-load and physical acceptance remain pending on Ubuntu. The current [module matrix](docs/m13-acceptance/simulator-matrix.md) supersedes historical availability notes below.
 
 Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP direction aligned; repository bootstrap precedes M01 implementation.
 

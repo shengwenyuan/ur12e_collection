@@ -230,3 +230,22 @@ the two host mount checks pass separately. All varied process-group interrupt
 cases and deterministic real-partial cleanup checks pass. The failed predecessor
 remains recorded, and no interrupt assertion was relaxed. No new physical or
 URSim movement was needed for this shutdown-only correction.
+
+## Offline leader handover and killed-recorder cancellation (2026-09-11)
+
+The shared session now supervises leader HOLD in READY, held review and
+finalization. External failure during leading or either coordinated HOME phase
+requests a fresh current-position leader HOLD, including when follower transport
+cleanup raises. Invalid/stale motor readback stays faulted; no guessed position,
+automatic HOME retry or torque release is permitted.
+
+A new actual URSim HOME-recorder-death test exposed a deadlock in the shared
+`multiprocessing.Event` wake-up acknowledgement after killing a waiting process.
+Cross-process stop requests now use a one-way shared-byte cancellation flag and
+local bounded polling, so a killed waiter cannot block the parent's stop path.
+Heartbeat observation also skips a busy shared lock without refreshing its age.
+Thirty focused URSim repetitions PASS on installed `b497c74`; fake-motor and
+spawned-process regressions PASS. The complete final-image fault and performance
+status is maintained in [M13 offline completion](../m13-acceptance/offline-completion.md).
+These are software/simulation results; physical leader transport/support remains
+unaccepted, and the older uncaptured Ctrl+C timeout is not assigned a proven cause.

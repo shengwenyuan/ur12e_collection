@@ -2,7 +2,7 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: aligned / implementing. This is N7 of the user-approved
+Status: implemented / local candidate verified; Ubuntu acceptance pending. This is N7 of the user-approved
 [offline completion plan](../m13-acceptance/offline-completion.md).
 
 ## Scope and checks
@@ -41,9 +41,9 @@ must leave meaningful failure reports and source provenance intact.
 
 ## Acceptance results
 
-M01-A01/A02/A03 and M13-A04: NOT RUN for the new image. Actual identity, installed
-checks, archive checksum, cleanup outcome and remaining Ubuntu gates will be
-recorded here after execution.
+The chronological candidate records below preserve failures. The latest candidate
+section identifies the deliverable; earlier candidates are not additional daily
+images. Ubuntu hardware acceptance remains separate from local image tests.
 
 
 ### First candidate checks
@@ -59,8 +59,9 @@ passes. The original intermittent failure remains unexplained and is recorded
 as an open reliability item, not a proven fix. Logs are under
 `artifacts/offline-completion/n7-installed-*` and `n7-interrupt-*`.
 
-The final installed-package long batch is now running. The accepted current
-image remains unchanged; this candidate is not promoted by the regression rerun.
+This candidate's long batch failed after seven complete episodes on a 109.719 ms
+leader gap. The accepted current image remained unchanged; the regression rerun
+did not promote this candidate.
 
 
 ### Updated HOLD-supervision candidate
@@ -70,4 +71,113 @@ ID `sha256:a22deef2cb47a0c651aaab767cd7f33b8a2c4690ceb21549f31f54b675e78924`.
 Native regression PASSes 409 cases / 5 skips. Installed Jazzy regression PASSes
 412 cases / 2 host-only skips (24.14 s), with both host mount tests separately
 PASS (4.15 s). No source overlay or diagnostic signal handler was used in that
-installed regression. Final-image replay/fault and bundle checks are in progress.
+installed regression. Its two-episode real-pixel smoke passed; its 40-second
+batch attempt failed at the 25-second verification deadline. It is superseded
+by the bounded parallel-verification candidate below.
+
+### Parallel-verification candidate
+
+`ur12e-collection:offline-5219105`, source `5219105`, image ID:
+`sha256:ca20d19738af32787ad1a2f6c3a16164132b489634ef74ad9f3e44f1ae930c36`.
+
+- M01-A01 software PASS: 419 native tests / 5 environment skips; installed
+  Jazzy regression 422 PASS / 2 host-only skips (23.16 s). Black and production
+  plus script Pylint PASS. Installed tests use the package inside the image.
+- M01-A03 local mount tests PASS: both cases (4.05 s), including persistence
+  across container replacement. This is not a new Ubuntu device deployment.
+- M13-A04 installed-source identity and seven-case actual URSim source/recorder/
+  held-leader fault campaign PASS. Recorded trace and fixtures are external
+  immutable test inputs; no production source overlay was used.
+- M13-A03 fresh real-pixel 20 x 40 workload: FAIL after 14 completed episodes,
+  then a 155.436 ms leader gap. All previous failures remain in the M13 record.
+- This image is superseded by the HOME-fault correction below and is not packaged.
+
+### HOME-fault candidate
+
+`ur12e-collection:offline-e06ca3a`, source `e06ca3a`, image ID:
+`sha256:ab4470390249f0335f281f4d5e580df915c2d3ffc8dcf652fdda05c6b31ae1c9`.
+It additionally requests leader current-position HOLD if coordinated HOME is
+interrupted, even when follower transport cleanup fails. Native regression:
+427 PASS / 5 environment skips (12.31 s); lint/format PASS. Installed regression
+430 PASS / two host skips (26.96 s), and both mount tests PASS (4.28 s).
+The new HOME-recorder-death case exposed a cancellation deadlock. A focused
+repeat captured `multiprocessing.Event.set()` waiting for a killed process's
+wake-up acknowledgement. This image is superseded, not delivered as a fix.
+
+### Cancellation-corrected candidate
+
+`ur12e-collection:offline-b497c74`, source `b497c74`, image ID:
+`sha256:5b5c44e037e91609347365f9d2e4cdd41072654fbdbbec2bb9801a4174ac671a`.
+Cross-process cancellation no longer waits for worker acknowledgements; heartbeat
+inspection cannot block the control loop on a busy shared lock. Native regression
+431 PASS / five environment skips (10.58 s), including killed-waiter and heartbeat
+contention cases; Black (154 files) and production/script Pylint PASS.
+Installed regression: 434 PASS / two host-only skips (23.23 s); mount tests
+2 PASS (3.27 s). Thirty focused HOME-recorder-death repetitions and all eight
+fault cases PASS. Actual active discard, recorder loss, SIGINT, complex motion,
+native HOME and optional ROS-observer loss also PASS. The native HOME observer
+fixture required a recipe correction; production source was unchanged.
+
+### Delivery image
+
+`ur12e-collection:offline-39ad84b`, source `39ad84b`, image ID:
+`sha256:9e37c327c7556abbc2d16c5723dcac0203bbbbab690276ff245989a8acfbb09a`.
+This includes the corrected HOME test fixture. Every production Python/schema
+file matches both `b497c74` and the working tree byte-for-byte, verified by
+`scripts/release.py` source hashing. Installed regression: 434 PASS / two
+host-only skips (23.68 s); two final-image mount tests PASS. The new image has
+no production-code difference from the fault/motion-tested candidate above.
+Final full-load acceptance FAILs after 13 complete 40-second episodes on a
+114.276 ms leader interval above the unchanged 100 ms gate. All 13 completed
+files independently pass decoding, exact depth, metadata, command and quality
+checks; they do not satisfy the required 20-episode batch. Final-image SIGKILL
+and SIGSTOP watchdog checks PASS with observed stops in 0.447 s and 0.251 s,
+respectively, zero observed hold drift and rejected reacquisition during the
+latched protective stop. See M13 for the complete evidence and retained failures.
+
+N6 full-load acceptance remains BLOCKED for production pending an unchanged
+20 x 40 run on Ubuntu with live inputs. The Mac attempt remains FAIL; a fresh
+image tag does not reset it or establish new performance evidence. All agreed
+software/fault slices can still be checked and delivered as an explicit candidate.
+
+The accepted `current`/`ec64004` selector and bundle are preserved. Only this
+latest candidate is packaged for the next explicit lab acceptance; official
+URSim remains a separate appliance.
+
+### Verified bundle and cleanup
+
+The immutable local bundle is
+`artifacts/releases/ur12e-offline-39ad84b`, with source revision `39ad84b`
+and the delivery image ID above. Its `image.tar` is 486,388,224 bytes
+(463.86 MiB), SHA-256
+`210e11fec6610a76d7b6bf43e50a2dfc1793b0ebe3e494814f8c4e234cf7a554`.
+It includes the image, manifest, package lists, launchers, configuration example
+and capability/calibration/read-only/lab-return documentation.
+
+- M01-A01 local delivery PASS: the actual `./scripts/load-release` verified
+  all checksums, loaded the archive and checked its image identity.
+- Source-free startup PASS: from the bundle, `./scripts/run dev doctor
+  --format json --require-mounts` reported `software_ready: true`, all required
+  dependencies available and both writable mounts available. An intentionally
+  nonexistent `UR12E_IMAGE` environment value verified that the bundle manifest
+  selects its packaged image. This fake-backend check has no hardware network
+  or device access and reports hardware as not checked.
+- Cleanup PASS: removed six unused, superseded collector images:
+  `gello-development`, `offline-1ab61d7`, `offline-3cd7713`, `offline-5219105`,
+  `offline-e06ca3a` and `offline-b497c74`. Their complete IDs and Docker removal
+  results are retained in `artifacts/offline-completion/n7-image-cleanup.json`.
+  No container referenced these images. No force removal or global prune ran.
+- Preserved the latest candidate, the single accepted image carrying both
+  `current` and `ec64004` tags, the pinned official ROS base, official URSim,
+  all volumes and release archives including `ur12e-simulator-6e48d82`.
+  The `artifacts/releases/current` link still selects `ur12e-unified-ec64004`.
+- URSim remains healthy with a stopped program and NORMAL safety after explicit
+  local recovery. Its full current CPU availability is restored as `0-9`;
+  no test client remains. No physical control signal or lab SSH was used.
+
+Delivery logs are `n7-release-load.log`, `n7-bundle-doctor.json` and
+`n7-bundle-summary.json` under `artifacts/offline-completion/`. The subsequent
+documentation-only commit does not change the image's runtime source identity.
+Next action: explicitly synchronize this candidate in the lab, run the
+[return sequence](../m13-acceptance/lab-runbook.md), and retain the same full-load
+thresholds for a fresh Ubuntu live-input batch before production promotion.

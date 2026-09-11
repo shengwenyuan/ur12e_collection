@@ -2,7 +2,7 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-- Status: aligned / implementing; authorized by the user on 2026-09-11.
+- Status: implemented / full-load and physical acceptance pending; authorized by the user on 2026-09-11.
 - Date: 2026-09-11.
 - Primary module: M13; affected modules: M01-M12 and the reserved M14/M15 interfaces.
 - Parent: [meta plan](../../meta_plan.md).
@@ -367,3 +367,53 @@ The subsequent HOME-fault correction `e06ca3a` passes 427 native tests / five
 environment skips (12.31 s), Black (153 files) and production/script Pylint.
 Its final-image checks exercise the changed fault path; it does not inherit a
 20-episode throughput pass from this failed batch.
+
+## Final runtime acceptance: 39ad84b
+
+The delivery image has exactly the same 84 production Python/schema files as
+the cancellation-tested `b497c74` image and the working tree. Only the native
+HOME test recipe changed. Final installed regression: 434 PASS / two host-only
+skips (23.68 s); final mount tests: 2 PASS (3.41 s). Native baseline remains
+431 PASS / five environment skips; format and production/script lint PASS.
+
+The fresh final-image real-pixel batch FAILed after 13 complete 40-second files
+on a 114.276 ms leader gap (sequences 606 to 628), above the unchanged 100 ms
+gate. Evidence: `session-1789116723537518678`. The standard independent batch
+gate correctly rejects the incomplete count. A separate independent audit of
+every completed file PASSes RGB decoding, exact depth, command bounds, source
+identity and per-episode quality. The failed fourteenth file remains partial.
+These files cannot be combined with another failed batch to claim 20 x 40 PASS.
+
+The completed subset contains 15,595/15,600 accepted groups (99.9679%), with its
+lowest episode at 99.9167%. Total MCAP size is 6,000,174,786 bytes, averaging
+461.55 MB per episode. Peak writer queue is 8/16; maximum writer delay 235.18 ms
+and replay delivery lateness 201.50 ms. Completed episodes show maximum command
+gap 38.93 ms and replay-source age 14.48 ms. Capture-plus-close elapsed time is
+50.58-53.71 seconds, without a verification timeout. Twenty-two sparse resource
+samples reached 278.54% CPU / 2.629 GiB for the client and 123.01% / 1.319 GiB for
+URSim. These are observed Docker samples, not instantaneous hardware bounds.
+
+Final-image independent watchdog tests PASS: SIGKILL stops URSim in 0.447 s and
+SIGSTOP in 0.251 s, both with zero observed hold drift and rejected reacquisition
+while the protective stop is latched. Reports are `watchdog-1789117592230952010`
+and `watchdog-1789117775422632095`. Explicit local simulator recovery followed
+the tests; it was never added to automatic startup. Final readback confirms
+NORMAL safety and a stopped program. All ten Docker VM CPUs are available again
+(`0-9`); Docker ignored empty CPU-set updates, so the full explicit set restores
+the same current availability without restarting the appliance.
+
+| Node | Final software/simulation outcome | Remaining scope |
+| --- | --- | --- |
+| N1 | PASS: signed reference, coordinate separation and versioned calibration | Physical sign/range/binding and powered accuracy |
+| N2 | PASS: replay source, immutable baseline, conditioned control and independent audit | Real leader timing under full device load |
+| N3 | PASS: fake-motor handovers, held supervision, interrupted HOME and local Hand-E wire protocol | Real motor-write transport, support/ID3 clearance, Hand-E control/contact/retention |
+| N4 | PASS for functional recording and independently verified real-pixel files | Full sustained workload remains N6; no USB/SDK alignment replay claim |
+| N5 | PASS for calibration software/traversal and twin/policy interfaces | Physical board/TCP/routes and accuracy; actual Isaac/policy integrations |
+| N6 | Fault/lifecycle/watchdog slices PASS; fresh 20 x 40 FAIL | Mac sustained control timing unresolved; unchanged Ubuntu live-input batch NOT RUN |
+| N7 | Installed image/source/mount gates, immutable bundle reload and source-free doctor PASS; six obsolete images removed | No lab SSH/deployment this sprint; hardware acceptance remains separate |
+
+The accepted `current` selector is preserved. Deliver `offline-39ad84b` as an
+explicit candidate for Ubuntu acceptance, not a passed production deployment.
+See [candidate delivery](../m01-runtime-deployment/offline-release-20260911.md)
+and the [lab return sequence](lab-runbook.md). No physical UR, Hand-E or leader
+control signal was sent in this sprint.

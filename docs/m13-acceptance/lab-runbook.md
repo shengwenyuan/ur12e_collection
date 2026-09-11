@@ -1,6 +1,48 @@
-# Camera Batch: Lab Deployment and Acceptance
+# Lab Deployment and Hardware Acceptance
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
+
+## Return after the 2026-09-11 offline sprint
+
+The new offline candidate is for explicit Ubuntu acceptance. Its immutable
+manifest selects the image; the previously accepted `current` image remains the
+rollback. Read `CAPABILITIES.md` before testing: replay and fake-motor results do
+not approve physical control. No lab synchronization or hardware test occurred
+during this offline sprint. The historical camera procedure below remains useful;
+its old pending-module notes are superseded by the capability matrix.
+
+Run the following stages in order, retaining a new output directory per stage:
+
+1. Load the checksummed bundle, then run `./scripts/run dev doctor --format json
+   --require-mounts`. This stage has no device or network access. Preserve the
+   station configuration and existing data. Do not initialize over the station.
+2. On Ubuntu, confirm camera serial-to-role assignments and run a short camera
+   shadow using the commands below. Then exercise three cameras with the physical
+   leader's read-only 60 Hz acquisition. Measure actual serial gaps, CPU/RSS,
+   alignment, queues and grouping together; recorded-image replay omitted USB
+   and alignment costs. Do not copy the Mac CPU partition as a hardware default.
+3. Resolve leader support and the ID3 cable, then review the physical powered
+   transport, joint signs, range, coordinate binding and HOME/HOLD profiles.
+   The current coordinator uses an injected test transport; it does not provide
+   a production motor-write implementation. Signed teaching coordinates alone
+   are not mode-3 goals. Keep the two-count / 200 ms arrival criterion until
+   physical evidence and a separate user decision justify a change.
+4. With separate explicit operator authorization, validate real UR/leader
+   handovers and Hand-E movement, measured closure/contact and retention.
+   Shared simulation sessions bypassed Hand-E; local socket tests do not
+   establish real command behavior. Keep an operator at the physical stop.
+5. After those prerequisites, run a fresh 20 x 40-second complete collection
+   batch on Ubuntu with live inputs. Preserve 16.7 ms matching, 75 ms wait,
+   bounded queues and freshness gates. Independently verify every committed
+   MCAP, record stop/fault outcomes, and inspect storage cost and RGB quality.
+6. Perform physical visual calibration separately when board geometry, TCP,
+   taught routes and acceptance tolerances are ready. Synthetic images and
+   URSim traversal established orchestration, not physical calibration accuracy.
+
+Stages 3-6 are not launched by the bundle loader or by any command in this
+camera-only procedure. Physical robot or motor writes require renewed explicit
+test authorization. Current offline results and known failures are summarized
+in `CAPABILITIES.md`; they must remain visible when assessing the Ubuntu result.
 
 ## Scope and prerequisites
 
