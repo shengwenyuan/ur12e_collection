@@ -2,7 +2,9 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: implementing the user-aligned lightweight motion rehearsal repair.
+Status: lightweight preview implemented; final installed short smoke PASS.
+Manual joint-direction confirmation remains pending; this is not production
+teleoperation or recording acceptance.
 
 ## Current scope: 2026-09-12 alignment
 
@@ -359,3 +361,41 @@ proof that it caused earlier failures. The unrelated workload was left intact.
 Targeted regression PASS: 66 tests for input, preview, mapping and production
 session; subsequent bridge checks PASS (44 tests); lint 10.00. Keep the aligned
 250 ms policy and repeat the installed smoke without this competing workload.
+
+
+Final image build: source `ed26219`, local `ur12e-collection:live-leader`,
+linux/amd64, image ID
+`sha256:80ac995dacda2403bd5815a5c2355cd63db48ac1366f62751fe6e4f112c2c508`.
+Full installed software run: 487 PASS, two skips, one FAIL in the existing
+`test_readonly_two_episode_files_have_no_actions` (four-frame writer queue
+overflow). Keep this failure visible; do not relax the production recorder gate
+or claim a clean production release from a Mac rehearsal image. Targeted
+recheck and live preview smoke are recorded separately below.
+
+
+## Final installed rehearsal result
+
+- Targeted installed checks PASS: 79 tests, including the failed queue case on
+  isolated recheck. The initial full-suite queue failure above remains recorded.
+- Installed source hashes match the working package; the exact documented
+  `--installed-package` command uses image `80ac995dacda` (source `ed26219`).
+- Short lifecycle smoke PASS: `console-1789163306721676000` completed native HOME,
+  22.82 seconds / 2,726 following commands, explicit Space stop, measured held
+  state, and Ctrl+C cleanup. No camera, MCAP, ROS observer or physical motor
+  writes were started. Publisher `live-leader-1789163306463607000` reports no
+  fault and only read traffic. The leader was stationary; manual axis-direction
+  and operator ergonomics remain NOT RUN.
+- An earlier, longer final-image run `console-1789163172897940000` sent 8,709
+  commands without leader expiry before URSim feedback stopped progressing.
+  The shared controller faulted and stopped; its feedback gate is unchanged.
+  This remains a known Mac/URSim limitation, not accepted sustained operation.
+- All rehearsal clients/readers have exited. The existing official URSim
+  container remains available. Production 100 ms input policy, recording gates
+  and physical hardware authorization are unchanged.
+
+Use the existing command with `ur12e-collection:live-leader`; do not rebuild or
+synchronize this preview as evidence of Ubuntu production acceptance. Support
+the unpowered leader, press Space for follower HOME, hold the leader still, then
+press Space to start relative following. Move one joint at a time and observe
+URSim. Space stops/holds; another Space requests HOME. Ctrl+C exits. No gripper
+actuation is simulated by this entrypoint.
