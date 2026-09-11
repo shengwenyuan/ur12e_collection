@@ -9,6 +9,18 @@ candidate delivery is tracked in [lab load acceptance](lab-load-20260912.md).
 No physical UR, Hand-E or leader write was sent. Earlier offline and physical
 results keep their original revision and scope.
 
+Latest shadow correction: candidate `c6fa8e5` retains native 125 Hz UR feedback
+in shadow MCAP; 120 Hz actions and 30 fps images are unchanged. Native regression
+453 PASS; Mac installed recheck 456 PASS after an unrelated camera replay queue
+overflow, retained as unresolved evidence. The historical `2e584b8` short test
+below used a 125 Hz diagnostic sidecar and only 30 Hz mainline UR MCAP feedback.
+Ubuntu installed regression also PASSes (456 tests). A fresh 40-second physical
+shadow recheck independently verifies 5,000 UR records in MCAP at 125 Hz with
+zero missing 8 ms slots and 99.75% camera grouping. The first physical attempt
+stopped on a camera counter/timestamp fault and remains unresolved. The existing
+LeRobot export remains a 30 Hz camera-anchored projection, not an accepted
+high-rate action consumer. See [native-rate recording](native-rate-recording.md).
+
 | Module | Implemented behavior | Current software/simulation evidence | Remaining physical or delivery gate |
 | --- | --- | --- | --- |
 | M01 | Pinned Ubuntu 24.04 / ROS 2 Jazzy, non-root unified development/runtime image, mounted station/data and offline bundle | Candidate `2e584b8`: 450 native, 453 Mac installed on recheck, and 453 Ubuntu installed tests PASS; first Mac queue overflow retained; `ec64004` remains the lab baseline | PC bundle load and mount doctor PASS; physical gates pending; no automatic promotion |

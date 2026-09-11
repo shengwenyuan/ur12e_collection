@@ -2,8 +2,9 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: aligned shadow correction; high-rate training projection remains a
-separate design item. The user requested shadow alignment with the latest rate
+Status: implemented; software and physical 125 Hz shadow recheck PASS. Initial
+Mac replay and physical camera failures remain unresolved. High-rate training
+projection remains a separate design item. The user requested shadow alignment with the latest rate
 requirements on 2026-09-12. The already selected 120 Hz commands / independent
 125 Hz feedback contract remains valid; physical control is not authorized.
 
@@ -77,3 +78,69 @@ snapshot values. Existing cached-packet and rollback cases remain passing.
 Installed-image and physical MCAP rate evidence follow; no physical control
 has been enabled. The existing camera-anchored LeRobot export remains 30 Hz
 and is explicitly not accepted as the future high-rate action consumer.
+
+
+The first Mac/amd64 installed suite failed in the unchanged, feedback-free
+three-producer camera replay fixture: `queued=4 + 1 > 4` during a 0.25-second
+run (455 passed, two skipped, one failed; 27.89 s). The native suite passed.
+This resembles prior Mac queue failures but its cause is not established.
+Keep the failure and perform one unchanged full recheck; do not increase queues
+or claim a fix from a later pass. The PC leader has now been disconnected, so
+new-image hardware validation can cover cameras/UR/Hand-E only. The previous
+120 Hz leader combined-load result is retained with its original image identity.
+
+
+Unchanged full installed recheck PASS: 456 tests / two host skips (28.65 s).
+The initial failure remains unexplained. Source is committed as `c6fa8e5`;
+its candidate includes the shared 125 Hz output-rate constant, cache deduplication,
+new snapshot rate and the synthetic feedback cadence. Hardware result follows.
+
+
+Ubuntu candidate checksum/load/mount checks and installed regression PASS
+(456 tests / two skips, 14.16 s). First physical shadow FAILed after about 19 s
+with `camera counters restarted`; this existing error also covers non-increasing
+camera timestamps, so it does not prove a USB reset. Existing logs do not retain
+the offending source/deltas; kernel query showed no recent entries. No full
+episode was committed. The partial run had 2,380 observed UR samples, no reported
+feedback error, and no writer backlog at failure. Preserve the failed run and
+perform one fresh unchanged 40-second check; never merge partial attempts.
+The initial error's root cause remains unresolved if the recheck passes.
+
+
+## Candidate identity
+
+Source: `c6fa8e5`. Image: `ur12e-collection:shadow-native125`, linux/amd64,
+immutable ID `sha256:3a6d698a36e58fbd6663b7d0bee0cf4e768f8e7db657a51c13884888f3f7635b`. All 85 installed production Python/schema
+files match source. Checksummed bundle is available locally at
+`artifacts/releases/ur12e-native125-c6fa8e5` and on the PC at
+`~/ur12e-native125-c6fa8e5`. Exact OS/Python packages are included. The accepted
+current deployment/configuration remains unchanged; this is a candidate whose
+physical acceptance and retained failures are recorded above/below.
+
+
+## Physical MCAP acceptance
+
+Fresh unchanged recheck PASS: one 40-second episode, independently reopened and
+verified. The MCAP itself contains 5,000 UR feedback records: controller rate
+125.000 Hz, every source gap exactly 8 ms, zero missing 8 ms slots, host receipt
+rate 125.000139 Hz and maximum receipt gap 9.100 ms. Snapshot `ur_read_hz` is 125.
+There is no additional RTDE diagnostic observer and no 125 Hz sidecar used to
+establish this result. The 392 measured Hand-E states remain approximately
+9.801 Hz, FLT=0 and STA=0; no activation or actuation was performed.
+
+Camera grouping is 1,197/1,200 (99.75%), maximum one consecutive rejection;
+all three sources have zero color/depth gaps or repeats. Every RGB frame decodes
+and every depth hash verifies. MCAP size 456,514,289 bytes; writer queue peak 1/4,
+feedback queue peak 5/64, maximum writer queue delay 37.314 ms. No queue limit,
+wait/freshness threshold or motion setting changed. No action/control records
+exist in this read-only shadow. The disconnected physical leader was excluded;
+its previously measured 120 Hz workload remains separate evidence.
+
+Failed data remains at `/var/lib/ur12e-collection/data/native125-shadow-20260912`.
+Passing data and `file-audit.json` remain at
+`/var/lib/ur12e-collection/data/native125-shadow-recheck-20260912` on the PC.
+Local reports, code/build/test logs and independent audit are under
+`artifacts/readonly-full-20260912/` with the `native125-` prefix. No failed data
+was overwritten or combined with the passing episode. No physical control was
+sent. The first camera counter/timestamp failure and Mac fixture queue failure
+are not declared fixed by their later passing rechecks.

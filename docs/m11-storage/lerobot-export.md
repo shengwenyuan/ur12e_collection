@@ -84,3 +84,15 @@ Use `leader_intent` explicitly when that is the desired training action. The
 original six raw arm joint values remain radians; real gripper-enabled projection
 and real training-policy evaluation remain deferred. Acquisition never imports
 this optional ML environment.
+
+
+## High-rate action requirement (2026-09-12)
+
+The user requires final raw action recording above 30 Hz. Controlled MCAP retains
+independent 120 Hz target/intent streams, while UR feedback is independently
+125 Hz and images 30 fps. This export's current camera-anchored 30 Hz projection
+selects one action per image and is not accepted as the future high-rate training
+consumer. Do not represent it as preserving all raw actions. The
+[native-rate plan](../m13-acceptance/native-rate-recording.md) records the separate
+follow-up: timestamp-indexed high-rate action windows or explicit high-rate rows
+with original image references, without manufacturing extra camera samples.
