@@ -2,13 +2,13 @@
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: aligned for test-code development on 2026-09-11; physical launch pending
-explicit operator permission. The user chooses the current safe pose as the
-starting point and READY return as the test movement. The assistant may prepare
-and validate code now, but must wait for the operator to select Remote Control
-and explicitly authorize the specific physical run before opening control.
+Status: implemented; both recorded physical interruption trials pass the
+approved settling-v2 reassessment. The robot is now powered off and no further
+hardware testing is authorized. Historical implementation and test results below
+retain their original criteria. Any future physical launch requires a new
+operator-approved pose review and explicit authorization for that run.
 
-## Scope and parameters
+## Original diagnostic scope and parameters
 
 Keep this diagnostic under `tests/hardware/`, outside production entrypoints.
 The production physical backend remains disabled. Use the pinned ur_rtde 1.6.5
@@ -38,7 +38,7 @@ changes above 180 degrees and a start already too close to READY for a meaningfu
 two-second interruption. These numerical checks do not establish collision-free
 motion: the operator must approve clearance along the intended initial segment.
 
-## Implementation and validation
+## Original implementation and validation
 
 1. Add a standalone prepare/execute harness and offline audit under tests/hardware.
    Reuse the project read-only identity/coherent-state helpers. Keep the observer
@@ -61,9 +61,10 @@ motion: the operator must approve clearance along the intended initial segment.
 
 M06-A02/A03 and M03-A02 diagnostic slices: verify actual motion before SIGINT,
 correct target/rates, prompt signal dispatch, no source rollback or material
-feedback gap, observed rest within one second of the stop request, and at least
+feedback gap, a continuous 200 ms interval at or below 0.01 degree/s confirmed
+within two seconds of the immediate stop request, and at least
 30 seconds of post-signal observation. Require observed speed <=1.2 degrees/s,
-rest speed <=0.01 degrees/s and post-settle joint drift <=0.05 degree. These are
+hold speed <=0.01 degrees/s and post-confirmation joint drift <=0.05 degree. These are
 test thresholds, not certified safety limits. If READY is reached before SIGINT,
 report the interruption case as inconclusive. An interrupted return is not full
 READY arrival acceptance. Missing data cannot establish successful stopping.
@@ -73,7 +74,7 @@ GELLO and full end-to-end control acceptance remain separate.
 
 Reference: [ur_rtde asynchronous move and stop example](https://sdurobotics.gitlab.io/ur_rtde/pages/examples/basic_motion/move_async_example.html).
 
-## Results
+## Initial results under the original one-second policy
 
 Implemented as an isolated diagnostic, with no production control changes:
 
@@ -295,11 +296,9 @@ Offline candidate measurements, without replacing either historical audit:
 | Two-second interrupt | 1.423885 s | 0.005165 degrees/s | 0.005150 degree |
 | Ten-second interrupt | 1.362500 s | 0.004033 degrees/s | 0.005539 degree |
 
-Both traces satisfy these proposed stop/hold criteria. This is a retrospective
-candidate comparison, not a new physical run or a replacement PASS for the old
-criteria. If aligned, implement the independent settling window and test transient
-low-speed crossings, later motion, source gaps and deadline failures; write new
-versioned reassessments while preserving original FAIL reports.
+These initial candidate measurements motivated the approved policy. The
+implemented reassessment and regression results are recorded below; they are not
+new physical runs or replacement PASS results for the old criteria.
 
 
 ### Mainline integration and delivery scope
@@ -357,3 +356,12 @@ python -m ur12e_collection.control.stop_audit /path/to/evidence
 # Optional new destination; existing files are rejected rather than replaced.
 python -m ur12e_collection.control.stop_audit /path/to/evidence --output /path/to/new-report.json
 ```
+
+
+Delivery **PASS**: source `ec64004`, the matching unified image, 300 installed
+Jazzy tests and both host mount tests pass on Mac Docker and the collection PC.
+See [M01 closeout](../m01-runtime-deployment/closeout-20260911.md) for immutable
+image identity, bundle checksum, deployment evidence and unchanged station hash.
+No new physical or URSim run was performed during this release; runtime
+cancellation changes were verified by deterministic software tests and the
+installed audit was checked against preserved physical logs.

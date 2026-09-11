@@ -581,3 +581,9 @@ are preserved. See `docs/m06-control-motion/ready-interrupt-test.md`.
 The robot is powered off; only software checks and image synchronization may
 continue. Production control remains disabled; complete READY, GELLO, physical
 watchdog/network-loss and emergency-stop acceptance are still pending.
+
+The closeout image from source `ec64004` is deployed on both Mac and collection
+PC under `ur12e-collection:current`; the PC bundle selector is
+`/home/robot2026fall/ur12e-current`. Installed Jazzy regression: 300 PASS, plus
+two host mount checks PASS. Station configuration is unchanged and no collection
+container remains running. See `docs/m01-runtime-deployment/closeout-20260911.md`.
