@@ -6,6 +6,7 @@ import time
 import uuid
 
 MAX_RTT_NS = 25_000_000
+REHEARSAL_AGE_NS = 250_000_000
 MESSAGE_BYTES = 16384
 
 
@@ -113,7 +114,7 @@ class Clock:
     def check(self, now_ns):
         """Recheck clocks without blocking the control loop."""
         if self.pending:
-            current = self.receive(max_rtt_ns=100_000_000)
+            current = self.receive(max_rtt_ns=REHEARSAL_AGE_NS)
             if current is not None:
                 if max(current[0], self.bounds[0]) > min(
                     current[1], self.bounds[1]

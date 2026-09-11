@@ -69,10 +69,24 @@ def check_advance(previous, current, age_ns):
 class EpisodeMapper:
     """Generate absolute follower intents; never contact or control a device."""
 
-    def __init__(self, calibration, limits, samples, follower, now_ns):
+    # Explicit rehearsal timing policy; the production default stays 100 ms.
+    # pylint: disable-next=too-many-arguments
+    def __init__(
+        self,
+        calibration,
+        limits,
+        samples,
+        follower,
+        now_ns,
+        *,
+        freshness_ns=100_000_000,
+    ):
         self._calibration = calibration
         self._limits = limits
-        self._age_ns = min(limits.freshness_ns, 100_000_000)
+        mapping.integer(freshness_ns)
+        if freshness_ns <= 0:
+            raise ValueError("input freshness must be positive")
+        self._age_ns = min(limits.freshness_ns, freshness_ns)
         self._fault = None
         if calibration.home_rad != limits.ready:
             raise ValueError("calibration and follower HOME differ")

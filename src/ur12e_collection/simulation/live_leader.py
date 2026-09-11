@@ -12,6 +12,9 @@ from ur12e_collection.leader import episode, mapping
 from ur12e_collection.leader import input as leader_input
 from ur12e_collection.simulation import bridge, latest, profile
 
+# Explicit Mac rehearsal policy; production input still defaults to 100 ms.
+INPUT_AGE_NS = bridge.REHEARSAL_AGE_NS
+
 
 class Unavailable(ValueError):
     """A temporarily expired view; no fresh target may use it."""
@@ -56,7 +59,7 @@ class Feed:
         age_ns = observed_ns - (value["published_ns"] + offset)
         if age_ns < 0:
             raise ValueError("live leader publication is in the future")
-        if age_ns > 100_000_000:
+        if age_ns > INPUT_AGE_NS:
             raise Unavailable(
                 "live leader publication stale or future: "
                 f"age_ms={age_ns / 1e6:.3f}, bounds={self.clock.bounds}"
@@ -74,12 +77,10 @@ class Feed:
             raise ValueError("live leader file reordered")
         for row in value["samples"]:
             self._append(row, observed_ns, offset)
-        # A publish may race the file read. Return an as-of-call view without
-        # relabeling new acquisitions or mistaking them for a future clock.
+        # This worker publishes after IO completes. Include acquisitions that
+        # arrived during the read; Live.samples applies the control-call cutoff.
         available = tuple(
-            s
-            for s in self.recent
-            if s.end_ns <= now_ns and observed_ns - s.start_ns <= 100_000_000
+            s for s in self.recent if observed_ns - s.start_ns <= INPUT_AGE_NS
         )
         if not available:
             raise Unavailable(
@@ -130,7 +131,7 @@ class Feed:
         if self.previous:
             if sample.sequence != self.previous.sequence + 1:
                 raise ValueError("live leader sequence gap")
-            episode.check_advance(self.previous, sample, 100_000_000)
+            episode.check_advance(self.previous, sample, INPUT_AGE_NS)
         if sample.end_ns > now_ns:
             raise ValueError("live leader acquisition is in the future")
         self.recent.append(sample)
@@ -239,7 +240,7 @@ class Live:
         values = tuple(
             s
             for s in self.view
-            if s.end_ns <= now_ns and now_ns - s.start_ns <= 100_000_000
+            if s.end_ns <= now_ns and now_ns - s.start_ns <= INPUT_AGE_NS
         )
         if not values:
             details = {

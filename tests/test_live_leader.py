@@ -77,7 +77,7 @@ def test_cached_source_keeps_acquisition_time_and_expires(live):
     assert value.samples(51_000_000) == first
     assert first[-1].start_ns == 40_000_000
     with pytest.raises(ValueError, match="stale"):
-        value.samples(141_000_001)
+        value.samples(291_000_001)
 
 
 @pytest.mark.parametrize(
@@ -169,13 +169,15 @@ def test_export_command_is_not_available():
         cli.parser().parse_args(["episode", "export"])
 
 
-def test_publish_during_read_is_deferred_without_retiming(live, monkeypatch):
+def test_worker_includes_publish_during_read_without_retiming(
+    live, monkeypatch
+):
     value, data = live
     data["samples"].append(dataclasses.asdict(sample(3)))
     data["published_ns"] = 61_000_000
     bridge.write(value.root / "latest.json", data)
     monkeypatch.setattr(live_leader.time, "monotonic_ns", lambda: 62_000_000)
-    assert value.samples(60_000_000)[-1].sequence == 2
+    assert value.samples(60_000_000)[-1].sequence == 3
     latest = value.samples(63_000_000)[-1]
     assert latest.sequence == 3 and latest.start_ns == 60_000_000
 
@@ -239,11 +241,11 @@ def test_expired_view_can_recover_without_retiming(live):
     value, data = live
     value.samples(41_000_000)
     with pytest.raises(live_leader.Unavailable):
-        value.samples(142_000_000)
-    data["samples"] = [dataclasses.asdict(sample(i)) for i in range(3, 8)]
-    data["published_ns"] = 141_000_000
+        value.samples(292_000_000)
+    data["samples"] = [dataclasses.asdict(sample(i)) for i in range(3, 15)]
+    data["published_ns"] = 281_000_000
     bridge.write(value.root / "latest.json", data)
-    assert value.samples(142_000_000)[-1].start_ns == 140_000_000
+    assert value.samples(292_000_000)[-1].start_ns == 280_000_000
 
 
 def test_worker_retries_expiry_but_still_reports_hard_fault(monkeypatch):
@@ -264,3 +266,36 @@ def test_worker_retries_expiry_but_still_reports_hard_fault(monkeypatch):
         mock.call(("ready", {})),
         mock.call(("error", "fault")),
     ]
+
+
+def test_control_view_defers_acquisitions_newer_than_call(monkeypatch):
+    from unittest import mock
+
+    value = object.__new__(live_leader.Live)
+    value.view = tuple(sample(i) for i in range(4))
+    monkeypatch.setattr(value, "_read", mock.Mock())
+    assert value.samples(60_000_000)[-1].sequence == 2
+    assert value.samples(62_000_000)[-1].sequence == 3
+
+
+def test_preview_policy_does_not_relax_production_default():
+    from unittest import mock
+
+    readings = tuple(sample(i) for i in range(4))
+    source = mock.Mock(samples=mock.Mock(return_value=readings))
+    limits = model.Limits((-6.0,) * 6, (6.0,) * 6, HOME)
+    follower = model.State(HOME, (0.0,) * 6, 1.0, 201_000_000)
+    with pytest.raises(ValueError, match="stale leader"):
+        leader_input.Input(source, calibration(), limits, follower, 201_000_000)
+    preview = leader_input.Input(
+        source,
+        calibration(),
+        limits,
+        follower,
+        201_000_000,
+        freshness_ns=live_leader.INPUT_AGE_NS,
+    )
+    assert preview.sample(201_000_000).q == HOME
+    assert preview.sample(211_000_000).q == HOME
+    with pytest.raises(model.ControlError, match="stale"):
+        preview.sample(311_000_001)

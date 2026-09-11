@@ -9,13 +9,30 @@ from ur12e_collection.leader import episode
 class Input:
     """Consume source views; freshness uses original acquisition time."""
 
-    def __init__(self, source, calibration, limits, follower, now_ns):
+    # Explicit rehearsal timing policy; the production default stays 100 ms.
+    # pylint: disable-next=too-many-arguments
+    def __init__(
+        self,
+        source,
+        calibration,
+        limits,
+        follower,
+        now_ns,
+        *,
+        freshness_ns=100_000_000,
+    ):
         self.source = source
         self.calibration = calibration
         self.limits = limits
+        self.freshness_ns = min(limits.freshness_ns, freshness_ns)
         samples = source.samples(now_ns)
         self.mapper = episode.EpisodeMapper(
-            calibration, limits, samples, follower, now_ns
+            calibration,
+            limits,
+            samples,
+            follower,
+            now_ns,
+            freshness_ns=freshness_ns,
         )
         self.reading = samples[-1]
         self.desired = self.mapper.first()
@@ -46,7 +63,7 @@ class Input:
         readings = self.source.samples(now_ns)
         sample = readings[-1]
         if sample == self.reading:
-            if now_ns - sample.start_ns > 100_000_000:
+            if now_ns - sample.start_ns > self.freshness_ns:
                 raise model.ControlError("leader input is stale")
         else:
             self.desired = self.mapper.target(sample, now_ns)

@@ -15,7 +15,7 @@ the next Space requests HOME again. No camera, recorder, MCAP or ROS observer is
 started. Host raw read evidence and a small rehearsal report remain disposable.
 
 Idle input expiry waits for recovery. Fresh stationary input is required on each
-explicit start. During following the existing 100 ms source limit still stops
+explicit start. During following the rehearsal-only 250 ms source limit stops
 motion; recovery never resumes motion or rebases an active interval. Protocol,
 clock, identity and torque faults remain terminal. Keep the isolated official
 URSim boundary, shared motion owner, relative mapper and conditioning. Production
@@ -309,3 +309,53 @@ If startup is unavailable or moving, stabilize the supported leader and press
 Space again. If input expires during following, the simulator stops and remains
 held; no automatic restart occurs. Ctrl+C stops active simulator control and
 closes the reader. Hand-E is bypassed; the physical leader remains torque-off.
+
+
+The first installed repair image (`a5f01073cda9`, source `e77dad5`) passed
+486 software tests (two skips). Its exact-command smoke
+`console-1789162637255711000` reached HOME and sent 3,134 commands over 26.18 s.
+A real bridge expiry then invoked the intended stop and measured settling. The
+next explicit Space successfully returned HOME; Ctrl+C exited. Record this as
+PASS for expiry recovery, not sustained uninterrupted following.
+
+Follow-up repair: the IO worker previously discarded acquisitions arriving
+between call entry and file-read completion. It now publishes those original,
+validated acquisitions immediately; the actual control consumer still applies
+its own as-of-call cutoff and unchanged 100 ms expiry. Separate tests cover both
+boundaries. This avoids an unnecessary old-view delay without retimestamping or
+relaxing production gates. Final image/smoke results follow below.
+
+
+The subsequent source-overlay smoke `console-1789162750566688000` still met a
+100 ms expiry after 13.37 s (1,568 commands); it stopped and remained held rather
+than terminating the console. Including acquisitions arriving during IO is a
+correctness improvement, not a demonstrated cure for Mac scheduling jitter.
+The preview now prints the stop reason and retains its timing detail. A proposed
+250 ms rehearsal-only input deadline awaits user alignment; production input
+expiry remains 100 ms. Do not claim sustained following has passed.
+
+
+The user approved **250 ms only for Mac + URSim rehearsal** after the measured
+100 ms pauses. The shared pure mapper/input accepts an explicit freshness policy
+with its production default unchanged at 100 ms; only the simulation preview
+passes 250 ms. Motion bounds, absolute acquisition timestamps, epoch/health
+checks and no-automatic-resume behavior remain intact. No production entrypoint
+changes its policy. Test both the production default rejection and explicit
+preview acceptance of a 150 ms input, plus expiry beyond 250 ms.
+
+
+An initial 250 ms source-policy run stopped in idle because its separate periodic
+clock round trip still used 100 ms (`console-1789162913319814000`). Align the
+rehearsal bridge's periodic deadline to the same 250 ms. Startup offset precision
+still requires a best-of-five <=25 ms round trip, and periodic checks must
+intersect the original clock bracket; no timestamp rebasing is allowed.
+
+
+The next HOME attempt (`console-1789162952316204000`) timed out before motion
+started; the physical publisher had no fault or writes. A concurrent unrelated
+ARX5 training-test container was observed using 527% CPU and 3.59 GiB, while
+URSim used 118% CPU and 1.34 GiB. This is a resource-contention observation, not
+proof that it caused earlier failures. The unrelated workload was left intact.
+Targeted regression PASS: 66 tests for input, preview, mapping and production
+session; subsequent bridge checks PASS (44 tests); lint 10.00. Keep the aligned
+250 ms policy and repeat the installed smoke without this competing workload.

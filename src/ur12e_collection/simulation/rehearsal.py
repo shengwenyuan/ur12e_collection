@@ -52,6 +52,7 @@ class Preview:
                 profile.LIMITS,
                 self.station.read(),
                 time.monotonic_ns(),
+                freshness_ns=live_leader.INPUT_AGE_NS,
             )
             probe.close()
         except ValueError as error:
@@ -68,6 +69,7 @@ class Preview:
                 profile.LIMITS,
                 self.program.progress.feedback,
                 time.monotonic_ns(),
+                freshness_ns=live_leader.INPUT_AGE_NS,
             )
             initial = self.leader.sample(time.monotonic_ns())
         except ValueError as error:
@@ -79,19 +81,26 @@ class Preview:
         self.state = "following"
         self.event("following", reference=self.leader.context())
 
-    def _stop(self, reason):
+    def _stop(self, reason, error=None):
         self.program.halt(time.monotonic_ns())
         self.leader.close()
         self.state = "stopping"
-        self.event("stop_requested", reason=reason)
+        self.event(
+            "stop_requested", reason=reason, error=str(error) if error else None
+        )
+        if error:
+            print(
+                "rehearsal: input expired; stopping. Space after hold: HOME.",
+                flush=True,
+            )
 
     def step(self):
         """Idle expiry can recover; following expiry stops without resuming."""
         try:
             self.live.samples(time.monotonic_ns())
-        except live_leader.Unavailable:
+        except live_leader.Unavailable as error:
             if self.state == "following":
-                self._stop("input_expired")
+                self._stop("input_expired", error)
         if self.state == "homing":
             self.program.step()
             if self.program.state == "hold":
@@ -103,8 +112,8 @@ class Preview:
             if self.state == "following":
                 try:
                     target = self.leader.sample(time.monotonic_ns())
-                except live_leader.Unavailable:
-                    self._stop("input_expired")
+                except live_leader.Unavailable as error:
+                    self._stop("input_expired", error)
                     return
                 self.program.follow(target, time.monotonic_ns())
                 self.commands += 1
