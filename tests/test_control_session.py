@@ -9,6 +9,8 @@ from unittest import mock
 import pytest
 
 from ur12e_collection.control import model, session
+from ur12e_collection.leader import coordinator, motion
+from ur12e_collection.simulation.motors import Motors
 from ur12e_collection.simulation import profile, targets
 
 
@@ -172,3 +174,61 @@ def test_held_feedback_stall_blocks_further_motion(
         owner.step()
     assert owner.state == "fault" and not station.home_calls
     owner.close()
+
+
+@pytest.mark.parametrize("phase", ["prepare_home", "homing"])
+@pytest.mark.parametrize("stale", [False, True])
+@pytest.mark.parametrize("cleanup_failure", [False, True])
+def test_fault_revokes_leader_home_with_fresh_measured_hold(
+    controlled, tmp_path, monkeypatch, phase, stale, cleanup_failure
+):
+    owner, _, recorder = make(controlled, tmp_path)
+    motors = Motors()
+    leader = motion.Motion(motors, (2400,) * 7, ((0, 4095),) * 7, blocked=())
+    companion = coordinator.Coordinator(leader, motors.bindings, supported=True)
+    motors.advance(1)
+    companion.start_home(1)
+    now = 20_000_001
+    if phase == "homing":
+        while companion.phase != "homing":
+            motors.advance(now)
+            companion.home_ready(now)
+            now += 20_000_000
+        assert motors.goal == [2400] * 7
+    motors.advance(now)
+    measured = motors.value.counts
+    assert measured != leader.home
+    before = list(motors.writes)
+    if stale:
+        now += 100_000_001
+    monkeypatch.setattr(session.time, "monotonic_ns", lambda: now)
+    owner.setup = dataclasses.replace(owner.setup, companion=companion)
+    owner.lifecycle.state = "homing"
+    recorder.failure = "poll"
+    release = owner._release
+    if cleanup_failure:
+        monkeypatch.setattr(
+            owner,
+            "_release",
+            mock.Mock(side_effect=RuntimeError("close failed")),
+        )
+    with pytest.raises(
+        RuntimeError,
+        match="close failed" if cleanup_failure else "dead recorder",
+    ):
+        owner.step()
+    monkeypatch.setattr(owner, "_release", release)
+    assert owner.state == "fault" and recorder.abort.is_set()
+    if stale:
+        assert motors.writes == before and leader.state == "fault"
+        assert "stale" in owner.timings[-1]["error"]
+    else:
+        assert companion.phase == "holding"
+        assert motors.goal == list(measured)
+        assert motors.writes[len(before) :] == [
+            ("goals", dict(enumerate(measured, 1)))
+        ]
+    before_close = list(motors.writes)
+    owner.close()
+    assert motors.closed and all(motors.value.torque)
+    assert motors.writes == before_close

@@ -276,15 +276,22 @@ class Session:
         program = self.active.program
         if isinstance(program, owner.Controller):
             program.fail("session ownership failed")
-        self._release()
-        if self.setup.companion and self.setup.companion.phase == "leading":
-            try:
-                self.setup.companion.hold(time.monotonic_ns())
-            # Retain device failures without masking the original session fault.
-            except Exception as error:  # pylint: disable=broad-exception-caught
-                self.timings.append(
-                    {"operation": "leader_fault_hold", "error": str(error)}
-                )
+        try:
+            self._release()
+        finally:
+            if self.setup.companion and self.setup.companion.phase in (
+                "leading",
+                "prepare_home",
+                "homing",
+            ):
+                try:
+                    self.setup.companion.hold(time.monotonic_ns())
+                # Preserve the session fault if fresh leader HOLD is impossible.
+                # pylint: disable-next=broad-exception-caught
+                except Exception as error:
+                    self.timings.append(
+                        {"operation": "leader_fault_hold", "error": str(error)}
+                    )
 
     def close(self) -> None:
         """Interrupted work remains partial; completed held episodes survive."""

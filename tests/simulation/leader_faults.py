@@ -48,6 +48,7 @@ def main():
     report = {"status": "FAIL", "cases": []}
     try:
         for fault in (
+            "home_recorder",
             "stale",
             "epoch",
             "range",
@@ -74,19 +75,35 @@ def main():
                     inputs=session.Inputs(trace, camera_input),
                 )
                 try:
+                    if fault == "home_recorder":
+                        motors = trace.motor_fixture
+                        motors.value = dataclasses.replace(
+                            motors.value,
+                            counts=(
+                                motors.value.counts[0] - 400,
+                                *motors.value.counts[1:],
+                            ),
+                        )
                     press(active)
-                    wait(active, "ready")
-                    press(active)
-                    wait(active, "recording")
-                    until = time.monotonic() + 7
-                    while time.monotonic() < until:
-                        tick(active)
+                    if fault == "home_recorder":
+                        deadline = time.monotonic() + 3
+                        while active.setup.companion.phase != "homing":
+                            assert time.monotonic() < deadline
+                            tick(active)
+                        assert motors.value.counts != tuple(motors.goal)
+                    else:
+                        wait(active, "ready")
+                        press(active)
+                        wait(active, "recording")
+                        until = time.monotonic() + 7
+                        while time.monotonic() < until:
+                            tick(active)
                     if fault == "held_torque":
                         press(active)
                         wait(active, "held")
                     retained = len(active.completed)
                     started = time.monotonic()
-                    if fault == "recorder":
+                    if fault in ("recorder", "home_recorder"):
                         active.recorder.process.kill()
                     elif fault in ("disk", "writer_backlog"):
                         trigger.set()
@@ -111,6 +128,15 @@ def main():
                         assert "queue overflow" in error
                     elif fault == "held_torque":
                         assert "leader" in error and retained == 1
+                    elif fault == "home_recorder":
+                        assert "recorder" in error
+                        assert active.setup.companion.phase == "holding"
+                        assert tuple(motors.goal) == motors.value.counts
+                        assert (
+                            motors.value.counts
+                            != active.setup.companion.motion.home
+                        )
+                        assert all(motors.value.torque)
                     fault_and_release_s = time.monotonic() - started
                     samples = []
                     until = time.monotonic() + 3

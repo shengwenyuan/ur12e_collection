@@ -40,8 +40,8 @@ class Coordinator:
 
     def hold(self, now_ns):
         """Revoke input before requesting a measured current-position hold."""
-        if self.phase != "leading":
-            raise RuntimeError("leader is not leading")
+        if self.phase not in ("leading", "prepare_home", "homing"):
+            raise RuntimeError("leader has no active motion to hold")
         self.motion.hold(now_ns, self.bindings())
         self.phase = "holding"
 

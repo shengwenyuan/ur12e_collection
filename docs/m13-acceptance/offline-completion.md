@@ -137,6 +137,20 @@ remain N6; no throughput failure is hidden by this functional commit.
 
 ## N6 gates and repeated-load findings
 
+N3 follow-up within the aligned stop/fault scope: an external fault during leader
+HOME preparation or travel must request a fresh current-position HOLD, just as
+an external fault during leading does. The previous leading-only failure branch
+could leave a powered HOME goal active after closing its transport. Extend the
+shared failure path to both HOME phases; retain strict fresh feedback and the
+motor fault latch, with no guessed goals or automatic recovery. Holding/held
+phases need no replacement goal. Leader HOLD is attempted even when closing the
+follower transport raises. Stateful fake-motor cases cover both HOME phases,
+fresh/stale feedback and cleanup errors: all eight new cases PASS, within 31
+targeted session/motor tests. The actual URSim campaign adds a recorder failure during leader HOME;
+that new case remains NOT RUN until the current batch finishes. No physical
+motor transport or write is authorized. The frozen-image batch remains evidence
+for its own revision.
+
 The new leader fault campaign PASSes stale input, changed epoch, out-of-range
 encoder values and recorder-process death on actual URSim. Each case archives
 three seconds of post-fault readback, confirms stopped/unchanged tail posture and
@@ -232,9 +246,22 @@ count. M11 now adds bounded parallel image verification under an explicit
 snapshot setting, with all original deadlines unchanged. Native regression:
 419 PASS / 5 environment skips; lint and format PASS.
 
-The actual URSim fault campaign is extended with child-local ENOSPC injection,
+The actual URSim fault campaign was extended with child-local ENOSPC injection,
 a two-second writer stall that must overflow the unchanged bounded queue, and
 leader torque loss in held review. Two focused fixture tests verify explicit
-triggering and synthetic-only source composition. These additions are NOT RUN
-against URSim until the current workload comparison is finished. No filesystem
-is filled and no physical motor receives a write.
+triggering and synthetic-only source composition. All seven actual URSim cases
+PASS on installed candidate `5219105`: stale input, changed epoch, invalid
+range, recorder death, disk-write failure, writer backlog and held torque loss.
+Each includes three seconds of independent stopped-state observation. The held
+fault preserves the preceding completed episode; other cases commit no episode.
+Fault-and-release times were 0.001-1.644 seconds, separate from the observation
+window and not a pure stop-latency measurement. No filesystem was filled and no
+physical motor received a write. Log: `n7-expanded-faults.log` under the offline
+artifact directory.
+
+Candidate `5219105` installed Jazzy regression PASSes 422 cases / 2 host-only
+skips (23.16 s); both host mount cases PASS separately (4.05 s). Independent
+three-worker verification of the earlier failed batch's closed MCAP took 8.70 s,
+versus about 20 s serially, with identical decoded counts and exact depth hashes.
+This diagnostic does not accept its partial episode. A fresh full batch tests
+the unchanged 25-second finalization deadline in normal session operation.
