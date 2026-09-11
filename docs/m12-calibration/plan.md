@@ -430,3 +430,41 @@ contains 20 completed two-second checkpoints and 30 selected synthetic images
 with original frame metadata and actual UR readback. This accepts the simulated
 M12-A01 orchestration slice; the images contain no calibration-board geometry,
 so physical/geometric acceptance is not inferred.
+
+## J2/J3 direction correction (2026-09-12)
+
+The user observed reversed J2 and J3 following during the actual-angle URSim
+rehearsal and explicitly requested a minimal mainline correction. The existing
+mapper already consumes per-joint `sign`; no extra inversion belongs in the
+motion owner, encoder reader, viewer or episode mapper.
+
+Implementation scope: save the current assembly's revised schema-3 calibration
+as `config/gello.calibration-20260912.json`, consumable by the existing mainline
+`leader-validate` / `leader-activate` workflow. Change only J2 from -1 to +1 and
+J3 from +1 to -1, plus the provenance description. The resulting ID-order signs
+are `[1,1,-1,1,1,1]`. Preserve HOME counts/angles, ratios, logical input intervals,
+gripper endpoints and raw-evidence SHA256. Keep the earlier calibration and
+recorded snapshots unchanged; a new calibration identity records the correction.
+The wide inherited input intervals remain unverified mechanical limits, not
+newly approved physical motion bounds. Do not auto-activate a station or rebuild
+an image in this increment. No Mac/URSim or physical motion tests are requested.
+
+Checks: use the mainline loader and episode mapper to verify positive and
+negative J2/J3 count changes, unaffected axes, unchanged zero-delta HOME and a
+changed calibration identity. Verify all non-sign/provenance fields match the
+previous assembly definition. Update M12-A05 with software results; physical
+revalidation and lab station activation remain pending.
+
+M12-A05 correction result: **PASS (software)**. The mainline
+`calibrate leader-validate` accepts the revised document. Twenty-four direct
+`EpisodeMapper` cases cover both count directions for all six joints and two
+startup references; the first target remains HOME and only the selected axis
+changes. All non-sign/non-description fields and gripper mapping are unchanged.
+Existing mapping/episode/input/configuration regression: **27 PASS**. Evidence:
+`artifacts/calibration-direction-correction/20260912-report.json` (local).
+
+New calibration ID:
+`ea0882788c7071b55b0518c4bf27738d35b34c5f3d03c455556e3e8ef1d2c9c3`.
+The operator's reversal finding is retained; corrected physical-following
+revalidation, lab synchronization and station activation are **NOT RUN**.
+No motor or robot command was sent. Generic mapping/control code is unchanged.

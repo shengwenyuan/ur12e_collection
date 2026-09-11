@@ -1,0 +1,60 @@
+{
+  "schema_version": 3,
+  "kind": "leader_joint_calibration",
+  "home_rad": [
+    0.0,
+    -1.5707963267948966,
+    -1.5707963267948966,
+    -1.5707963267948966,
+    1.5707963267948966,
+    0.0
+  ],
+  "joints": [
+    {
+      "home_count": 3113,
+      "sign": 1,
+      "minimum": -983,
+      "maximum": 7209,
+      "ratio": 1.0
+    },
+    {
+      "home_count": 2120,
+      "sign": 1,
+      "minimum": -1976,
+      "maximum": 6216,
+      "ratio": 1.0
+    },
+    {
+      "home_count": 3187,
+      "sign": -1,
+      "minimum": -909,
+      "maximum": 7283,
+      "ratio": 1.0
+    },
+    {
+      "home_count": 1037,
+      "sign": 1,
+      "minimum": -3059,
+      "maximum": 5133,
+      "ratio": 1.0
+    },
+    {
+      "home_count": 42,
+      "sign": 1,
+      "minimum": -4054,
+      "maximum": 4138,
+      "ratio": 1.0
+    },
+    {
+      "home_count": 1971,
+      "sign": 1,
+      "minimum": -2125,
+      "maximum": 6067,
+      "ratio": 1.0
+    }
+  ],
+  "gripper_open": 3256,
+  "gripper_closed": 3388,
+  "reference": "Assembly calibration revision 2026-09-12: operator-observed J2/J3 directions inverted from the prior rehearsal definition. Signs [1,1,-1,1,1,1]. HOME reference and lever endpoints retained. Inherited +/-4096-count logical input intervals are not accepted physical mechanical limits; powered HOME/HOLD and hardware activation remain unverified.",
+  "evidence_sha256": "773a2edcde32d0494e750a6208519704552e3fad332558813a6ab0a1854c7fe4"
+}

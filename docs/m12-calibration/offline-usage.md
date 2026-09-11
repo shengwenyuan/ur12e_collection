@@ -58,3 +58,20 @@ or is never created; existing destinations are not overwritten. Station writers
 serialize updates with a local advisory lock and preserve prior visible bytes
 when replacement or directory synchronization fails. Power-loss behavior on the
 actual station filesystem still requires deployment acceptance.
+
+## Current GELLO assembly direction revision
+
+Use [gello.calibration-20260912.json](../../config/gello.calibration-20260912.json)
+for the current assembly's next mainline calibration binding. The operator
+reported J2/J3 reversed; their signs are now +1/-1 respectively, giving
+`[1,1,-1,1,1,1]` in motor ID order. All other calibration values are retained.
+This revision supersedes the earlier rehearsal direction candidates, without
+changing historical recordings or automatically activating any station.
+
+```bash
+ur-collect calibrate leader-validate config/gello.calibration-20260912.json
+```
+
+Use the existing `leader-activate` workflow with the matching original evidence
+and declared lab assembly when syncing the station. Input-range/powered-motion
+acceptance remains separate; see the [M12 correction record](plan.md#j2j3-direction-correction-2026-09-12).
