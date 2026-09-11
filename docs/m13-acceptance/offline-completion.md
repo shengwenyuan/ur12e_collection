@@ -307,7 +307,37 @@ recording tests: 39 PASS. Full native regression: 431 PASS / five environment
 skips (10.58 s); Black and production/script Pylint PASS. Four new tests cover
 the killed waiter, surviving waiter, bounded cancellation, busy heartbeat lock
 without timestamp refresh, and dead-process rejection before receiving replies.
-The focused actual URSim repeat and final-image regressions remain pending.
+Installed candidate `b497c74` regression: 434 PASS / two host-only skips
+(23.23 s). The formerly hanging HOME-recorder-death scenario now PASSes 30/30
+actual URSim repetitions, each with three seconds of stopped-state readback and
+fake-leader current-goal assertions. Evidence:
+`leader-faults-1789115987757901504`; source and image hashes are frozen in its
+launch manifest. Full fault and affected integration checks follow. The earlier
+Ctrl+C timeout had no captured stack and is not retrospectively attributed to
+this confirmed HOME-cancellation deadlock.
+
+The complete eight-case campaign subsequently PASSed on the installed
+`b497c74` image without periodic diagnostic stacks. Active discard, recorder
+loss and actual SIGINT also PASSed, including stopped readback and shared-memory
+unlink checks: `session-faults-1789116316772926337`. Complex motion/native HOME,
+optional observer loss and controller watchdog checks follow. Because the
+heartbeat correction removes a possible blocking control-loop operation, one
+fresh full real-pixel batch is justified on this revision; its result will not
+reclassify the earlier failures.
+
+Final-image complex motion PASSed six asymmetric/angle-branch/near-bound poses,
+reversals, SDK READY and streaming. SDK READY peaked at 0.3 rad/s; move/servo
+stops took 0.737/0.306 s with no observed hold drift (simulation only).
+Native HOME completion and interruption passed, but its client-loss test observer
+failed because its old RTDE recipe omitted currents/TCP now required by the
+shared reader. The fixture now reuses `ur.OUTPUT_FIELDS` plus `runtime_state`;
+no production transport or missing-value behavior was weakened. Original failed
+report: `home-defaults-1789116459792586292.json`. Corrected actual recheck PASS:
+native completion, interruption and completion after losing the HOME client,
+in `home-defaults-1789116542480066761.json`. The native program's controller-owned
+continuation after client loss remains the agreed behavior; SDK teleoperation's
+watchdog is a separate gate. This fixture-only correction requires no new motion
+policy or broader production readback change.
 
 The installed `5219105` candidate completed 14 strict 40-second real-pixel
 episodes, then FAILed during episode 15 on a 155.436 ms leader interval

@@ -8,6 +8,7 @@ import time
 
 import rtde_receive
 
+from ur12e_collection import ur
 from ur12e_collection.control.model import ControlError, distance
 from ur12e_collection.control.owner import Controller
 from ur12e_collection.control.ur import read_state
@@ -103,14 +104,7 @@ def client_loss():
     receiver = rtde_receive.RTDEReceiveInterface(
         address,
         125.0,
-        [
-            "timestamp",
-            "actual_q",
-            "actual_qd",
-            "robot_mode",
-            "safety_mode",
-            "runtime_state",
-        ],
+        ur.OUTPUT_FIELDS + ["runtime_state"],
     )
     context = multiprocessing.get_context("spawn")
     parent, child = context.Pipe()
