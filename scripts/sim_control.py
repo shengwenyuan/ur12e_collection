@@ -89,10 +89,12 @@ def _arguments():
         if (
             args.mode != "console"
             or args.leader_trace
+            or args.ros_observe
             or not (args.leader_calibration and args.manual_support)
         ):
             parser.error(
-                "live console requires calibration and --manual-support"
+                "live preview requires calibration and --manual-support, "
+                "without ROS observation"
             )
     elif args.leader_calibration or args.manual_support:
         parser.error("live leader options require --leader-port")
@@ -104,7 +106,10 @@ def _arguments():
     elif args.camera_pacing != "original":
         parser.error("camera pacing requires a recorded camera input")
     if (
-        args.camera_cache or args.camera_volume or args.leader_trace
+        args.camera_cache
+        or args.camera_volume
+        or args.leader_trace
+        or args.ros_observe
     ) and args.mode not in ("session", "leader-faults"):
         parser.error("recorded input replay requires session mode")
     if args.ros_observe and args.mode not in ("session", "console"):
@@ -208,7 +213,8 @@ def main() -> None:
             )
             print(f"Read-only leader evidence: {live_root}", flush=True)
             print(
-                "Support the leader. Space: follower HOME, then start/stop. "
+                "Motion preview only; no recording. Support the leader. "
+                "Space: follower HOME, then start/stop. "
                 "No leader motor commands will be sent.",
                 flush=True,
             )

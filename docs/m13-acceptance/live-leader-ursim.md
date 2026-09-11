@@ -2,15 +2,33 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: implemented; live-source lifecycle and installed-image recheck PASS.
-Manual direction acceptance remains pending; initial failures are retained below.
-On 2026-09-12 the user assigned LeRobot conversion to another repository and
-requested manual physical-leader / URSim follower validation before proceeding.
-Reuse the aligned episode-relative mapping, HOME, signs-under-verification,
-read-only motor boundary, keyboard lifecycle, and isolated simulator controls.
-No new physical motion authorization is inferred.
+Status: implementing the user-aligned lightweight motion rehearsal repair.
 
-## Scope
+## Current scope: 2026-09-12 alignment
+
+The user explicitly scoped Mac + URSim to manual motion-trend rehearsal, outside
+production teleoperation and recording acceptance. This supersedes the full
+Session/camera/recorder composition described in the historical sections below.
+The existing live console command will select a simulator-only preview owner:
+Space requests native follower HOME, then starts relative following, then stops;
+the next Space requests HOME again. No camera, recorder, MCAP or ROS observer is
+started. Host raw read evidence and a small rehearsal report remain disposable.
+
+Idle input expiry waits for recovery. Fresh stationary input is required on each
+explicit start. During following the existing 100 ms source limit still stops
+motion; recovery never resumes motion or rebases an active interval. Protocol,
+clock, identity and torque faults remain terminal. Keep the isolated official
+URSim boundary, shared motion owner, relative mapper and conditioning. Production
+Session, recording gates and Ubuntu hardware acceptance are unchanged.
+
+Implementation: distinguish temporary view expiry from source faults; retain a
+non-destructive bounded process cache; remove the Mac SDK busy-read loop; add a
+small simulation-only keyboard owner; route live input to that owner; test idle
+recovery, explicit engagement, stop/cleanup and isolation from recording; build
+and smoke-test the installed image. Physical motor writes remain forbidden.
+Manual direction/trend acceptance remains the operator's next action.
+
+## Historical full-session scope (superseded for live preview)
 
 1. Remove the LeRobot CLI/export implementation, optional exporter requirements
    and exporter-only tests. Retain neutral MCAP read/hash helpers used by audits,
@@ -173,3 +191,121 @@ The first two queue failures remain unresolved and are not represented as fixed.
 The exact documented `--installed-package` live command also reached
 `needs_home` with the physical leader and exited through Ctrl+C; no source
 package overlay was used. Manual joint movement remains the next user gate.
+
+## User-reported idle stale failure (2026-09-12)
+
+Status: investigating and correcting the existing live-entry contract, explicitly
+requested by the user. No frequency, freshness, motion or calibration change is
+proposed. The reported run `live-leader-1789160484716764000` retained 905 complete
+read-only acquisitions over 14.784 s, maximum gap 50.030 ms, no publisher fault
+and only READ/Fast Sync Read traffic. Its console failed in `needs_home` before
+an episode. The current report cannot identify where the valid view stopped
+advancing. A one-slot multiprocessing queue is destructively drained by both
+producer and consumer; this is a suspected cache handover race, not yet proven
+as the cause of this particular run.
+
+Repair scope: reproduce with staged freshness diagnostics; correct latest-view
+handover if confirmed, retain source epoch/time and the 100 ms expiry, and add
+regression tests for concurrent reads, delayed publication and killed/stalled
+workers. Rebuild the same image tag after source tests; verify prolonged idle
+and the existing simulator lifecycle before returning the command to the user.
+No physical device writes or real UR control are authorized by this repair.
+
+The diagnostic reproduction `live-leader-1789160848300937000` failed with
+109.184 ms source age, 42.504 ms since the last delivered cache view, and only
+0.203 ms in the caller's read. The publisher stayed healthy (maximum source gap
+34.579 ms). The destructive queue replacement leaves a publication gap because
+`multiprocessing.Queue.put_nowait` hands work to an asynchronous feeder; producer
+and consumer also compete to remove the same item. The reported run lacked
+these stage timestamps, so its exact scheduling interleaving cannot be recovered.
+
+The replacement is a fixed-capacity shared latest view. The writer serializes
+before taking a short lock, then replaces the complete payload and generation;
+readers copy without consuming it. A reader never waits on the lock; contention
+retains its prior source-timestamped view, which still expires after 100 ms. A
+writer that stalls or exits holding the lock therefore cannot hang control or
+refresh stale data. There is no queue feeder or remove-then-publish window.
+Errors now include source, publication, validation and receipt timestamps to
+locate any later stall. Native concurrency/expiry-related focused tests PASS
+(26), including a process exiting while holding the publication lock.
+
+The first shared-cache long-idle check still failed after about one minute;
+its publisher remained healthy but had an 84.055 ms maximum acquisition gap.
+At failure the last validated view was also old; non-destructive storage alone
+is not sufficient evidence of a complete fix. This failed run is retained as
+`live-leader-1789160945484066000`. Bulk memoryview copies replace Python ctypes
+per-element copies inside the short critical section, and the bridge poll rate
+is bounded to the existing 120 Hz command target instead of approximately
+500 Hz. This reduces redundant filesystem traffic and lock contention without
+changing the physical read rate or any freshness limit. Further runtime checks
+are required before replacing the installed tag.
+
+The optimized shared-cache run also timed out, with producer and consumer at
+the same generation. This rules out consumer lock contention as the complete
+explanation. A Docker exec stdio relay was then introduced to remove cross-host
+filesystem reads from the high-rate path; it also had an initial timeout. Those
+changes alone do not establish the root cause. The Mac publisher process was
+measured at 69.4% CPU while idle. Inspection of the installed DYNAMIXEL SDK shows
+a tight receive loop over a zero-timeout serial read, sharing the interpreter
+with the publisher. A bounded readiness wait on Mac can yield that interpreter
+while waiting for USB bytes; Linux's accepted acquisition path must remain
+unchanged. Any such change requires read-only timing and CPU remeasurement.
+
+A source-side issue was identified in the Mac receive path: the installed SDK
+loops over `serial.read()` with `timeout=0`, occupying approximately 69.4% CPU
+in the same interpreter as the publisher. `ReadPort.readPort` now waits up to
+1 ms for descriptor readability on Darwin before performing the same read.
+Already-readable descriptors return immediately; SDK packet checks, instruction
+allowlist and timeouts are retained. Linux does not use this wait, preserving
+its accepted 120 Hz read path. The Mac process measured approximately 7.4% CPU
+after this change. The stdio experiment was removed; its patch/logs remain local.
+Current repair candidates are the Mac readiness wait, non-destructive latest
+cache with bulk copies, bounded 120 Hz bridge polling and stage diagnostics.
+
+
+Repair validation remains incomplete: after the Mac readiness wait, the original
+file-transport run `live-leader-1789161543725895000` lasted 122.889 s and then
+failed the unchanged 100 ms input gate (publisher maximum gap 49.147 ms). The
+recorded feed call took 32.414 ms; its selected source view became old across
+publication/read/scheduling stages. The combined readiness-wait/stdio experiment
+also failed, with a 103.625 ms source age while local feed reading took only
+0.160 ms. Its physical source maximum gap was 33.709 ms. Thus CPU busy polling
+and destructive cache handover are concrete issues, but fixing them or replacing
+file transport does not establish a complete latency solution on this Mac.
+Do not label the original user's exact interleaving conclusively identified.
+
+The stdio experiment and its tests are retained only under ignored artifacts;
+the working repair keeps the simpler existing transport, the Mac-only read wait,
+non-destructive shared cache and improved timing diagnostics. Native full suite
+PASS (474 tests, five skips, 14.16 s); lint PASS. No failed candidate image was
+built or substituted for the installed tag, and no physical motor write occurred.
+
+Historical question, now resolved by the alignment at the top: whether transient expiry in `needs_home`/`ready` should
+be an input-unavailable state, with a fresh stable baseline required before
+starting, instead of terminating the whole console. This would not relax active
+teleoperation's 100 ms expiry, source identity/error checks or physical control
+restrictions. The lightweight preview now implements this recovery behavior.
+
+
+## Lightweight preview repair results
+
+- Software PASS: 482 tests, five skips in the native full run; an additional
+  relative-trend/no-initial-jump test also passes after that run. Tests cover idle
+  recovery, unavailable/moving startup before SDK acquisition, active expiry
+  stopping, no automatic resume, hard faults, report cleanup and routing without
+  constructing the recorder. Production control/recording implementation is
+  unchanged.
+- Live source-overlay smoke PASS: `console-1789162443569649000` used the physical
+  read-only GELLO and isolated URSim. Native HOME completed, a stationary leader
+  drove 1,756 conditioned commands over 14.70 seconds, Space stopped, measured
+  settling completed, and Ctrl+C exited. No camera or MCAP output was created.
+  Host evidence: `live-leader-1789162443308397000`. This confirms wiring and
+  lifecycle only, not operator direction acceptance or Ubuntu production gates.
+- Installed replacement image and its smoke check: pending.
+
+The same launcher command selects the lightweight preview when `--leader-port`
+is supplied. Space: HOME -> ready -> following -> stopped/held -> HOME again.
+If startup is unavailable or moving, stabilize the supported leader and press
+Space again. If input expires during following, the simulator stops and remains
+held; no automatic restart occurs. Ctrl+C stops active simulator control and
+closes the reader. Hand-E is bypassed; the physical leader remains torque-off.

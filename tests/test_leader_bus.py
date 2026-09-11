@@ -95,3 +95,25 @@ def test_fast_read_preserves_each_error_and_validates_ids():
                 data[9] = 1
                 with pytest.raises(bus.ReadError, match="identity"):
                     reader.sync(132, 4, fast=True)
+
+
+@pytest.mark.parametrize(
+    "platform, waits", [("darwin", True), ("linux", False)]
+)
+def test_readiness_wait_yields_only_on_mac_without_changing_bytes(
+    platform, waits
+):
+    port = bus.ReadPort("test")
+    port.ser = mock.Mock()
+    port.ser.read.return_value = b"abc"
+    with (
+        mock.patch.object(bus.sys, "platform", platform),
+        mock.patch.object(bus.select, "select") as ready,
+    ):
+        assert port.readPort(3) == b"abc"
+        if waits:
+            ready.assert_called_once_with([port.ser], [], [], 0.001)
+        else:
+            ready.assert_not_called()
+        port.ser.read.assert_called_once_with(3)
+        port.ser.write.assert_not_called()

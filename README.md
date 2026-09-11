@@ -33,4 +33,4 @@ Use one daily Docker image, `ur12e-collection:current`, for collection, developm
 
 Formal plans and actual acceptance results live under `docs/`. Temporary ideas, station identities, recordings, and release artifacts stay in ignored local directories. Do not infer hardware readiness from passing software tests.
 
-Real physical leader / local URSim rehearsal: see [the live console guide](docs/m13-acceptance/live-leader-ursim.md). This uses read-only motor acquisition and the existing simulator session lifecycle; manual joint-direction acceptance remains separate.
+Real physical leader / local URSim rehearsal: see [the live console guide](docs/m13-acceptance/live-leader-ursim.md). This is a lightweight motion preview with read-only motor acquisition, HOME/start/stop controls and no camera or recording workload. Production teleoperation and recording acceptance remain separate.

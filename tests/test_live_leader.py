@@ -202,16 +202,13 @@ def test_fixed_size_publication_and_writer_size_limit(tmp_path):
     assert not tuple(tmp_path.glob("*.tmp"))
 
 
-def test_worker_reports_failure_and_closes_bounded_channel(monkeypatch):
-    import queue
+def test_worker_reports_failure_and_closes_status(monkeypatch):
     from unittest import mock
 
-    feed = mock.Mock(origin={"kind": "fixture"})
+    feed = mock.Mock(origin={"kind": "fixture"}, timing={})
     feed.samples.side_effect = [(sample(0),), ValueError("source loss")]
     monkeypatch.setattr(live_leader, "Feed", lambda *_: feed)
     samples = mock.Mock()
-    samples.get_nowait.side_effect = queue.Empty
-    samples.put_nowait.side_effect = queue.Full
     status, stop = mock.Mock(), mock.Mock()
     stop.is_set.return_value = False
     live_leader._receive(None, None, samples, status, stop)
@@ -219,44 +216,51 @@ def test_worker_reports_failure_and_closes_bounded_channel(monkeypatch):
         mock.call(("ready", {"kind": "fixture"})),
         mock.call(("error", "source loss")),
     ]
-    samples.cancel_join_thread.assert_called_once()
-    samples.close.assert_called_once()
+    samples.publish.assert_called_once()
     status.close.assert_called_once()
 
 
-def test_live_console_fault_closes_owner_and_preserves_failed_report(
-    tmp_path, monkeypatch
-):
-    import contextlib
-    import json
+def test_live_console_routes_to_preview_without_recorder(tmp_path, monkeypatch):
     from unittest import mock
-    from ur12e_collection.simulation import session
+    from ur12e_collection.simulation import rehearsal, session
 
-    live = mock.Mock()
-    live.samples.side_effect = ValueError("lost live source")
-    monkeypatch.setattr(
-        live_leader, "Live", lambda *_: contextlib.nullcontext(live)
-    )
-    monkeypatch.setattr(
-        session.console,
-        "keyboard",
-        lambda _: contextlib.nullcontext(lambda: []),
-    )
-    monkeypatch.setattr(
-        session.connection,
-        "open_station",
-        lambda: contextlib.nullcontext(mock.Mock()),
-    )
-    owner = mock.Mock(
-        state="recording", timings=[], observer=None, completed=[]
-    )
-    owner.snapshot = {"control": {"control_hz": 120}}
-    monkeypatch.setattr(session, "create", lambda *_, **__: owner)
-    output = tmp_path / "console"
-    with pytest.raises(ValueError, match="lost live source"):
-        session.run(output, "test", None, live_config=(None, None))
-    owner.close.assert_called_once()
-    owner.step.assert_not_called()
-    report = json.loads((output / "session.json").read_text())
-    assert report["state"] == "failed"
-    assert report["error"] == "ValueError: lost live source"
+    run = mock.Mock(return_value={"recording": False})
+    monkeypatch.setattr(rehearsal, "run", run)
+    create = mock.Mock(side_effect=AssertionError("recorder started"))
+    monkeypatch.setattr(session, "create", create)
+    assert session.run(tmp_path, "test", None, live_config=(1, 2)) == {
+        "recording": False
+    }
+    run.assert_called_once_with(tmp_path, "test", None, (1, 2))
+    create.assert_not_called()
+
+
+def test_expired_view_can_recover_without_retiming(live):
+    value, data = live
+    value.samples(41_000_000)
+    with pytest.raises(live_leader.Unavailable):
+        value.samples(142_000_000)
+    data["samples"] = [dataclasses.asdict(sample(i)) for i in range(3, 8)]
+    data["published_ns"] = 141_000_000
+    bridge.write(value.root / "latest.json", data)
+    assert value.samples(142_000_000)[-1].start_ns == 140_000_000
+
+
+def test_worker_retries_expiry_but_still_reports_hard_fault(monkeypatch):
+    from unittest import mock
+
+    feed = mock.Mock(origin={}, timing={})
+    feed.samples.side_effect = [
+        live_leader.Unavailable("expired"),
+        (sample(0),),
+        ValueError("fault"),
+    ]
+    monkeypatch.setattr(live_leader, "Feed", lambda *_: feed)
+    views, status, stop = mock.Mock(), mock.Mock(), mock.Mock()
+    stop.is_set.return_value = False
+    live_leader._receive(None, None, views, status, stop)
+    views.publish.assert_called_once()
+    assert status.send.call_args_list == [
+        mock.call(("ready", {})),
+        mock.call(("error", "fault")),
+    ]

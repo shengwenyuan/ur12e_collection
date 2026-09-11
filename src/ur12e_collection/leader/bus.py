@@ -2,6 +2,8 @@
 
 import collections
 import dataclasses
+import select
+import sys
 import time
 
 from dynamixel_sdk import Protocol2PacketHandler, PortHandler
@@ -36,6 +38,13 @@ class ReadPort(PortHandler):
 
     def getCurrentTime(self):  # pylint: disable=invalid-name
         return time.monotonic_ns() / 1_000_000
+
+    def readPort(self, length):  # pylint: disable=invalid-name
+        # The SDK otherwise busy-polls a zero-timeout descriptor. Yield the
+        # Mac interpreter while waiting; preserve Linux's accepted read path.
+        if sys.platform == "darwin" and length > 0:
+            select.select([self.ser], [], [], 0.001)
+        return self.ser.read(length)
 
     def writePort(self, packet):  # pylint: disable=invalid-name
         # SDK adds header, stuffing and CRC before this final boundary.

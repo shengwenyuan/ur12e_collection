@@ -1,6 +1,5 @@
 """Explicit simulation composition; no physical station or leader fallback."""
 
-import contextlib
 import dataclasses
 import json
 import pathlib
@@ -116,22 +115,13 @@ def run(
     live_config=None,
 ) -> dict:
     """Run the explicit simulator console and retain its report."""
-    with (
-        console.keyboard(stream) as read_keys,
-        contextlib.ExitStack() as inputs,
-    ):
-        live = None
-        if live_config is not None:
-            # pylint: disable-next=import-outside-toplevel
-            from ur12e_collection.simulation.live_leader import Live
+    if live_config is not None:
+        # The physical leader preview does not construct a production session.
+        # pylint: disable-next=import-outside-toplevel
+        from ur12e_collection.simulation import rehearsal
 
-            live = inputs.enter_context(Live(*live_config))
-
-        def guarded_keys():
-            if live is not None:
-                live.samples(time.monotonic_ns())
-            return read_keys()
-
+        return rehearsal.run(output, revision, stream, live_config)
+    with console.keyboard(stream) as read_keys:
         output.mkdir(parents=True, exist_ok=False)
         report = {"state": "failed", "episodes": []}
         with connection.open_station() as station:
@@ -140,10 +130,9 @@ def run(
                 output,
                 revision,
                 observe=observe,
-                inputs=Inputs(leader_trace=live),
             )
             try:
-                report = console.drive(owner, guarded_keys)
+                report = console.drive(owner, read_keys)
             except Exception as error:
                 report["error"] = f"{type(error).__name__}: {error}"
                 report["episodes"] = owner.completed
