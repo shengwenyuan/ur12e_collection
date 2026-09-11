@@ -141,7 +141,12 @@ class Calibration:
 
 def load(path: pathlib.Path) -> Calibration:
     """Strict fields prevent ignored session offsets from entering a config."""
-    value = json.loads(path.read_text(encoding="utf-8"))
+    return from_document(json.loads(path.read_text(encoding="utf-8")))
+
+
+def from_document(document: dict) -> Calibration:
+    """Validate a detached embedded calibration with the same file contract."""
+    value = json.loads(json.dumps(document, allow_nan=False))
     if not isinstance(value, dict):
         raise ValueError("calibration must be a JSON object")
     fields = {field.name for field in dataclasses.fields(Calibration)}

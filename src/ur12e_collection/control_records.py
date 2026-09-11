@@ -15,6 +15,7 @@ class Validator:
         self.receipts = []
         self.pending_intent = None
         self.pending_state = None
+        self.leader_audit = None
 
     def frames(self, group) -> None:
         """Retain only receipt extrema, not camera payloads."""
@@ -90,6 +91,21 @@ class Validator:
         expected = "acquired" if not self.boundaries else "released"
         if record.action != expected or record.action in self.boundaries:
             raise ValueError("authority must be acquired then released once")
+        if record.action == "acquired" and record.context is not None:
+            if not self.context.get("leader_mapping"):
+                raise ValueError("leader mapping not declared in snapshot")
+            # pylint: disable-next=import-outside-toplevel
+            from ur12e_collection.leader.audit import Audit
+
+            self.leader_audit = Audit(
+                record.context, record.provenance.time.received_monotonic_ns
+            )
+        if (
+            record.action == "acquired"
+            and self.context.get("leader_mapping")
+            and self.leader_audit is None
+        ):
+            raise ValueError("relative leader baseline is missing")
         self.boundaries[record.action] = (
             record.provenance.time.received_monotonic_ns
         )
@@ -105,15 +121,21 @@ class Validator:
         if record.kind == "leader_intent":
             if self.pending_intent is not None:
                 raise ValueError("previous intent has no successful command")
+            self._leader_intent(record)
             self.pending_intent = record
         elif record.kind == "sent_command":
             intent = self.pending_intent
             if intent is None or (
-                intent.joint_positions_rad != record.joint_positions_rad
+                (
+                    self.leader_audit is None
+                    and intent.joint_positions_rad != record.joint_positions_rad
+                )
                 or intent.provenance.time.received_monotonic_ns
                 > record.provenance.time.received_monotonic_ns
             ):
                 raise ValueError("sent command differs from preceding intent")
+            if self.leader_audit is not None:
+                self.leader_audit.sent(record)
             self.pending_intent = None
         elif record.kind == "follower_state":
             if self.pending_state is not None:
@@ -168,3 +190,9 @@ class Validator:
             < self.boundaries["released"]
         ):
             raise ValueError("observation lies outside control authority")
+
+    def _leader_intent(self, record):
+        if self.leader_audit is not None:
+            self.leader_audit.intent(record)
+        elif record.acquisition is not None:
+            raise ValueError("raw leader input has no calibration context")

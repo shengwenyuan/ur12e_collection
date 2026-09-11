@@ -89,6 +89,7 @@ class LeaderIntent:
     provenance: Provenance
     joint_positions_rad: tuple[float, ...] | None
     gripper_request_raw: int | None
+    acquisition: dict | None = None
 
     kind: str = dataclasses.field(default="leader_intent", init=False)
     schema_version: int = dataclasses.field(default=SCHEMA_VERSION, init=False)
@@ -214,6 +215,7 @@ class AuthorityEvent:
     provenance: Provenance
     action: str
     reason: str
+    context: dict | None = None
     kind: str = dataclasses.field(default="authority_event", init=False)
     schema_version: int = dataclasses.field(default=SCHEMA_VERSION, init=False)
 

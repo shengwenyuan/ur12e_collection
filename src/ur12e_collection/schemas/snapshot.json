@@ -229,6 +229,9 @@
           "type": "integer",
           "minimum": 20000000,
           "maximum": 250000000
+        },
+        "leader_mapping": {
+          "const": "episode_relative_conditioned_v1"
         }
       },
       "required": [

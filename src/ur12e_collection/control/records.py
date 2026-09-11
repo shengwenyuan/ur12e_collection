@@ -25,7 +25,7 @@ class Records:
             self.simulated,
         )
 
-    def authority(self, action: str, reason: str, now_ns: int):
+    def authority(self, action: str, reason: str, now_ns: int, context=None):
         """Mark the exact receipt boundary, including the exclusive stop end."""
         return contracts.AuthorityEvent(
             self._provenance(
@@ -37,9 +37,10 @@ class Records:
             ),
             action,
             reason,
+            context,
         )
 
-    def intent(self, target: Target):
+    def intent(self, target: Target, leader=None):
         """Preserve leader intent before transport acceptance."""
         if target.source_id != self.context["leader_id"]:
             raise ValueError("recorded leader differs from active source")
@@ -51,8 +52,9 @@ class Records:
                 target.created_ns,
                 "host_monotonic",
             ),
-            target.q,
+            target.q if leader is None else leader.desired.q,
             None,
+            None if leader is None else leader.evidence(),
         )
 
     def sent(self, target: Target, sent_ns: int):

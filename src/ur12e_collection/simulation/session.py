@@ -12,7 +12,12 @@ from ur12e_collection.simulation import profile, targets
 
 
 def create(
-    station, output: pathlib.Path, revision: str | None = None, *, observe=False
+    station,
+    output: pathlib.Path,
+    revision: str | None = None,
+    *,
+    observe=False,
+    leader_trace=None,
 ) -> Session:
     """Start persistent synthetic cameras before acquiring motion control."""
     permit = json.loads(
@@ -48,6 +53,9 @@ def create(
             "simulator": {"image": profile.IMAGE, "version": profile.VERSION},
         },
     }
+    if leader_trace is not None:
+        context["control"]["leader_id"] = "gello"
+        context["control"]["leader_mapping"] = "episode_relative_conditioned_v1"
     recorder = recording.Recorder(synthetic.configuration(), context)
     observer = None
     try:
@@ -63,7 +71,13 @@ def create(
     return Session(
         station,
         recorder,
-        Setup(profile.LIMITS, targets.Wave, snapshot, output),
+        Setup(
+            profile.LIMITS,
+            targets.Wave,
+            snapshot,
+            output,
+            leader_trace.factory(profile.LIMITS) if leader_trace else None,
+        ),
         observer,
     )
 

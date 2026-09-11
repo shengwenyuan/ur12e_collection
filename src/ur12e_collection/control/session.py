@@ -56,6 +56,7 @@ class Setup:
     leader_factory: Any
     snapshot: dict
     output: pathlib.Path
+    input_factory: Any = None
 
 
 class Session:
@@ -117,11 +118,18 @@ class Session:
         program.tick(time.monotonic_ns())
         now = time.monotonic_ns()
         self.active.started_ns = now
-        self.active.leader = self.setup.leader_factory(
-            program.progress.feedback.q, now
+        self.active.leader = (
+            self.setup.input_factory(program.progress.feedback, now)
+            if self.setup.input_factory is not None
+            else self.setup.leader_factory(program.progress.feedback.q, now)
         )
         initial = self.active.leader.sample(now)
-        event = self.active.records.authority("acquired", "space", now)
+        context = (
+            self.active.leader.context()
+            if self.setup.input_factory is not None
+            else None
+        )
+        event = self.active.records.authority("acquired", "space", now, context)
         self.recorder.send("begin", (now, event))
         if self.observer is not None:
             self.observer.records((event,))
@@ -134,6 +142,8 @@ class Session:
         if self.observer is not None:
             self.observer.records((event,))
         self.active.program.halt(now_ns)
+        if self.setup.input_factory is not None:
+            self.active.leader.close()
 
     def step(self) -> None:
         """Feed the current SDK owner and supervise independent recording."""
@@ -174,7 +184,9 @@ class Session:
             state = active.program.tick(time.monotonic_ns())
             if self.state == "recording":
                 target = active.leader.sample(time.monotonic_ns())
-                intent = active.records.intent(target)
+                intent = active.records.intent(
+                    target, active.leader if self.setup.input_factory else None
+                )
                 active.program.follow(target, time.monotonic_ns())
                 sent = active.records.sent(target, time.monotonic_ns())
                 samples = (intent, sent, *active.records.feedback(state))
@@ -232,6 +244,11 @@ class Session:
     def fail(self) -> None:
         """Revoke recording and active motion; no automatic HOME or recovery."""
         self.recorder.abort.set()
+        if (
+            self.setup.input_factory is not None
+            and self.active.leader is not None
+        ):
+            self.active.leader.close()
         self.lifecycle.fail()
         program = self.active.program
         if isinstance(program, owner.Controller):

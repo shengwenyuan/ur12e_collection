@@ -93,3 +93,12 @@ their original revisions and scope. Only affected hardware gates need reopening.
 Baseline before N1: native regression 363 PASS / 5 environment skips (9.95 s); Black and production/script Pylint PASS. The restricted sandbox run could not allocate shared memory; the unrestricted local rerun passed. No device was accessed. This baseline does not accept the new nodes. Its completion report must retain
 every environment limit or failed gate rather than describing all modules as
 physically accepted.
+
+## N2 acceptance update
+
+Shared source integration and conditioned-command recording: PASS in native
+regression (369 tests, 5 environment skips) and an actual 8-second URSim replay
+episode (240 image groups, stop/HOLD, independent audit). Black and production
+Pylint PASS. Logs: `artifacts/offline-completion/n2-*`; actual simulator report
+`artifacts/simulator-control/session-1789109729156955468/report.json`. Full
+three-view recorded imagery and the new long batch remain N4/N6, not yet accepted.

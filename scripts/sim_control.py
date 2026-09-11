@@ -56,7 +56,11 @@ def main() -> None:
     parser.add_argument("--seconds", type=float, default=3)
     parser.add_argument("--ros-observe", action="store_true")
     parser.add_argument("--kill-observer", action="store_true")
+    parser.add_argument("--leader-trace", type=pathlib.Path)
+    parser.add_argument("--leader-speed", type=float, default=1.0)
     args = parser.parse_args()
+    if args.leader_trace and args.mode != "session":
+        parser.error("leader replay requires session mode")
     if args.ros_observe and args.mode not in ("session", "console"):
         parser.error("ROS observation requires session or console mode")
     if args.kill_observer and (args.mode != "session" or not args.ros_observe):
@@ -148,6 +152,14 @@ def main() -> None:
                 f"{lock}:/sim-lock:rw",
                 "-v",
                 f"{output}:/results:rw",
+                *(
+                    [
+                        "-v",
+                        f"{args.leader_trace.resolve()}:/leader-trace.jsonl:ro",
+                    ]
+                    if args.leader_trace
+                    else []
+                ),
                 "-e",
                 "PYTHONPATH=/workspace/src",
                 "-e",
@@ -189,6 +201,16 @@ def _entrypoint(args, revision):
     return [
         f"/checks/{args.mode.replace('-', '_')}.py",
         *([args.signal] if args.mode == "watchdog" else []),
+        *(
+            [
+                "--leader-trace",
+                "/leader-trace.jsonl",
+                "--leader-speed",
+                str(args.leader_speed),
+            ]
+            if args.leader_trace
+            else []
+        ),
         *(["--ros-observe"] if args.ros_observe else []),
         *(["--kill-observer"] if args.kill_observer else []),
         *(

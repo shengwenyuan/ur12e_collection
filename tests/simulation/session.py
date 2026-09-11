@@ -40,7 +40,14 @@ def main():
     parser.add_argument("--seconds", type=float, default=3)
     parser.add_argument("--ros-observe", action="store_true")
     parser.add_argument("--kill-observer", action="store_true")
+    parser.add_argument("--leader-trace", type=pathlib.Path)
+    parser.add_argument("--leader-speed", type=float, default=1.0)
     args = parser.parse_args()
+    trace = None
+    if args.leader_trace:
+        from ur12e_collection.simulation.leader import Trace
+
+        trace = Trace(args.leader_trace, speed=args.leader_speed)
     output = pathlib.Path("/results") / f"session-{time.time_ns()}"
     output.mkdir()
     report = {"status": "FAIL", "episodes": [], "simulated": True}
@@ -48,7 +55,9 @@ def main():
     (output / "report.json").write_text(json.dumps(report, indent=2))
     try:
         with connection.open_station() as station:
-            owner = session.create(station, output, observe=args.ros_observe)
+            owner = session.create(
+                station, output, observe=args.ros_observe, leader_trace=trace
+            )
             try:
                 for index in range(args.episodes):
                     press(owner)

@@ -123,3 +123,29 @@ normalization need a versioned contract, with distinct measured-position and
 command ranges where appropriate. Do not freeze the observed POS range 3-249
 as calibrated endpoints or fill missing positions with zero. This is semantic
 alignment only; no schema, runtime or exporter implementation changed here.
+
+### N2 shared leader source and conditioned commands (2026-09-11)
+
+The aligned offline completion scope now connects an injected leader source to
+the existing session. Raw signed acquisitions, fixed calibration and the immutable
+episode baseline remain distinct from evaluated intent and sent command events.
+The acquired authority event embeds the baseline and calibration; this is the
+per-episode context because codec preparation precedes the final start reference.
+The snapshot declares `episode_relative_conditioned_v1`. No baseline is silently
+changed during preparation or recording.
+
+Quantized encoder differences can exceed a finite-difference acceleration gate
+even for slow movement. A bounded command conditioner therefore limits velocity
+and acceleration (90% numerical headroom), while joint intent outside limits
+still faults. This is explicit command shaping, not altered sensor data. Command
+sequence/time describe generation; each intent also contains the original raw
+source epoch, sequence and acquisition times. Reusing fresh input does not renew
+its 100 ms age bound. Independent archive checks reconstruct relative intent and
+check sent-command position, step, velocity and acceleration. Failed source or
+closed ownership cannot resume with the same baseline.
+
+URSim smoke PASS: one 8-second episode using the completed operator trace at
+3.5x replay speed and synthetic cameras; 240 image groups, stop/HOLD and independent
+file verification passed. Native focused tests cover reuse/staleness, epoch reset,
+1,200 jittered/reversing conditioner steps and forged archive values. Simulation
+signs/ranges and accelerated replay do not accept physical calibration.
