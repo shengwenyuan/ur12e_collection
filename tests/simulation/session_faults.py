@@ -10,7 +10,7 @@ from multiprocessing import shared_memory
 
 from ur12e_collection.control.model import distance
 from ur12e_collection.simulation import connection, session
-from session import press, wait
+from session import press, tick, wait
 
 
 def start(owner):
@@ -20,8 +20,7 @@ def start(owner):
     wait(owner, "recording")
     deadline = time.monotonic() + 1.5
     while time.monotonic() < deadline:
-        owner.step()
-        time.sleep(0.02)
+        tick(owner)
 
 
 def held(station):

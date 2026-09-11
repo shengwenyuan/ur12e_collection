@@ -7,6 +7,8 @@ import termios
 import time
 import tty
 
+from ur12e_collection import timing
+
 
 @contextlib.contextmanager
 def keyboard(stream):
@@ -34,15 +36,19 @@ def _read(descriptor):
 def drive(owner, read_keys) -> dict:
     """Space/a control only the current phase; Ctrl+C never requests HOME."""
     previous = None
+    period = round(1e9 / owner.snapshot["control"]["control_hz"])
+    deadline = time.monotonic_ns()
     try:
         while True:
-            started = time.monotonic()
             if owner.state != previous:
                 print(f"session: {owner.state}", flush=True)
                 previous = owner.state
             for key in read_keys():
                 owner.key(key, time.monotonic_ns())
             owner.step()
-            time.sleep(max(0, 0.02 - (time.monotonic() - started)))
+            deadline = timing.next_deadline(
+                deadline, time.monotonic_ns(), period
+            )
+            time.sleep(max(0, (deadline - time.monotonic_ns()) / 1e9))
     except (KeyboardInterrupt, EOFError):
         return {"state": "interrupted", "episodes": owner.completed}

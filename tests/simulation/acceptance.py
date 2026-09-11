@@ -75,9 +75,11 @@ def audit(root: pathlib.Path, count: int = 20, duration: float = 40) -> dict:
         if not duration <= elapsed < duration + 0.15:
             raise ValueError("episode duration gate failed")
         verified = storage.verify_episode(root / name)
-        if verified["counts"]["control/command"] / elapsed < 45:
-            raise ValueError("recorded control rate gate failed")
         context = episode["recording"]["snapshot"]["control"]
+        if verified["counts"]["control/command"] / elapsed < (
+            0.9 * context["control_hz"]
+        ):
+            raise ValueError("recorded control rate gate failed")
         replay = context.get("inputs", {}).get("cameras")
         for source in episode["sources"].values():
             if replay:

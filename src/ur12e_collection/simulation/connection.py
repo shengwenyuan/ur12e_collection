@@ -185,7 +185,7 @@ class Station:
 
             control = rtde_control.RTDEControlInterface(
                 self.address,
-                50.0,
+                float(profile.COMMAND_HZ),
                 rtde_control.RTDEControlInterface.FLAG_UPLOAD_SCRIPT
                 | rtde_control.RTDEControlInterface.FLAG_UPPER_RANGE_REGISTERS,
             )
@@ -221,7 +221,7 @@ def open_station():
 
         receiver = rtde_receive.RTDEReceiveInterface(
             address,
-            125.0,
+            float(profile.FEEDBACK_HZ),
             ur.OUTPUT_FIELDS + ["runtime_state"],
         )
         yield Station(address, receiver)

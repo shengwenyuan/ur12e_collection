@@ -16,6 +16,14 @@ from ur12e_collection.control import model, records
 OFFSET = 1_700_000_000_000_000_000
 
 
+@pytest.mark.parametrize("hz", [50, 60, 120])
+def test_snapshot_preserves_historical_and_selected_rates(controlled, hz):
+    controlled["control"]["control_hz"] = hz
+    assert snapshots.copy(controlled)["control"]["control_hz"] == hz
+    controlled["control"]["feedback_hz"] = 125
+    assert snapshots.copy(controlled)["control"]["feedback_hz"] == 125
+
+
 def samples(snapshot):
     factory = records.Records(snapshot["control"], simulated=True)
     target = model.Target((0.0,) * 6, 0, 2_000_000, "simulation-wave")

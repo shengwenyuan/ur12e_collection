@@ -16,8 +16,8 @@ from ur12e_collection.simulation.leader import Trace
 
 
 class FaultTrace(Trace):
-    def __init__(self, path):
-        super().__init__(path)
+    def __init__(self, path, *, speed=1.0):
+        super().__init__(path, speed=speed)
         self.fault = None
         self.frozen = None
 
@@ -25,6 +25,7 @@ class FaultTrace(Trace):
         if self.fault == "stale":
             return self.frozen
         values = super().samples(now_ns)
+        previous = self.frozen
         self.frozen = values
         if self.fault == "epoch":
             return tuple(
@@ -32,6 +33,9 @@ class FaultTrace(Trace):
                 for value in values
             )
         if self.fault == "range":
+            # Alter a new acquisition, not a cached sample's immutable value.
+            if previous and values[-1].sequence == previous[-1].sequence:
+                return values
             return tuple(
                 dataclasses.replace(value, raw=(100_000,) * 6 + (3256,))
                 for value in values
@@ -44,7 +48,10 @@ def main():
     parser.add_argument("--leader-trace", type=pathlib.Path, required=True)
     parser.add_argument("--leader-speed", type=float, default=1)
     parser.add_argument("--home-repeats", type=int, choices=range(1, 101))
+    parser.add_argument("--fault", choices=("range", "held_torque"))
     args = parser.parse_args()
+    if args.fault and args.home_repeats:
+        parser.error("choose a focused fault or HOME repetitions")
     root = pathlib.Path("/results") / f"leader-faults-{time.time_ns()}"
     root.mkdir()
     report = {"status": "FAIL", "cases": []}
@@ -62,9 +69,11 @@ def main():
         if args.home_repeats:
             faults = ("home_recorder",) * args.home_repeats
             faulthandler.dump_traceback_later(20, repeat=True)
+        elif args.fault:
+            faults = (args.fault,)
         for index, fault in enumerate(faults):
             case = f"{fault}-{index:03d}" if args.home_repeats else fault
-            trace = FaultTrace(args.leader_trace)
+            trace = FaultTrace(args.leader_trace, speed=args.leader_speed)
             trigger = multiprocessing.get_context("spawn").Event()
             camera_input = (
                 (
@@ -131,6 +140,8 @@ def main():
                     assert len(active.completed) == retained
                     if fault == "disk":
                         assert "disk full" in error
+                    elif fault == "range":
+                        assert "outside calibrated" in error
                     elif fault == "writer_backlog":
                         assert "queue overflow" in error
                     elif fault == "held_torque":

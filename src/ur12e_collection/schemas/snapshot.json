@@ -193,7 +193,10 @@
           "type": "integer"
         },
         "control_hz": {
-          "const": 50
+          "enum": [50, 60, 120]
+        },
+        "feedback_hz": {
+          "const": 125
         },
         "association": {
           "const": "independent_receipts_no_interpolation"

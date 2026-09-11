@@ -2,7 +2,7 @@
 
 import time
 
-from ur12e_collection.control.model import ControlError, State
+from ur12e_collection.control.model import COMMAND_HZ, ControlError, State
 
 
 class URTransport:
@@ -12,7 +12,7 @@ class URTransport:
         self,
         control,
         receiver,
-        period: float = 0.02,
+        period: float = 1 / COMMAND_HZ,
         *,
         owns_receiver: bool = True,
     ):

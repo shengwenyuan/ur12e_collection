@@ -8,6 +8,7 @@ import math
 from typing import Protocol
 
 Joints = tuple[float, ...]
+COMMAND_HZ = 120
 
 
 class ControlError(RuntimeError):

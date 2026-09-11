@@ -615,7 +615,11 @@ FTDI latency 1 ms and Fast Sync Read with a disposable fixed-period schedule
 achieved 120.011 Hz over 60 seconds, maximum gap 8.758 ms and approximately
 0.27 CPU cores. The isolated read feasibility passes; the installed worker is
 still 60 Hz. Mainline integration and combined camera/encoding acceptance remain
-pending. The follower command cadence remains 50 Hz. No motor writes were sent.
+pending. The subsequent user alignment selects 120 Hz host target sending with independent
+125 Hz RTDE state reception. Mainline implementation and actual URSim acceptance
+are tracked in [the lab load plan](docs/m13-acceptance/lab-load-20260912.md).
+Historical records keep their original rates. No motor writes or physical UR
+control are authorized by this change.
 
 Read-only leader access is authorized. Every motor register write awaits explicit
 confirmation. ID3 cable clearance remains unresolved, and the current base/desk/

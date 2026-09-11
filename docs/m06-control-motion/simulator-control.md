@@ -319,3 +319,13 @@ URSim smoke PASS: one 8-second episode using the completed operator trace at
 file verification passed. Native focused tests cover reuse/staleness, epoch reset,
 1,200 jittered/reversing conditioner steps and forged archive values. Simulation
 signs/ranges and accelerated replay do not accept physical calibration.
+
+## 2026-09-12 command cadence update
+
+The user selected 120 Hz host targets with independent 125 Hz RTDE feedback.
+Implementation and acceptance are tracked in the cross-module
+[lab load plan](../m13-acceptance/lab-load-20260912.md). The SDK request, servo
+period, shared console schedule and new snapshots use the same command-rate
+constant. Requested and observed rates remain distinct, and historical 50 Hz
+snapshots retain their original metadata. No speed, acceleration, joint-bound,
+watchdog, stop or physical-control authorization is changed.

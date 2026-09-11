@@ -6,6 +6,7 @@ import threading
 import time
 import uuid
 
+from ur12e_collection import timing
 from ur12e_collection.leader import bus, episode, probe
 
 READ_HZ = 120
@@ -193,7 +194,9 @@ class Reader:
                 health = connection.sync(64, 7, fast=True)
                 self.mailbox.health(health)
                 health_due = health.end_ns + 1_000_000_000
-            deadline = next_deadline(deadline, time.monotonic_ns(), period)
+            deadline = timing.next_deadline(
+                deadline, time.monotonic_ns(), period
+            )
             self._stop.wait(max(0, (deadline - time.monotonic_ns()) / 1e9))
 
     def close(self) -> None:
@@ -204,11 +207,3 @@ class Reader:
             self._thread.join(10)
             if self._thread.is_alive():
                 raise bus.ReadError("serial owner did not exit")
-
-
-def next_deadline(previous: int, now: int, period: int) -> int:
-    """Preserve phase and skip expired slots without catch-up bursts."""
-    deadline = previous + period
-    if deadline <= now:
-        deadline += ((now - deadline) // period + 1) * period
-    return deadline

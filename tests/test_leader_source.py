@@ -8,6 +8,7 @@ from unittest import mock
 import pytest
 
 from ur12e_collection.control import model
+from ur12e_collection import timing
 from ur12e_collection.leader import bus, episode, source
 from test_leader_episode import HOME, calibration
 
@@ -181,7 +182,7 @@ def test_stream_evidence_feeds_existing_calibration_entrypoint(tmp_path):
     "now,expected", [(2, 10), (9, 10), (10, 20), (19, 20), (35, 40)]
 )
 def test_deadline_preserves_phase_and_skips_expired_slots(now, expected):
-    assert source.next_deadline(0, now, 10) == expected
+    assert timing.next_deadline(0, now, 10) == expected
 
 
 def test_unsupported_firmware_fails_before_fast_read():

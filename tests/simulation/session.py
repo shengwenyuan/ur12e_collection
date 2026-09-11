@@ -6,15 +6,19 @@ import pathlib
 import time
 import traceback
 
-from ur12e_collection import projection, storage
+from ur12e_collection import projection, storage, timing
 from acceptance import decisions
 from ur12e_collection.simulation import connection, session
 
 
 def tick(owner):
-    started = time.monotonic()
+    deadline = getattr(owner, "test_deadline_ns", time.monotonic_ns())
     owner.step()
-    time.sleep(max(0.0, 0.02 - (time.monotonic() - started)))
+    period = round(1e9 / owner.snapshot["control"]["control_hz"])
+    owner.test_deadline_ns = timing.next_deadline(
+        deadline, time.monotonic_ns(), period
+    )
+    time.sleep(max(0, (owner.test_deadline_ns - time.monotonic_ns()) / 1e9))
 
 
 def wait(owner, expected, timeout=60):
@@ -113,7 +117,9 @@ def main():
                     counts = completed["recording"]["verification"]["counts"]
                     assert args.seconds <= seconds < args.seconds + 0.15
                     assert counts["camera/frame_set"] / seconds >= 28.5
-                    assert counts["control/command"] / seconds >= 45
+                    assert counts["control/command"] / seconds >= (
+                        0.9 * owner.snapshot["control"]["control_hz"]
+                    )
                     report["episodes"].append(completed)
                     if args.seconds >= 40:
                         context = completed["recording"]["snapshot"]["control"]
