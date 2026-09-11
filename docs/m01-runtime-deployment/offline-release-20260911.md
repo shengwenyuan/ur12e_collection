@@ -181,3 +181,28 @@ documentation-only commit does not change the image's runtime source identity.
 Next action: explicitly synchronize this candidate in the lab, run the
 [return sequence](../m13-acceptance/lab-runbook.md), and retain the same full-load
 thresholds for a fresh Ubuntu live-input batch before production promotion.
+
+## Lab synchronization: 2026-09-12
+
+The user returned to the lab and authorized candidate synchronization, followed
+by alignment of the next tests. The existing station `ur12e-collection`
+(`ur12e-flexlab`, x86_64, Ubuntu 24.04.3 LTS, Docker 29.4.0) received the complete
+bundle at `/home/robot2026fall/ur12e-offline-39ad84b`. Local development data and
+`config/local` were excluded from transfer.
+
+M01 existing-station delivery PASS: all delivered checksums passed, the archive
+loaded with the expected image identity, and source-free `dev doctor` reported
+all dependencies and both persistent station mounts available with
+`software_ready: true`. This used `network_mode: none`, no device mappings, and
+the existing `/var/lib/ur12e-collection` configuration/data directories. It did
+not open cameras, serial ports, UR or Hand-E connections. The station JSON hash
+remained `17c3b9e2e505972f90a2dc0add6ea64f23cdd830dda1154f60c015b24424bb9c`.
+
+The accepted `current` image and `/home/robot2026fall/ur12e-current` link remain
+on `ec64004`; use the candidate's own launcher for its acceptance tests. This
+delivery does not promote a passed production release, establish a clean-machine
+installation, or resolve the Mac full-load failure. No hardware test was run.
+Evidence: `artifacts/lab-deployment-20260912/before.txt` and
+`load-and-doctor.log`. Next proposed test is a short three-camera plus physical
+leader read-only acquisition workload, followed by separately aligned powered
+hardware and fresh 20 x 40-second acceptance stages in the lab runbook.

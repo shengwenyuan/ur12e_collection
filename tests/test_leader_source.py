@@ -120,7 +120,8 @@ class FakeBus:
         self.closed = True
         self.calls.append(("close", threading.get_ident()))
 
-    def sync(self, address, size):
+    def sync(self, address, size, *, fast=False):
+        assert fast
         self.calls.append(((address, size), threading.get_ident()))
         if self.fail:
             raise bus.ReadError("disconnected")
@@ -156,7 +157,7 @@ def test_worker_owns_reads_and_close_without_motion_or_reconnect(fail):
         assert fake.closed
         owners = {owner for _, owner in fake.calls}
         assert len(owners) == 1 and threading.get_ident() not in owners
-        assert source.READ_HZ == 60
+        assert source.READ_HZ == 120
         with pytest.raises(bus.ReadError):
             reader.mailbox.view(time.monotonic_ns())
 
@@ -174,3 +175,67 @@ def test_stream_evidence_feeds_existing_calibration_entrypoint(tmp_path):
     result = mapping.reference(path)
     assert result["home_counts"] == [2200] * 6 + [3200]
     assert result["motion_ready"] is False
+
+
+@pytest.mark.parametrize(
+    "now,expected", [(2, 10), (9, 10), (10, 20), (19, 20), (35, 40)]
+)
+def test_deadline_preserves_phase_and_skips_expired_slots(now, expected):
+    assert source.next_deadline(0, now, 10) == expected
+
+
+def test_unsupported_firmware_fails_before_fast_read():
+    fake = FakeBus()
+    inventory = {
+        "1": {"firmware": 44, "status_errors": [0], "hardware_error": 0}
+    }
+    with (
+        mock.patch.object(source.bus, "ReadBus", return_value=fake),
+        mock.patch.object(source.probe, "inventory", return_value=inventory),
+    ):
+        reader = source.Reader("fake", 3000000)
+        with pytest.raises(bus.ReadError, match="firmware"):
+            reader.start()
+        reader.close()
+    assert [call for call, _ in fake.calls] == ["close"]
+
+
+def test_health_work_uses_idle_budget_without_accumulating_sleep_delay():
+    reader = source.Reader("fake", 3000000)
+    clock = [0]
+    motions, health_reads = [], []
+
+    def read(address, _size, *, fast):
+        assert fast
+        start = clock[0]
+        clock[0] += 2_000_000
+        if address == 64:
+            health_reads.append(start)
+            return dataclasses.replace(health(start), end_ns=clock[0])
+        motions.append(start)
+        return bus.Block(
+            start,
+            clock[0],
+            128,
+            ((0).to_bytes(4, "little") + (2200).to_bytes(4, "little"),) * 7,
+            (0,) * 7,
+        )
+
+    def wait(seconds):
+        reader.mailbox.drain()
+        clock[0] += round(seconds * 1e9) + 50_000
+        if len(motions) == 150:
+            reader._stop.set()
+
+    with (
+        mock.patch.object(
+            source.time, "monotonic_ns", side_effect=lambda: clock[0]
+        ),
+        mock.patch.object(reader._stop, "wait", side_effect=wait),
+    ):
+        reader._sample(mock.Mock(sync=read))
+    assert len(health_reads) == 2
+    period = round(1e9 / source.READ_HZ)
+    assert motions[1:] == [
+        motions[0] + i * period + 50_000 for i in range(1, 150)
+    ]

@@ -8,7 +8,7 @@ import uuid
 
 from ur12e_collection.leader import bus, episode, probe
 
-READ_HZ = 60
+READ_HZ = 120
 FRESH_NS = 100_000_000
 HEALTH_NS = 2_000_000_000
 
@@ -153,6 +153,10 @@ class Reader:
                     for row in self.inventory.values()
                 ):
                     raise bus.ReadError("leader inventory reports a fault")
+                if any(row["firmware"] < 45 for row in self.inventory.values()):
+                    raise bus.ReadError(
+                        "fast sync requires XL430 firmware >=45"
+                    )
                 self._sample(connection)
         # Any worker failure must reach both consumers, including SDK defects.
         except Exception as error:  # pylint: disable=broad-exception-caught
@@ -163,13 +167,14 @@ class Reader:
             self._ready.set()
 
     def _sample(self, connection):
-        sequence, health_due = 0, 0
+        health = connection.sync(64, 7, fast=True)
+        self.mailbox.health(health)
+        health_due = health.end_ns + 1_000_000_000
+        sequence = 0
+        period = round(1e9 / READ_HZ)
+        deadline = time.monotonic_ns()
         while not self._stop.is_set():
-            if time.monotonic_ns() >= health_due:
-                health = connection.sync(64, 7)
-                self.mailbox.health(health)
-                health_due = health.end_ns + 1_000_000_000
-            block = connection.sync(128, 8)
+            block = connection.sync(128, 8, fast=True)
             sample = episode.Sample(
                 self.epoch,
                 sequence,
@@ -183,11 +188,13 @@ class Reader:
             )
             sequence += 1
             self._ready.set()
-            # Missed deadlines do not trigger a burst of catch-up requests.
-            delay = (
-                block.start_ns + int(1e9 / READ_HZ) - time.monotonic_ns()
-            ) / 1e9
-            self._stop.wait(max(0, delay))
+            # Health work shares the idle budget, not the next motion period.
+            if time.monotonic_ns() >= health_due:
+                health = connection.sync(64, 7, fast=True)
+                self.mailbox.health(health)
+                health_due = health.end_ns + 1_000_000_000
+            deadline = next_deadline(deadline, time.monotonic_ns(), period)
+            self._stop.wait(max(0, (deadline - time.monotonic_ns()) / 1e9))
 
     def close(self) -> None:
         """Invalidate consumers before waiting for the serial owner to close."""
@@ -197,3 +204,11 @@ class Reader:
             self._thread.join(10)
             if self._thread.is_alive():
                 raise bus.ReadError("serial owner did not exit")
+
+
+def next_deadline(previous: int, now: int, period: int) -> int:
+    """Preserve phase and skip expired slots without catch-up bursts."""
+    deadline = previous + period
+    if deadline <= now:
+        deadline += ((now - deadline) // period + 1) * period
+    return deadline

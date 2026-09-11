@@ -608,6 +608,15 @@ is 3 Mbps. The 120 Hz trial target was not met. The isolated 50 Hz minimum
 passes. The user selected nominal 60 Hz leader acquisition and deferred higher
 rates to Ubuntu; the existing 50 Hz command loop is unchanged. Source-to-control
 age and combined-load gates remain open. No motion was sent.
+
+Update (2026-09-12): the user now selects 120 Hz leader acquisition as the target,
+reserving resource headroom for the three-camera recorder. On Ubuntu, 3 Mbps,
+FTDI latency 1 ms and Fast Sync Read with a disposable fixed-period schedule
+achieved 120.011 Hz over 60 seconds, maximum gap 8.758 ms and approximately
+0.27 CPU cores. The isolated read feasibility passes; the installed worker is
+still 60 Hz. Mainline integration and combined camera/encoding acceptance remain
+pending. The follower command cadence remains 50 Hz. No motor writes were sent.
+
 Read-only leader access is authorized. Every motor register write awaits explicit
 confirmation. ID3 cable clearance remains unresolved, and the current base/desk/
 hand support is not powered-holding acceptance. Physical UR12e control stays

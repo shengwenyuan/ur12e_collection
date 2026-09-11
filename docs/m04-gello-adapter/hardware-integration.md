@@ -968,3 +968,85 @@ Software correction acceptance: PASS. The full native suite passes 409 tests
 with five environment skips; all 23 focused motion/session cases also pass
 after the final readability refactor. Actual URSim handover regression and
 physical holding acceptance remain separate, pending checks.
+
+
+## Ubuntu 100 Hz read-only investigation: 2026-09-12
+
+The user authorized exposing the connected leader serial device to the candidate
+container and testing whether acquisition can reach 100 Hz. No motor-register
+writes or UR control are authorized. Keep the production 60 Hz setting unchanged
+until measured evidence supports a separately aligned configuration change.
+
+The known FTDI serial `FTBEQCDG` resolves to `/dev/ttyUSB0` on the lab PC. A
+non-root `offline-39ad84b` container successfully opens it through the explicit
+`--device /dev/ttyUSB0:/dev/leader` mapping and supplemental dialout GID 20.
+The container uses `--network none`; no privileged mode, general USB exposure,
+host permission change or UR connection is needed. Linux reports an FTDI latency
+timer of 16 ms; it has not been changed in this investigation.
+
+Initial acquisition is BLOCKED before frequency measurement: the 3 Mbps motion
+probe receives no status packet and acquires zero samples. A bounded read-only
+identity check of IDs 1-7 at 3 Mbps, 1 Mbps and 57,600 bps also receives no replies.
+The wire audit contains only instruction 0x02 (READ). This is not evidence that
+100 Hz is unattainable or that Docker device mapping failed. External motor power
+and the TTL connection need confirmation before further timing experiments.
+Evidence: `artifacts/leader-frequency-20260912/identify.json` and
+`artifacts/lab-deployment-20260912/leader-baseline.log`. No control-ready or
+frequency acceptance is claimed.
+
+
+After the user powered the leader, all seven XL430 motors responded normally at
+3 Mbps. The 15-second unpaced position-plus-velocity probe completed 938 complete
+seven-motor groups: 62.504 Hz, acquisition p99 16.211 ms / maximum 16.345 ms,
+start-gap p99 16.225 ms / maximum 16.357 ms. The before/after inventories and
+raw trace are retained under
+`artifacts/leader-frequency-20260912/powered-latency16/`. Traffic contains only
+28 READ and 938 SYNC_READ instructions; no motor writes were sent.
+
+The measured period matches the host FTDI 16 ms receive latency. A temporary
+host-only reduction to 1 ms was attempted with `sudo -n tee`, but sudo requires
+an interactive password; readback remained 16 ms. No host latency change was
+applied. The 100 Hz paced test and the 1 ms comparison remain NOT RUN, pending
+the user's privileged host command. This is not a firmware or motor-baud change.
+
+
+### Powered 120 Hz comparison and selected target
+
+The user applied the host latency change; readback confirmed 1 ms. At unchanged
+3 Mbps, the following isolated seven-motor position/velocity runs completed:
+
+| Read path and schedule | Duration | Actual groups/s | Gap p99 / maximum | Process CPU cores |
+| --- | --- | --- | --- | --- |
+| Standard, unpaced, latency 16 ms | 15 s | 62.504 | 16.225 / 16.357 ms | Not sampled |
+| Standard, unpaced, latency 1 ms | 15 s | 125.673 | 8.157 / 8.422 ms | Not sampled |
+| Standard, existing schedule requested at 120 Hz | 60 s | 118.277 | 8.593 / 16.579 ms | 0.896 |
+| Fast Sync Read, unpaced | 15 s | 494.462 | 2.971 / 3.197 ms | Not sampled |
+| Fast Sync Read, existing schedule requested at 120 Hz | 60 s | 117.632 | 8.629 / 11.628 ms | 0.262 |
+| Fast Sync Read, test-only fixed-period schedule at 120 Hz | 60 s | 120.011 | 8.488 / 8.758 ms | 0.270 |
+
+All paced runs retain the existing mailbox, freshness checks and 1 Hz health
+reads. Fast reads are supported by the observed firmware 50 on all seven XL430
+motors. The last disposable prototype schedules against fixed deadlines and
+performs health reads within the idle budget, skipping expired slots rather than
+issuing catch-up bursts. It acquired 7,201 samples; mean start interval was
+8.333356 ms. The count-based rate includes finite capture boundaries; it is not
+an exact 120 Hz clock guarantee. Acquisition p99 was 2.968 ms, observed consumer
+age p99/max 7.645/7.993 ms and recording queue peak 1. No communication error,
+freshness fault or overflow occurred. Traffic contains only READ and FAST_SYNC_READ.
+No motor register or UR control write was sent; motor torque remained off.
+
+On 2026-09-12 the user selected 120 Hz as the acquisition target and explicitly
+prioritized CPU headroom for three-camera acquisition, grouping, compression and
+storage over higher leader rates. This supersedes the earlier deferred 60 Hz
+target, but does not change the installed image or the 50 Hz follower command
+loop. The low-CPU Fast Sync Read plus fixed-period schedule is the selected
+implementation direction. Physical motion remains separately authorized.
+
+Isolated physical read feasibility PASS; production integration and simultaneous
+three-camera recording acceptance remain NOT RUN. The current candidate still
+contains the 60 Hz standard-read worker. Test overrides and raw evidence live
+only under ignored `artifacts/leader-frequency-20260912/`; they are not installed
+runtime configuration. Before integration, align the concrete code and regression
+scope in this plan. Preserve 100 ms freshness, bounded queues and all existing
+recording gates during the later combined test. The host's current 1 ms sysfs
+setting is verified; persistence across reconnection/reboot was not configured.
