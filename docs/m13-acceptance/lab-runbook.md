@@ -2,13 +2,15 @@
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-## Return after the 2026-09-11 offline sprint
+## Latest candidate and lab validation (2026-09-12)
 
 The new offline candidate is for explicit Ubuntu acceptance. Its immutable
 manifest selects the image; the previously accepted `current` image remains the
 rollback. Read `CAPABILITIES.md` before testing: replay and fake-motor results do
-not approve physical control. No lab synchronization or hardware test occurred
-during this offline sprint. The historical camera procedure below remains useful;
+not approve physical control. The latest read-only Ubuntu camera/leader batch
+and independent 20 x 40-second audit PASS; the delivery outcome is in the capability matrix and
+[lab load record](lab-load-20260912.md). This does not replace a complete physical
+teleoperation session gate. The historical camera procedure below remains useful;
 its old pending-module notes are superseded by the capability matrix.
 
 Run the following stages in order, retaining a new output directory per stage:
@@ -18,7 +20,9 @@ Run the following stages in order, retaining a new output directory per stage:
    station configuration and existing data. Do not initialize over the station.
 2. On Ubuntu, confirm camera serial-to-role assignments and run a short camera
    shadow using the commands below. Then exercise three cameras with the physical
-   leader's read-only 60 Hz acquisition. Measure actual serial gaps, CPU/RSS,
+   leader's read-only 120 Hz Fast Sync Read acquisition (3 Mbps; verified
+   XL430 firmware 50). Verify FTDI host latency is 1 ms after reconnect/reboot;
+   this visit did not install a persistent rule. Measure actual serial gaps, CPU/RSS,
    alignment, queues and grouping together; recorded-image replay omitted USB
    and alignment costs. Do not copy the Mac CPU partition as a hardware default.
 3. Resolve leader support and the ID3 cable, then review the physical powered

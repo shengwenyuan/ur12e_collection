@@ -1050,3 +1050,17 @@ runtime configuration. Before integration, align the concrete code and regressio
 scope in this plan. Preserve 100 ms freshness, bounded queues and all existing
 recording gates during the later combined test. The host's current 1 ms sysfs
 setting is verified; persistence across reconnection/reboot was not configured.
+
+
+### Mainline integration and lab workload (2026-09-12)
+
+The earlier prototype-only status above is superseded by `7028962` and `2e584b8`.
+Mainline now uses firmware-validated Fast Sync Read at 120 Hz with fixed-phase
+scheduling and 1 Hz health reads. The shared timing helper preserves that behavior
+in the final control-cadence candidate. The physical 20 x 40-second camera batch
+completed with 126,216 continuous read-only leader samples, about 120 Hz, gap
+p99/max 8.511/10.693 ms and 0.255 CPU cores. See the
+[combined-load acceptance record](../m13-acceptance/lab-load-20260912.md) for the
+independent audit and final delivery state. There were no motor writes. The host
+1 ms latency remains temporary; verify it again after reconnecting or rebooting.
+Physical HOME/HOLD, ID3 cable and powered coordinate binding remain unresolved.
