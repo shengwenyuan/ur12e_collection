@@ -44,14 +44,23 @@ def ur_stream(config, stop):
             "coherence": "timestamp_bracket_not_atomic_packet",
         }
         index = 0
+        previous_stamp = None
         while not stop.is_set():
             if not receiver.isConnected():
                 raise ConnectionError("UR feedback disconnected")
             sample = ur.coherent_sample(receiver)
+            stamp = round(sample["controller_timestamp_end_s"] * 1e9)
+            if stamp == previous_stamp:
+                # A cached SDK packet is not a new observation or heartbeat.
+                stop.wait(1 / 30)
+                continue
+            if previous_stamp is not None and stamp < previous_stamp:
+                raise ValueError("UR controller timestamp restarted")
+            previous_stamp = stamp
             provenance = _provenance(
                 config["serial"],
                 index,
-                round(sample["controller_timestamp_end_s"] * 1e9),
+                stamp,
             )
             yield contracts.URFeedback(
                 provenance,

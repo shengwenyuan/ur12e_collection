@@ -274,3 +274,60 @@ recorder-kill/restart and Ctrl+C cases pass in
 position is checked from independent readback. Native tests pass 248 cases;
 all five environment skips have their applicable container/mount checks covered.
 See the M01 delivery record and M10 observer plan for exact boundaries.
+
+## Camera-only short preflight (2026-09-11)
+
+The user explicitly authorized a short camera check with no robot control.
+The current immutable image `a3d22d1ffa6c` on the Ubuntu collection PC ran
+`scripts/camera-probe --seconds 3` with container networking disabled. Each
+camera used its own concurrent capture worker; no UR/Hand-E/GELLO connection
+was opened. The container exited and no containers remained running.
+
+PASS for this bounded camera preflight: all three devices captured 90 aligned
+640x480 RGB8/Z16 frame pairs, with zero RGB/depth counter gaps, zero repeated
+depth frames and exact saved depth PNG round trips. Observed rates were
+29.993 Hz (D405), 29.976 Hz and 29.978 Hz (D435IF units). The D405 SDK reported
+USB 3.2; both D435IF units reported USB 2.1. Their USB 2 connections did not
+prevent this short target-profile capture; sustained throughput is not inferred.
+Use SDK identities in the raw report; physical left/right role binding remains
+unverified. This check did not exercise inter-camera grouping, H.264/MCAP
+recording or joint feedback integration and does not replace those acceptances.
+
+Local evidence: `artifacts/camera-preflight-short-20260911/report.json`.
+Remote evidence directory (the `.json` suffix is part of the directory name):
+`/var/lib/ur12e-collection/data/camera-preflight-short-20260911.json/`.
+No production configuration, motion parameters or control permissions changed.
+
+## Physical read-only chain short acceptance (2026-09-11)
+
+A five-second camera+UR+Hand-E observation exposed a local cleanup race and a
+cached-UR-sample handling error. The aligned correction requests all producers
+stop before joining any owner, grants feedback processes a bounded two-second
+grace, and emits cached UR packets only once without refreshing their health.
+Existing stale/rollback checks, recording bounds and Hand-E deadlines remain.
+Mac and Ubuntu focused tests pass (45 each). Final candidate static recording
+passes full content verification and clean exit: 149/150 groups, 188 feedback
+records, 56,135,324-byte MCAP, no residual containers. The physical pipeline was
+validated using an explicitly labeled source overlay on image `a3d22d1ffa6c`;
+these fixes are not yet packaged into the production image. Prior Hand-E timeout
+and dynamic/full-duration acceptance remain open. See the detailed
+[read-only integration results](readonly-integration.md).
+
+The subsequent operator-motion run requested two 30-second episodes and FAILED
+after approximately 27 seconds in the first, due to a Hand-E GET timeout. No
+episode completed. Camera counters remained continuous at approximately 30 Hz;
+an offline partial-file scan recovered actual multi-joint motion, but the partial
+is diagnostic-only. Cleanup exited normally. Dynamic end-to-end acceptance
+remains open pending Hand-E read reliability and a complete recording rerun;
+see the same integration record for evidence. All physical motion belonged to
+the operator; the recorder used read-only feedback connections.
+
+After the user corrected the physical network connection, a direct Ethernet
+retest PASSED two 30-second read-only recordings with actual multi-joint motion
+in the readback. Group counts were 898/900 and 899/900; both MCAPs passed complete
+RGB decoding and depth hash verification, with 1,186 feedback records each.
+All 4,590 Hand-E GET requests completed without timeout, original gates unchanged,
+and cleanup was clean. This resolves the reproduced failure for the measured
+wired run, not a full release soak or physical control acceptance. Candidate
+source and diagnostic tracing remain overlays on the existing immutable image.
+See [wired integration results](readonly-integration.md) for scope and evidence.

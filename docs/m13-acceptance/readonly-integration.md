@@ -201,3 +201,156 @@ on 2026-09-10 the user selected official URSim installation and basic motion
 simulation, explicitly excluding Gazebo. Its setup and results belong to the
 [M06 environment plan](../m06-control-motion/ursim-setup.md). Production control
 development and physical motion acceptance remain separate.
+
+## Live-chain shutdown correction (2026-09-11)
+
+Scope: routine correction within the aligned bounded reader cleanup and truthful
+end-to-end observation recording acceptance. No device-control behavior, capture
+boundary, frame gate, feedback freshness or schema change is authorized.
+
+A five-second physical static run committed one independently verified MCAP with
+149/150 image groups and 189 feedback records, then failed session cleanup:
+UR required forced termination and all camera queues overflowed. A separate
+GET/output-only feedback probe measured a clean UR process exit at 1.0104 seconds,
+just beyond the existing one-second grace. The sequential closer kept cameras
+producing while waiting for the feedback reader, causing secondary overflows.
+
+Correction plan: provide idempotent local stop requests on both source owners;
+request all source stops before joining/closing any owner. Allow a bounded
+two-second cooperative grace for feedback processes, retaining termination/kill
+escalation and visible nonzero exits. Keep camera defaults and all recording
+budgets unchanged. Validate all-stop-before-wait ordering, cleanup error
+visibility, normal synthetic observation and terminal interruption; then rerun
+the same five-second physical observation without robot/gripper motion.
+Use a clearly labeled source-overlay candidate for hardware validation before
+claiming a new production image. Static recording passed only its file/content
+slice; full chain acceptance remains pending this cleanup correction.
+
+The first cleanup candidate failed during capture on a repeated UR controller
+stamp; cleanup no longer forced UR termination or overflowed cameras, but also
+reported an independent Hand-E GET timeout. The UR SDK exposes a latest-state
+cache, so consecutive host polls can read the same packet. Correct the producer
+to emit each strictly advancing controller timestamp only once, retaining the
+supervisor's rejection of duplicate emitted records, its 500 ms no-new-sample
+bound and explicit backward-time failure. Skipped cached reads must not advance
+sequence numbers or refresh health timestamps. Add duplicate-cache and rollback
+regressions. No interpolation, fake sample, reconnect or larger timeout is added.
+This is a correction to the existing unique-real-feedback contract; Hand-E
+request timeouts remain visible and unresolved.
+
+### Candidate validation results
+
+The final candidate passes the bounded five-second physical static observation
+on the existing immutable runtime plus an explicit read-only source overlay.
+Its source archive is `cleanup-candidate-v2.tar.gz`, SHA-256
+`52d0d207c972727ab3f44423647cdc51952feea66266712c79de9d6a4d0695b2`.
+Base image remains `a3d22d1ffa6c`; recorded revision is
+`bbc56a8-working-cleanup-v2`, explicitly not a committed production release.
+The production image tag, bundle and station.json were not replaced.
+
+| Check | Result |
+| --- | --- |
+| Mac focused regression | PASS: 45 tests covering source handling, recording, stop ordering, cleanup errors and interruption |
+| Ubuntu current-image dependency environment plus candidate source | PASS: same 45 tests |
+| Black / Pylint / diff whitespace | PASS; Pylint 10.00/10 |
+| M07/M08 short physical capture | PASS for measured short scope: all three cameras approximately 30 Hz, zero camera counter gaps/repeated depth; 149 accepted of 150 candidate groups, one skew rejection |
+| M10/M11 content | PASS: 188 feedback records, 149 RGB frames and 149 depth frames per camera; every RGB frame decoded and every depth hash verified |
+| Storage size | MCAP 56,135,324 bytes for five seconds; scene-specific measurement, no training-size claim |
+| Bounded queues | Image queue peak 1/4, feedback queue peak 2/64 |
+| Final shutdown | PASS: no cleanup errors, no forced reader termination, no remaining containers |
+| Dynamic physical recording | NOT RUN in this static check |
+| Full-duration reliability / Hand-E timeout cause | NOT ACCEPTED by this short pass; prior failures remain recorded |
+| Physical actuation | No assistant-issued control or gripper commands |
+
+Local evidence: `artifacts/readonly-chain-20260911/` stores all three run reports,
+logs, separate cleanup timing probe, exact source archives, launchers and final
+summary. Remote candidate/evidence:
+`/home/robot2026fall/readonly-chain-20260911/`. Completed final recording:
+`/var/lib/ur12e-collection/data/readonly-chain-static-cleanup-v2-20260911/episode-0000/`.
+The original completed-file/failed-cleanup run and the intermediate partial
+capture remain preserved under their original paths.
+
+A separate diagnostic station configuration binds the previously observed SDK
+serials and verified read-only UR/Hand-E endpoints. The two third-view slots
+remain explicitly labeled as physically unconfirmed; this check does not establish
+left/right semantics. Production station.json remains unchanged, GELLO unavailable,
+calibration absent, and motion_accepted false. Do not infer motion limits or stop
+safety from an observation recording.
+
+### Operator-motion recording (2026-09-11)
+
+FAIL for dynamic end-to-end acceptance. The user authorized recording while
+manually changing robot poses. A requested single 60-second episode was rejected
+by the CLI's 40-second bound before hardware startup; the actual run requested
+two 30-second episodes. The first failed after approximately 27 seconds with
+`hande: TimeoutError: timed out`; the second never started. The operator was
+promptly notified to pause. No robot or gripper control command was sent.
+
+The same candidate-v2 source and diagnostic station were used. All three cameras
+delivered 820 frames at 29.978-29.993 Hz with zero RGB/depth counter gaps or repeated
+depth. The matcher accepted 811 groups before failure. No completed episode was
+published, and cleanup left no running containers. These observations establish
+activity before failure, not complete-file integrity or sustained acceptance.
+
+An offline, network-disabled sequential scan of the preserved partial MCAP
+recovered 798 UR and 217 Hand-E feedback records before its expected EOF error.
+Joint spans were approximately [12.657, 9.042, 19.102, 20.097, 8.202, 0.005] degrees,
+confirming operator motion was recorded. Observed safety mode stayed 1; Hand-E
+POS stayed 3 and FLT stayed 0 in recovered records. This does not establish why
+the next GET timed out or validate any control safety limits.
+
+The 298,890,765-byte partial remains diagnostic-only at
+`/var/lib/ur12e-collection/data/readonly-chain-dynamic-20260911/episode-0000.partial/`.
+Its generic cleanup failure text, `operator aborted`, is not the root cause;
+the session report identifies the Hand-E timeout. Local evidence is under
+`artifacts/readonly-chain-20260911/`: `dynamic-report.json`, `dynamic.log`,
+`dynamic-partial-summary.json`, `analyze-partial.py`, and `run-dynamic`.
+Hand-E GET reliability remains the next unresolved blocker before re-recording;
+request deadlines, stale gates and required feedback were not relaxed.
+
+Follow-up GET/ICMP isolation reproduced a POS-only 365 ms response without camera
+load and a first-register POS timeout under full load, both concurrent with ICMP
+latency spikes. Thus neither camera encoding nor accumulation across auxiliary
+fields is necessary to reproduce the overrun. The full-load trace run also failed
+before completing an episode. See [M05 isolation results](../m05-hande-adapter/plan.md)
+for measured timings, provenance and the proposed wired-path comparison.
+
+### Wired integration retest (2026-09-11)
+
+PASS for two 30-second physical read-only recordings after the operator corrected
+the network connection. Route inspection verified direct Ethernet to the same
+controller; Local mode remained selected. The test used the unchanged
+`bbc56a8-working-cleanup-v2-get-trace` candidate and original gates. The assistant
+requested no motion and sent no robot/gripper control. Offline readback confirms
+actual multi-joint motion during both recordings, so these files also establish
+bounded observation capture during externally initiated robot motion.
+
+| Check | Result |
+| --- | --- |
+| Session | PASS: both episodes committed; no cleanup errors or residual containers |
+| Group matching | 898/900 and 899/900 accepted, respectively; three explicit rejections total (reuse, skew, missing view) |
+| Camera continuity | All three approximately 30 Hz; zero RGB/depth counter gaps or repeated depth |
+| MCAP content | PASS: every RGB frame decoded and every depth pixel hash verified before commit |
+| Feedback per episode | 893 UR records and 293 Hand-E records |
+| UR feedback | Maximum source timestamp gap 40 ms; maximum receipt gap 33.94 ms; observed safety mode 1 |
+| Hand-E timing | 4,590 GET requests with no timeout; maximum whole-poll latency 4.917 ms |
+| Queue peaks per episode | Image 1/4; feedback 2/64 |
+| File sizes | 337,870,190 and 347,677,335 bytes; scene-specific measurements |
+| Limits | Original 250 ms GET poll, 500 ms feedback stale and 16.7 ms camera skew gates retained |
+
+The first file includes joint spans up to 7.02 degrees; the second includes elbow
+and wrist1 spans of approximately 49.83 and 99.11 degrees. These are observed
+motion ranges, not assistant commands or validation of a motion safety envelope.
+Hand-E POS stayed 3 with FLT=0; gripper movement acceptance remains separate.
+Physical left/right camera binding remains unconfirmed. This bounded result does
+not replace the 20 x 40-second release target or authorize physical control.
+
+Recordings remain at
+`/var/lib/ur12e-collection/data/readonly-wired-loaded-20260911/episode-0000/`
+and `episode-0001/` under the same parent. Evidence and offline feedback summaries
+are in `artifacts/hande-wired-20260911/` locally and
+`/home/robot2026fall/hande-wired-20260911/` remotely. The independent content
+verifier ran during finalization; the subsequent feedback scan used a separate
+network-disabled container. Production image, bundle and station configuration
+were not replaced. The [M05 result](../m05-hande-adapter/plan.md) records the wired
+versus previous Wi-Fi/routed timing comparison.

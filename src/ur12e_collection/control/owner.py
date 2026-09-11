@@ -3,6 +3,7 @@
 import collections
 import dataclasses
 
+from ur12e_collection.control import settling
 from ur12e_collection.control.model import (
     ControlError,
     Limits,
@@ -25,6 +26,7 @@ class Progress:
     progress_ns: int = 0
     deadline_ns: int = 0
     settled_ns: int | None = None
+    standstill: settling.Standstill | None = None
     target: Target | None = None
     velocity: tuple = (0.0,) * 6
     route: collections.deque = dataclasses.field(
@@ -119,6 +121,10 @@ class Controller:
 
     def _settle(self, feedback: State, now_ns: int) -> None:
         p = self.progress
+        if p.state == "stopping":
+            if p.standstill.update(feedback.qd, feedback.timestamp, now_ns):
+                p.state, p.moving_to = "hold", None
+            return
         stopped = max(abs(v) for v in feedback.qd) < self.limits.stopped_speed
         arrived = p.state == "stopping" or (
             p.moving_to is not None
@@ -254,9 +260,10 @@ class Controller:
         p.target = None
         p.state, p.deadline_ns, p.settled_ns = (
             "stopping",
-            now_ns + 1_000_000_000,
+            now_ns + settling.STOP_TIMEOUT_NS,
             None,
         )
+        p.standstill = settling.Standstill(self.limits.freshness_ns)
         try:
             self.transport.stop(was_servo)
         except Exception as error:

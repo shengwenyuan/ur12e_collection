@@ -62,3 +62,30 @@ crossed a timestamp update and remains explicitly marked; no atomic sample-rate
 acceptance is inferred. Raw model query is `UR10`; physical unit identity remains
 the user-registered UR12e with matching serial. No real control or configuration
 change was performed, and physical motion remains prohibited.
+
+The subsequent 30-second static recheck in the same live-state record confirmed
+identity, Manual/Local, a stopped program and a near-READY stationary pose.
+Feedback continuity did not pass: 27 repeated source timestamps and a maximum
+256 ms source-time jump require read-only diagnosis. The PC currently routes
+through Wi-Fi. Production station identities remain unset; no motion acceptance
+or configuration change follows from this diagnostic. Each next test requires
+alignment of verification points and operator steps; the user performs physical
+start/motion actions and the assistant must not send physical control commands.
+
+The extended receive-only preflight in that record adds runtime, target
+kinematics, speed-scaling and payload readback. Its 10-second sample window
+passes continuity without resolving the earlier intermittent failure. The
+controller currently configures 5 kg and zero CoG; actual tool assembly matching,
+active TCP, pendant Home parameters and all physical motion checks remain pending.
+
+Operator-driven physical wrist3 motion was observed in a 60-second receive-only
+run. Direction/selectivity readback passed, but actual speed peaked at 20.08 deg/s,
+above the proposed 1 deg/s test setting; final posture was paused near +4.90 degrees.
+No assistant-issued control occurred. See the [operator motion record](../m06-control-motion/operator-motion-check.md).
+This does not accept low-speed control, final READY return or timed interruption.
+
+The operator accepts the subsequent basic wrist3 demonstration: M03-A01 physical
+motion readback, slow outward movement and observed post-pause stability are
+recorded separately from full control acceptance. Fast return motion remains
+measured and its source unverified; the originally proposed round-trip low-speed
+criterion did not pass. See the operator acceptance clarification in M06.

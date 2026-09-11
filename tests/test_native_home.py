@@ -97,6 +97,9 @@ def test_stopped_program_may_hold_away_from_home(monkeypatch):
     owner.step()
     device.advance()
     owner.step()
+    assert owner.state == "stopping"
+    device.advance()
+    owner.step()
     assert owner.state == "hold"
     assert owner.feedback.q[0] == 1.0
 
@@ -117,3 +120,35 @@ def test_running_foreign_program_blocks_load(monkeypatch):
     with pytest.raises(model.ControlError, match="another native"):
         device.owner().start()
     assert device.calls == ["running"]
+
+
+def test_native_stop_cache_cannot_mature_confirmation(monkeypatch):
+    device = Device(monkeypatch)
+    owner = device.owner()
+    owner.start()
+    owner.stop()
+    owner.step()
+    device.now += 200_000_000
+    owner.step()
+    assert owner.state == "stopping"
+    device.now += 51_000_000
+    with pytest.raises(model.ControlError, match="stale"):
+        owner.step()
+    assert owner.state == "fault"
+
+
+def test_native_stop_deadline_faults_while_fresh_feedback_is_moving(
+    monkeypatch,
+):
+    device = Device(monkeypatch)
+    owner = device.owner()
+    owner.start()
+    owner.stop()
+    for _ in range(16):
+        device.advance(qd=(0.001,) * 6)
+        owner.step()
+        assert owner.state == "stopping"
+    device.advance(qd=(0.001,) * 6)
+    with pytest.raises(model.ControlError, match="timed out"):
+        owner.step()
+    assert owner.state == "fault"

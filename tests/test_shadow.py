@@ -102,6 +102,43 @@ def test_failed_batches_cannot_report_completion(tmp_path, failure):
     assert report["episodes"] == []
 
 
+@pytest.mark.parametrize("cleanup_failure", [False, True])
+def test_all_producers_stop_before_any_cleanup_wait(
+    tmp_path, snapshot, cleanup_failure
+):
+    options = shadow.Options(
+        "synthetic", tmp_path / "batch", "test", read_feedback=True
+    )
+    source, readers = mock.MagicMock(), mock.MagicMock()
+    source.statistics.return_value = readers.statistics.return_value = {}
+    stopped = set()
+    source.request_stop.side_effect = lambda: stopped.add("cameras")
+    readers.request_stop.side_effect = lambda: stopped.add("feedback")
+
+    def close_feedback():
+        # Camera queues must not keep filling while a native reader exits.
+        assert stopped == {"cameras", "feedback"}
+        if cleanup_failure:
+            raise RuntimeError("reader cleanup failed")
+
+    readers.close.side_effect = close_feedback
+    with (
+        mock.patch.object(shadow.rig, "Rig", return_value=source),
+        mock.patch.object(shadow.feedback, "Feedback", return_value=readers),
+        mock.patch.object(shadow.snapshots, "build", return_value=snapshot),
+        mock.patch.object(shadow, "_collect"),
+    ):
+        if cleanup_failure:
+            with pytest.raises(RuntimeError, match="reader cleanup failed"):
+                shadow.run(options)
+        else:
+            shadow.run(options)
+    source.close.assert_called_once()
+    readers.close.assert_called_once()
+    report = json.loads((options.output / "report.json").read_text())
+    assert report["state"] == ("failed" if cleanup_failure else "completed")
+
+
 def test_real_interrupt_closes_active_batch(tmp_path):
     import signal
     import subprocess

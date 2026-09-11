@@ -171,3 +171,16 @@ retained. Exact removed paths and byte counts are recorded locally in
 This approval did not include the nine Docker image tags, build cache, remote
 historical bundles, containers or volumes; none of those were removed. Current
 Ubuntu synchronization is recorded in M13 `lab-20260911.md`.
+
+
+## 2026-09-11 closeout release plan
+
+Aligned: deliver today's feedback cleanup/freshness fixes and the approved M06
+settling policy in one source-matching current amd64 development image. Commit
+the reviewed code, build with that source revision, run installed Jazzy tests
+and both host mount checks, then package and load a new immutable bundle on
+`ur12e-collection`. Verify source identity and unchanged production station/data
+mounts before switching current selectors. No hardware connections, collection,
+robot control, Docker pruning or deletion of rollback artifacts is part of this
+release. The robot is powered off. Detailed final delivery evidence will be
+recorded under M01-A01/A02/A03 in `closeout-20260911.md`.

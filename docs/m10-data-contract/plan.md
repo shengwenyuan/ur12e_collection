@@ -110,3 +110,16 @@ Completeness checks PASS for missing final pairs, missing interval tails and lon
 internal gaps. A completed actual 40-second URSim episode (1,200 triples, 1,946
 intent/sent pairs) also passes independent full-file verification with the stronger
 validator. Full Mac suite: 232 PASS / 4 skipped, Black/Pylint PASS.
+
+## Gripper training simplification (2026-09-11)
+
+Aligned with the user: use one gripper closure scalar for the initial model,
+0 fully open and 1 fully closed. Record raw POS and request/intent separately;
+normalize only in training projection. Observation uses actual POS, action uses
+the mapped leader request. Speed, force and other raw registers may remain as
+auxiliary diagnostic data; they are not required model inputs or outputs in
+this scope. Fault/validity still affect data eligibility. Endpoint mapping and
+normalization need a versioned contract, with distinct measured-position and
+command ranges where appropriate. Do not freeze the observed POS range 3-249
+as calibrated endpoints or fill missing positions with zero. This is semantic
+alignment only; no schema, runtime or exporter implementation changed here.

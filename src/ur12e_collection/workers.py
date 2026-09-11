@@ -5,9 +5,9 @@ import signal
 from multiprocessing.process import BaseProcess
 
 
-def stop(process: BaseProcess) -> None:
+def stop(process: BaseProcess, *, grace_s: float = 1) -> None:
     """Allow a reported worker to exit, then reap it with bounded escalation."""
-    process.join(timeout=1)
+    process.join(timeout=grace_s)
     for terminate in (process.terminate, process.kill):
         if not process.is_alive():
             return

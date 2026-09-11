@@ -3,11 +3,15 @@
 import time
 from collections.abc import Callable
 
+from ur12e_collection.control import settling
 from ur12e_collection.control.model import ControlError, Limits, State, distance
 
 
 class NativeHome:
     """No host watchdog: the native program may finish after client loss."""
+
+    # Native execution and cancellation retain distinct settling evidence.
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(
         self,
@@ -23,6 +27,7 @@ class NativeHome:
         self.started_ns = self.progress_ns = 0
         self.settled_ns = None
         self.seen_running = False
+        self.standstill = settling.Standstill(limits.freshness_ns)
 
     def start(self) -> None:
         """Require an idle controller before transferring native ownership."""
@@ -86,11 +91,20 @@ class NativeHome:
                 if self.seen_running or now - self.started_ns > 2_000_000_000:
                     raise ControlError("native HOME ended without arrival")
             timeout = (
-                1_000_000_000 if self.state == "stopping" else 60_000_000_000
+                settling.STOP_TIMEOUT_NS
+                if self.state == "stopping"
+                else 60_000_000_000
             )
             if self.state != "hold" and now - self.started_ns > timeout:
                 raise ControlError("native HOME motion/stop timed out")
-            if stopped and (arrived or self.state in ("stopping", "hold")):
+            if self.state == "stopping":
+                confirmed = self.standstill.update(
+                    state.qd, state.timestamp, now
+                )
+                if confirmed and state.runtime_state == 1:
+                    self.state = "hold"
+                return state
+            if stopped and (arrived or self.state == "hold"):
                 if self.settled_ns is None:
                     self.settled_ns = now
                 if now - self.settled_ns >= 100_000_000:
@@ -108,6 +122,7 @@ class NativeHome:
         self.state = "stopping"
         self.started_ns = time.monotonic_ns()
         self.settled_ns = None
+        self.standstill = settling.Standstill(self.limits.freshness_ns)
         if self.command("stop") != "Stopped":
             self.state = "fault"
             raise ControlError("native HOME stop unconfirmed")

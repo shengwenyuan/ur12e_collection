@@ -143,6 +143,51 @@ def test_ur_bracket_refuses_incoherent_getters():
         ur.coherent_sample(receiver)
 
 
+@pytest.mark.parametrize("rollback", [False, True])
+def test_ur_cache_reads_never_become_duplicate_observations(rollback):
+    receiver = mock.Mock()
+    module = mock.Mock()
+    module.RTDEReceiveInterface.return_value = receiver
+    identity = {
+        "state": "available",
+        "responses": {"get serial number": "fixture"},
+    }
+    samples = [
+        {
+            "controller_timestamp_end_s": stamp,
+            "joint_positions_rad": (0.0,) * 6,
+            "joint_velocities_rad_s": (0.0,) * 6,
+            "joint_currents_a": (0.0,) * 6,
+            "tcp_pose_m_rotvec_rad": (0.0,) * 6,
+            "robot_mode": 7,
+            "safety_mode": 1,
+        }
+        for stamp in (1.0, 1.0, 0.5 if rollback else 2.0)
+    ]
+    stop = mock.Mock()
+    stop.is_set.return_value = False
+    with (
+        mock.patch.dict("sys.modules", {"rtde_receive": module}),
+        mock.patch.object(ur, "dashboard", return_value=identity),
+        mock.patch.object(ur, "coherent_sample", side_effect=samples),
+    ):
+        source = feedback_source.ur_stream(
+            {"host": "host", "serial": "fixture"}, stop
+        )
+        next(source)
+        first = next(source)
+        if rollback:
+            with pytest.raises(ValueError, match="timestamp restarted"):
+                next(source)
+        else:
+            second = next(source)
+            assert first.provenance.sequence == 0
+            assert second.provenance.sequence == 1
+            assert second.provenance.time.source_ns == 2_000_000_000
+        source.close()
+    receiver.disconnect.assert_called_once()
+
+
 def _samples():
     values = []
     for device in feedback.DEVICES:

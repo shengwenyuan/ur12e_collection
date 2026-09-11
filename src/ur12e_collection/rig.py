@@ -271,12 +271,16 @@ class Rig:
             result[role] = stats
         return result
 
+    def request_stop(self) -> None:
+        """Signal all camera workers before waiting for any source owner."""
+        self._stop.set()
+
     def close(self) -> None:
         """Request cooperative stop, then bound native process cleanup."""
         if self._closed:
             return
         self._closed = True
-        self._stop.set()
+        self.request_stop()
         errors = []
         for camera in self._cameras.values():
             workers.stop(camera.process)

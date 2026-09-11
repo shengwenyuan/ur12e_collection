@@ -219,6 +219,10 @@ def run(options: Options) -> dict:
             }
         already_failed = report["state"] in ("failed", "interrupted")
         cleanup_errors = []
+        # Stop producers together; a slow SDK close must not overflow peers.
+        source.request_stop()
+        if readers:
+            readers.request_stop()
         closers = [readers.close] if readers else []
         closers += ([owner.close] if owner is not None else []) + [source.close]
         for closer in closers:

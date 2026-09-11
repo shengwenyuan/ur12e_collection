@@ -1,0 +1,21 @@
+#!/bin/bash
+# Operator-approved diagnostic only. Preparing a review cannot launch motion.
+set -euo pipefail
+root=$(cd -- "$(dirname -- "$0")" && pwd)
+evidence=${UR12E_TEST_EVIDENCE:-"$HOME/ready-interrupt-tests"}
+image=${UR12E_IMAGE:-ur12e-collection:current}
+mode=${1:?Use prepare, execute or audit}
+shift
+case "$mode" in
+  prepare|execute) network=host; entry=ready_interrupt.py; args=("$mode" "$@");;
+  audit) network=none; entry=ready_audit.py; args=("$@");;
+  *) echo "Unknown test mode" >&2; exit 2;;
+esac
+mkdir -p "$evidence"
+exec docker run --rm --init --pull never --memory 1g --memory-swap 1g \
+  --network "$network" --user "$(id -u):$(id -g)" \
+  --cap-drop ALL --security-opt no-new-privileges --read-only \
+  --tmpfs /tmp:rw,nosuid,size=64m \
+  -e PYTHONDONTWRITEBYTECODE=1 \
+  -v "$root:/checks:ro" -v "$evidence:/evidence:rw" \
+  --entrypoint python "$image" -u "/checks/$entry" "${args[@]}"

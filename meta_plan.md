@@ -316,6 +316,17 @@ Inherit Piper's semantics: action is leader intent; observation is actual follow
 
 Future single-arm projection is `action=[leader J1..J6, gripper command raw]` and `observation.state=[UR J1..J6, Hand-E position raw]`. Map leader angles into UR coordinates while retaining raw input. Gripper action uses the Robotiq request derived from GELLO input; retain that input separately and document ranges/directions.
 
+Training alignment (2026-09-11): the primary gripper model feature and action
+dimension is one normalized closure scalar, with 0 fully open and 1 fully
+closed. Collection continues to preserve raw values. Observation closure derives
+from actual POS; action closure derives from leader-requested gripper position,
+never substituted from actual feedback. Speed, force, current and status remain
+auxiliary diagnostics rather than required model dimensions. Preserve validity
+and fault information for data selection even when it is not a model input.
+Version the direction and endpoint mappings separately for actual and requested
+position; observed open/closed extrema from a short test are not automatically
+accepted calibration endpoints. The training export implementation remains pending.
+
 Do not replace action with the follower's next state or silently redefine it as filtered/rate-limited executed commands. Preserve differences in `control/command`; training rules later decide eligibility for rejected/limited intervals.
 
 UR joints use rad and pose translation uses meters. Robotiq raw values do not inherit Piper's meter units or `[0, 0.1]` range. Missing feedback is not zero or the last target. Current is not torque; requested speed/force is not measured speed/force. Pose reference frames and rotation conventions are explicit.
@@ -557,3 +568,16 @@ is Manual/Local with normal safety and a stopped program. Serial matches the
 registered unit; 150 diagnostic feedback samples were captured. See the
 [M03 live-state record](docs/m03-ur-adapter/live-state-20260911.md). No control
 signals or configuration changes were sent; physical control remains prohibited.
+
+
+### 2026-09-11 lab closeout
+
+The approved M06 cancellation policy confirms all joint speeds at or below
+0.01 degree/s for 200 ms of advancing feedback within two seconds of an immediate
+stop request. Hold evaluation begins at confirmation, retaining 0.01 degree/s,
+0.05-degree drift and 30-second post-SIGINT observation. Both existing controlled
+READY-interrupt traces pass the versioned reassessment; original failed audits
+are preserved. See `docs/m06-control-motion/ready-interrupt-test.md`.
+The robot is powered off; only software checks and image synchronization may
+continue. Production control remains disabled; complete READY, GELLO, physical
+watchdog/network-loss and emergency-stop acceptance are still pending.

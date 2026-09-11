@@ -184,15 +184,19 @@ class Feedback:
             for name, d in self._devices.items()
         }
 
+    def request_stop(self) -> None:
+        """Signal local readers without waiting or commanding either device."""
+        self._stop.set()
+
     def close(self) -> None:
         """Stop only local readers; no device-side stop/hold command exists."""
         if self._closed:
             return
         errors = []
-        self._stop.set()
+        self.request_stop()
         self._closed = True
         for name, device in self._devices.items():
-            workers.stop(device.process)
+            workers.stop(device.process, grace_s=2)
             while device.status.poll():
                 try:
                     kind, value = device.status.recv()
