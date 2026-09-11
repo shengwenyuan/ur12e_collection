@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URSim · Actual pose</title>
+<style>
+:root {color-scheme:dark; font:15px system-ui,sans-serif; color:#dbe5ef; background:#101923}
+* {box-sizing:border-box} body {margin:0} #viewport {position:fixed; inset:0} canvas {display:block; touch-action:none}
+header {position:fixed; top:24px; left:28px; pointer-events:none} .eyebrow {font-size:11px; letter-spacing:2px; color:#8aa3b6}
+h1 {font-size:27px; font-weight:550; margin:7px 0 10px} #status {display:inline-block; padding:6px 10px; border:1px solid #bc8348; border-radius:7px; color:#e9b879; background:#19222cee; font-size:12px}
+#status.live {color:#8ee4bc; border-color:#3b7963} aside {position:fixed; right:24px; top:24px; width:220px; padding:20px; background:#152230ed; border:1px solid #2a3a49; border-radius:12px}
+aside h2 {font-size:12px; letter-spacing:1px; margin:0 0 16px; color:#96aabd; font-weight:500}
+.row {display:flex; justify-content:space-between; gap:18px; padding:9px 0; border-bottom:1px solid #263747; font-size:13px} .row b {font:15px ui-monospace,monospace; font-variant-numeric:tabular-nums}
+#details {color:#879eae; font-size:11px; line-height:1.8; margin:16px 0 0; overflow-wrap:anywhere}
+nav {position:fixed; left:28px; bottom:64px; display:flex; gap:8px} button {border:1px solid #40576a; border-radius:7px; color:#dbe5ef; background:#1a2c3b; padding:9px 16px; cursor:pointer} button:hover {background:#2b475b}
+footer {position:fixed; bottom:22px; left:28px; right:24px; font-size:12px; color:#94a9ba; display:flex; justify-content:space-between; gap:20px; pointer-events:none}
+#notice {position:fixed; top:108px; left:28px; max-width:430px; font-size:12px; color:#edbe85}
+@media(max-width:650px) {aside {top:auto; bottom:120px; right:12px; width:174px; padding:12px} header {left:16px} footer {left:16px; font-size:10px} footer span:last-child {display:none} nav {left:16px}}
+</style>
+</head>
+<body>
+<div id="viewport"></div>
+<header><div class="eyebrow">READ ONLY · URSIM</div><h1>Actual joint pose</h1><span id="status">Waiting for actual state</span></header>
+<div id="notice"></div>
+<aside><h2>MEASURED JOINTS · DEG</h2><div id="joints"></div><p id="details">Connecting to the independent observer…</p></aside>
+<nav aria-label="Camera presets"><button data-view="orbit">Perspective</button><button data-view="front">Front</button><button data-view="top">Top</button></nav>
+<footer><span>Drag to orbit · Scroll to zoom · XYZ: red / green / blue</span><span>Nominal UR12e geometry · Flange marker only · No robot controls</span></footer>
+<script type="module" src="/viewer.js"></script>
+</body>
+</html>
