@@ -17,6 +17,7 @@ from ur12e_collection import (
     snapshots,
     station,
     synthetic,
+    ur,
 )
 
 
@@ -162,7 +163,7 @@ def run(options: Options) -> dict:
                     "monotonic_to_unix_ns": time.time_ns()
                     - time.monotonic_ns(),
                     "stale_ns": feedback.STALE_NS,
-                    "ur_read_hz": 30,
+                    "ur_read_hz": ur.RECEIVE_HZ,
                     "hande_poll_interval_ns": 100_000_000,
                     "association": "independent_receipts_no_interpolation",
                     "devices": readers.observations,

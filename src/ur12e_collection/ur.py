@@ -9,6 +9,8 @@ from typing import Any
 
 from ur12e_collection import wire, workers
 
+RECEIVE_HZ = 125
+
 DASHBOARD_QUERIES = (
     "PolyscopeVersion",
     "get serial number",
@@ -74,7 +76,7 @@ def _receive(host: str, seconds: float, pipe: Any) -> None:
     try:
         import rtde_receive  # pylint: disable=import-outside-toplevel,import-error
 
-        receiver = rtde_receive.RTDEReceiveInterface(host, 125.0)
+        receiver = rtde_receive.RTDEReceiveInterface(host, float(RECEIVE_HZ))
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:
             result["samples"].append(_sample(receiver))

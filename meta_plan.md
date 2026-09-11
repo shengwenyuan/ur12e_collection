@@ -10,6 +10,11 @@ Build a local single-arm collection tool: a custom GELLO leader commands one UR1
 
 This document preserves confirmed requirements, proposed choices, and unresolved questions. A proposal is not an approved implementation or a hardware acceptance result. Detailed development workflow lives in the repository's `plan-module-work` skill; all project documentation and plans are written in English.
 
+The [native-rate recording correction](docs/m13-acceptance/native-rate-recording.md)
+aligns shadow UR observation retention to 125 Hz while preserving 120 Hz
+actions and 30 fps images. Raw MCAP retains independent high-rate streams;
+the existing 30 Hz LeRobot projection is not a high-rate action export.
+
 ## M00. Scope and Module Registry
 
 ### M00.1 Hardware and scope

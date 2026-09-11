@@ -488,3 +488,59 @@ def test_simulator_record_budget_covers_supervision_window(tmp_path, snapshot):
     failure = json.loads((writer.partial / "failure.json").read_text())
     assert failure["queued_feedback"] == 128
     assert "128 + 1 > 128" in failure["error"]
+
+
+@pytest.mark.parametrize("rate", [30, 125])
+def test_feedback_snapshot_preserves_recorded_rate(snapshot, rate):
+    value = _snapshot(snapshot)
+    value["feedback"]["ur_read_hz"] = rate
+    assert snapshots.copy(value)["feedback"]["ur_read_hz"] == rate
+
+
+def test_ur_full_rate_retains_every_new_packet_without_cached_duplicates():
+    """Cache polling must not throttle 8 ms packets to camera cadence."""
+    now = 0.0
+    receiver = mock.Mock()
+    receiver.isConnected.return_value = True
+    module = mock.Mock()
+    module.RTDEReceiveInterface.return_value = receiver
+    stop = mock.Mock()
+    stop.is_set.side_effect = lambda: now >= 1.0
+
+    def wait(seconds):
+        nonlocal now
+        assert seconds == 0.001
+        now = round(now + seconds, 6)
+
+    def sample(_receiver):
+        return {
+            "controller_timestamp_end_s": int(round(now * 1000)) // 8 * 0.008,
+            "joint_positions_rad": (0.0,) * 6,
+            "joint_velocities_rad_s": (0.0,) * 6,
+            "joint_currents_a": (0.0,) * 6,
+            "tcp_pose_m_rotvec_rad": (0.0,) * 6,
+            "robot_mode": 7,
+            "safety_mode": 1,
+        }
+
+    stop.wait.side_effect = wait
+    identity = {
+        "state": "available",
+        "responses": {"get serial number": "fixture"},
+    }
+    with (
+        mock.patch.dict("sys.modules", {"rtde_receive": module}),
+        mock.patch.object(ur, "dashboard", return_value=identity),
+        mock.patch.object(ur, "coherent_sample", side_effect=sample),
+    ):
+        stream = feedback_source.ur_stream(
+            {"host": "host", "serial": "fixture"}, stop
+        )
+        next(stream)
+        rows = list(stream)
+    assert len(rows) == 125
+    assert [r.provenance.sequence for r in rows] == list(range(125))
+    assert [r.provenance.time.source_ns for r in rows] == [
+        i * 8_000_000 for i in range(125)
+    ]
+    receiver.disconnect.assert_called_once()

@@ -2,9 +2,10 @@
 
 import time
 
-from ur12e_collection import contracts, hande, ur
+from ur12e_collection import contracts, hande, timing, ur
 
 UR_OUTPUTS = ur.OUTPUT_FIELDS
+UR_POLL_S = 0.001
 
 
 def _provenance(identity, index, source_ns, simulated=False):
@@ -32,7 +33,9 @@ def ur_stream(config, stop):
         raise ValueError("UR identity readback differs from configured serial")
     import rtde_receive  # pylint: disable=import-outside-toplevel,import-error
 
-    receiver = rtde_receive.RTDEReceiveInterface(host, 125.0, UR_OUTPUTS)
+    receiver = rtde_receive.RTDEReceiveInterface(
+        host, float(ur.RECEIVE_HZ), UR_OUTPUTS
+    )
     try:
         yield {
             "source_id": config["serial"],
@@ -52,7 +55,7 @@ def ur_stream(config, stop):
             stamp = round(sample["controller_timestamp_end_s"] * 1e9)
             if stamp == previous_stamp:
                 # A cached SDK packet is not a new observation or heartbeat.
-                stop.wait(1 / 30)
+                stop.wait(UR_POLL_S)
                 continue
             if previous_stamp is not None and stamp < previous_stamp:
                 raise ValueError("UR controller timestamp restarted")
@@ -72,7 +75,7 @@ def ur_stream(config, stop):
                 sample["safety_mode"],
             )
             index += 1
-            stop.wait(1 / 30)
+            stop.wait(UR_POLL_S)
     finally:
         receiver.disconnect()
 
@@ -108,13 +111,17 @@ def hande_stream(config, stop):
 
 def synthetic_stream(device, stop):
     """Explicit software fixtures; never selected for a hardware recording."""
+    period_ns = (
+        1_000_000_000 // ur.RECEIVE_HZ if device == "ur" else 100_000_000
+    )
+    deadline = time.monotonic_ns()
     identity = "synthetic-" + device
     yield {"source_id": identity, "transport": "synthetic"}
     index = 0
     while not stop.is_set():
         if device == "ur":
             yield contracts.URFeedback(
-                _provenance(identity, index, index * 33_333_333, True),
+                _provenance(identity, index, index * period_ns, True),
                 (0.1,) * 6,
                 (0.0,) * 6,
                 (0.2,) * 6,
@@ -130,4 +137,6 @@ def synthetic_stream(device, stop):
                 started,
             )
         index += 1
-        stop.wait(1 / 30 if device == "ur" else 0.1)
+        now = time.monotonic_ns()
+        deadline = timing.next_deadline(deadline, now, period_ns)
+        stop.wait((deadline - now) / 1e9)

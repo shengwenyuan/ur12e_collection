@@ -2,6 +2,7 @@
 
 import math
 
+from ur12e_collection import ur
 from ur12e_collection.control.model import COMMAND_HZ, Limits
 
 HOME = (0.0, -math.pi / 2, -math.pi / 2, -math.pi / 2, math.pi / 2, 0.0)
@@ -11,7 +12,7 @@ LIMITS = Limits(
     ready=HOME,
 )
 PERIOD = 1 / COMMAND_HZ
-FEEDBACK_HZ = 125
+FEEDBACK_HZ = ur.RECEIVE_HZ
 IMAGE = (
     "universalrobots/ursim_e-series@sha256:"
     "39909bad9a8247980a1c9144da322ff7c4d34db0e89870f4c6b4dabd7c55c95d"

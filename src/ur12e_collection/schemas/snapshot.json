@@ -99,7 +99,7 @@
           "const": 500000000
         },
         "ur_read_hz": {
-          "const": 30
+          "enum": [30, 125]
         },
         "hande_poll_interval_ns": {
           "const": 100000000
