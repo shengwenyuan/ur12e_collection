@@ -4,7 +4,13 @@ import dataclasses
 
 import pytest
 
-from ur12e_collection import archive, contracts, control_records, snapshots
+from ur12e_collection import (
+    archive,
+    codecs,
+    contracts,
+    control_records,
+    snapshots,
+)
 from ur12e_collection.control import model, records
 
 OFFSET = 1_700_000_000_000_000_000
@@ -30,25 +36,79 @@ def samples(snapshot):
     ]
 
 
-@pytest.mark.parametrize("workers", [1, 3])
-def test_control_archive_decodes_and_preserves_actual(
-    tmp_path, controlled, group_factory, workers
-):
-    controlled["control"]["encoding_workers"] = workers
-    path = tmp_path / "episode.mcap"
+def write_archive(path, controlled, group):
     with path.open("wb") as stream:
         writer = archive.ArchiveWriter(stream, controlled, True, 20)
-        writer.group(group_factory())
-        for sample in samples(controlled):
-            writer.record(
-                sample, sample.provenance.time.received_monotonic_ns + OFFSET
-            )
-        writer.finish()
+        try:
+            writer.group(group)
+            for sample in samples(controlled):
+                writer.record(
+                    sample,
+                    sample.provenance.time.received_monotonic_ns + OFFSET,
+                )
+            writer.finish()
+        finally:
+            writer.close()
+
+
+@pytest.mark.parametrize("workers", [1, 3])
+@pytest.mark.parametrize("verification_workers", [1, 3])
+def test_control_archive_decodes_and_preserves_actual(
+    tmp_path, controlled, group_factory, workers, verification_workers
+):
+    controlled["control"]["encoding_workers"] = workers
+    controlled["control"]["verification_workers"] = verification_workers
+    path = tmp_path / "episode.mcap"
+    write_archive(path, controlled, group_factory())
     result = archive.verify_mcap(path, controlled, True)
     assert result["counts"]["control/authority"] == 2
     assert result["counts"]["follower/state"] == 2
     assert result["all_depth_hashes_verified"]
     assert samples(controlled)[3].joint_positions_rad != (0.0,) * 6
+
+
+@pytest.mark.parametrize("failure", ["pixels", "first_keyframe"])
+def test_parallel_verification_rejects_corruption_and_reaps_jobs(
+    tmp_path, controlled, group_factory, monkeypatch, failure
+):
+    import threading
+    import time
+
+    controlled["control"]["verification_workers"] = 3
+    path = tmp_path / "episode.mcap"
+    write_archive(path, controlled, group_factory())
+    if failure == "pixels":
+        original = codecs.decode_depth
+
+        def changed(data):
+            pixels = original(data)
+            pixels[0, 0] ^= 1
+            return pixels
+
+        monkeypatch.setattr(codecs, "decode_depth", changed)
+        message = "pixel digest"
+    else:
+
+        def missing_headers(_data):
+            # The owner advances counts while this independent check is pending.
+            time.sleep(0.01)
+            return {1}
+
+        monkeypatch.setattr(codecs, "nal_types", missing_headers)
+        message = "keyframe"
+    with pytest.raises(ValueError, match=message):
+        archive.verify_mcap(path, controlled, True)
+    assert not any(
+        thread.name.startswith("image-verifier")
+        for thread in threading.enumerate()
+    )
+
+
+@pytest.mark.parametrize("workers", [True, 0, 2, 4])
+def test_verification_worker_budget_is_validated(controlled, workers):
+    controlled["control"]["verification_workers"] = workers
+    with pytest.raises(ValueError, match="snapshot"):
+        snapshots.copy(controlled)
 
 
 @pytest.mark.parametrize(

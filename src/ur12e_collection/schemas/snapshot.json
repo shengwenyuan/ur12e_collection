@@ -241,6 +241,10 @@
             1,
             3
           ]
+        },
+        "verification_workers": {
+          "type": "integer",
+          "enum": [1, 3]
         }
       },
       "required": [

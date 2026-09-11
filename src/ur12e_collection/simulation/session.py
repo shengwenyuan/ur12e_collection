@@ -58,6 +58,7 @@ def create(
             "writer_queue_capacity": 16,
             "writer_feedback_capacity": 128,
             "encoding_workers": 3,
+            "verification_workers": 3,
             "association": "independent_receipts_no_interpolation",
             "native_home": permit["home"],
             "simulator": {"image": profile.IMAGE, "version": profile.VERSION},

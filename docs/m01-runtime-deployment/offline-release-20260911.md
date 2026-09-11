@@ -61,3 +61,13 @@ as an open reliability item, not a proven fix. Logs are under
 
 The final installed-package long batch is now running. The accepted current
 image remains unchanged; this candidate is not promoted by the regression rerun.
+
+
+### Updated HOLD-supervision candidate
+
+Candidate `ur12e-collection:offline-3cd7713` is built from commit `3cd7713`, image
+ID `sha256:a22deef2cb47a0c651aaab767cd7f33b8a2c4690ceb21549f31f54b675e78924`.
+Native regression PASSes 409 cases / 5 skips. Installed Jazzy regression PASSes
+412 cases / 2 host-only skips (24.14 s), with both host mount tests separately
+PASS (4.15 s). No source overlay or diagnostic signal handler was used in that
+installed regression. Final-image replay/fault and bundle checks are in progress.

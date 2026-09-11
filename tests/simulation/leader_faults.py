@@ -3,10 +3,13 @@
 import argparse
 import dataclasses
 import json
+import multiprocessing
 import pathlib
 import time
 
 from session import press, tick, wait
+from recording_faults import Factory
+from ur12e_collection import synthetic
 from ur12e_collection.simulation import connection, session
 from ur12e_collection.simulation.leader import Trace
 
@@ -44,11 +47,31 @@ def main():
     root.mkdir()
     report = {"status": "FAIL", "cases": []}
     try:
-        for fault in ("stale", "epoch", "range", "recorder"):
+        for fault in (
+            "stale",
+            "epoch",
+            "range",
+            "recorder",
+            "disk",
+            "writer_backlog",
+            "held_torque",
+        ):
             trace = FaultTrace(args.leader_trace)
+            trigger = multiprocessing.get_context("spawn").Event()
+            camera_input = (
+                (
+                    synthetic.configuration(),
+                    Factory(fault, trigger),
+                    {"fault_fixture": fault},
+                )
+                if fault in ("disk", "writer_backlog")
+                else None
+            )
             with connection.open_station() as station:
                 active = session.create(
-                    station, root / fault, inputs=session.Inputs(trace)
+                    station,
+                    root / fault,
+                    inputs=session.Inputs(trace, camera_input),
                 )
                 try:
                     press(active)
@@ -58,9 +81,19 @@ def main():
                     until = time.monotonic() + 7
                     while time.monotonic() < until:
                         tick(active)
+                    if fault == "held_torque":
+                        press(active)
+                        wait(active, "held")
+                    retained = len(active.completed)
                     started = time.monotonic()
                     if fault == "recorder":
                         active.recorder.process.kill()
+                    elif fault in ("disk", "writer_backlog"):
+                        trigger.set()
+                    elif fault == "held_torque":
+                        trace.motor_fixture.value = dataclasses.replace(
+                            trace.motor_fixture.value, torque=(False,) * 7
+                        )
                     else:
                         trace.fault = fault
                     error = None
@@ -71,7 +104,13 @@ def main():
                             error = str(exception)
                             break
                     assert error and active.state == "fault"
-                    assert not active.completed
+                    assert len(active.completed) == retained
+                    if fault == "disk":
+                        assert "disk full" in error
+                    elif fault == "writer_backlog":
+                        assert "queue overflow" in error
+                    elif fault == "held_torque":
+                        assert "leader" in error and retained == 1
                     fault_and_release_s = time.monotonic() - started
                     samples = []
                     until = time.monotonic() + 3
@@ -89,10 +128,15 @@ def main():
                         for state in tail
                         for a, b in zip(state["q"], tail[0]["q"])
                     )
-                    assert not list(
-                        (root / fault).glob(
-                            "episode-[0-9][0-9][0-9][0-9]/metadata.json"
+                    assert (
+                        len(
+                            list(
+                                (root / fault).glob(
+                                    "episode-[0-9][0-9][0-9][0-9]/metadata.json"
+                                )
+                            )
                         )
+                        == retained
                     )
                     (root / f"{fault}-feedback.json").write_text(
                         json.dumps(samples)
@@ -104,6 +148,7 @@ def main():
                             "error": error,
                             "fault_and_release_s": fault_and_release_s,
                             "hold_observation_s": 3,
+                            "prior_complete_episodes_retained": retained,
                         }
                     )
                 finally:

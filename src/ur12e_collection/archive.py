@@ -1,6 +1,7 @@
 """ROS 2 CDR MCAP records and streaming independent episode verification."""
 
 import collections
+import concurrent.futures
 import dataclasses
 import json
 import pathlib
@@ -368,6 +369,16 @@ class _Verifier:
             r: av.CodecContext.create("h264", "r")
             for r in contracts.CAMERA_ROLES
         }
+        for decoder in self.decoders.values():
+            decoder.thread_count = 1
+        self.pool = (
+            concurrent.futures.ThreadPoolExecutor(
+                max_workers=3, thread_name_prefix="image-verifier"
+            )
+            if snapshot.get("control", {}).get("verification_workers", 1) == 3
+            else None
+        )
+        self.jobs = []
         self.records = (
             control_records.Validator(snapshot)
             if "control" in snapshot
@@ -427,20 +438,40 @@ class _Verifier:
             raise ValueError("image optical frame changed")
         data = bytes(decoded.data)
         if kind == "depth":
-            if (
-                decoded.format != "16UC1; png"
-                or codecs.depth_digest(codecs.decode_depth(data)) != digest
-            ):
-                raise ValueError("depth format or pixel digest differs")
+            verify = self.depth
+            arguments = (decoded.format, data, digest)
         else:
-            self.rgb(frame.role, topic, decoded.format, data)
+            verify = self.rgb
+            arguments = (
+                frame.role,
+                decoded.format,
+                data,
+                self.counts[topic] == 0,
+            )
+        if self.pool is None:
+            verify(*arguments)
+        else:
+            self.jobs.append(self.pool.submit(verify, *arguments))
+            if not self.expected:
+                for job in self.jobs:
+                    job.result()
+                self.jobs.clear()
 
-    def rgb(self, role: str, topic: str, encoding: str, data: bytes) -> None:
+    @staticmethod
+    def depth(encoding: str, data: bytes, digest: str) -> None:
+        """Compare every decoded uint16 pixel through its exact digest."""
+        if (
+            encoding != "16UC1; png"
+            or codecs.depth_digest(codecs.decode_depth(data)) != digest
+        ):
+            raise ValueError("depth format or pixel digest differs")
+
+    def rgb(self, role: str, encoding: str, data: bytes, first: bool) -> None:
         """Decode exactly one non-B frame with an independent first keyframe."""
         types = codecs.nal_types(data)
         if encoding != "h264" or not types:
             raise ValueError("RGB is not Annex B H.264")
-        if (self.counts[topic] == 0 or 5 in types) and not {5, 7, 8} <= types:
+        if (first or 5 in types) and not {5, 7, 8} <= types:
             raise ValueError("keyframe lacks independent IDR/SPS/PPS")
         frames = self.decoders[role].decode(av.Packet(data))
         if (
@@ -506,6 +537,12 @@ class _Verifier:
         if any(decoder.decode(None) for decoder in self.decoders.values()):
             raise ValueError("unexpected delayed decoded frames")
 
+    def close(self) -> None:
+        """Reap checks even when parsing, association or decoding fails."""
+        if self.pool is not None:
+            self.pool.shutdown(wait=True, cancel_futures=True)
+            self.pool = None
+
 
 def verify_mcap(
     path: pathlib.Path,
@@ -515,18 +552,21 @@ def verify_mcap(
 ) -> dict:
     """Stream/decode every stored image and independently check association."""
     verifier = _Verifier(snapshot, simulated, config)
-    with path.open("rb") as stream:
-        reader = make_reader(
-            stream, validate_crcs=True, decoder_factories=[DecoderFactory()]
-        )
-        if (
-            reader.get_header().profile != "ros2"
-            or reader.get_summary() is None
-        ):
-            raise ValueError("missing ROS 2 MCAP profile or summary")
-        for record in reader.iter_decoded_messages(log_time_order=False):
-            verifier.consume(*record)
-    verifier.finish()
+    try:
+        with path.open("rb") as stream:
+            reader = make_reader(
+                stream, validate_crcs=True, decoder_factories=[DecoderFactory()]
+            )
+            if (
+                reader.get_header().profile != "ros2"
+                or reader.get_summary() is None
+            ):
+                raise ValueError("missing ROS 2 MCAP profile or summary")
+            for record in reader.iter_decoded_messages(log_time_order=False):
+                verifier.consume(*record)
+        verifier.finish()
+    finally:
+        verifier.close()
     return {
         "counts": dict(verifier.counts),
         "mcap_bytes": path.stat().st_size,

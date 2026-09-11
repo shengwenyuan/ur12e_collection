@@ -212,3 +212,29 @@ The next explicit resource comparison reserves Docker CPUs 0-3 for official
 URSim and 4-9 for the collector client. This is a local test setting on the
 10-CPU Docker VM, not a new Ubuntu hardware constraint. Memory remains 5 GiB
 for real-image replay. Restore the prior URSim CPU setting after the comparison.
+
+The first-anchor comparison resolves one timing ambiguity: the failed original
+replay scheduled its first wrist anchor about 72.212 ms after recording start
+and delivered it at 72.325 ms. Its boundary failure was already present in the
+recorded delivery schedule, rather than 72 ms of new encoder latency. The
+separate later 134 ms producer lateness and 109.719 ms control-gap failures
+still stand. The successful original run scheduled/delivered its first anchor
+at 20.862/25.095 ms. These estimates use the recorded control wall-clock offset;
+raw calculations are in `original-first-anchor-analysis.json`.
+
+
+The CPU-partitioned 30 Hz real-pixel attempt captured 1,199 groups but FAILed
+at the 25-second independent verification deadline (`session-1789113319719656088`).
+The closed MCAP later verifies diagnostically, but its partial directory is not
+renamed or accepted. Standalone one/automatic/one H.264 decoder measurements
+were 20.75/20.36/20.01 s; profiling points to PNG decode/hash, not decoder thread
+count. M11 now adds bounded parallel image verification under an explicit
+snapshot setting, with all original deadlines unchanged. Native regression:
+419 PASS / 5 environment skips; lint and format PASS.
+
+The actual URSim fault campaign is extended with child-local ENOSPC injection,
+a two-second writer stall that must overflow the unchanged bounded queue, and
+leader torque loss in held review. Two focused fixture tests verify explicit
+triggering and synthetic-only source composition. These additions are NOT RUN
+against URSim until the current workload comparison is finished. No filesystem
+is filled and no physical motor receives a write.

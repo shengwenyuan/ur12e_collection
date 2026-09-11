@@ -211,3 +211,30 @@ profile; physical/shadow encoding defaults are unchanged. Repeated Mac amd64
 full-load quality remains FAIL. See M13 `offline-completion.md` for gate values,
 exact failure records and extrapolated storage cost; a short success is not a
 sustained-throughput acceptance.
+
+
+### Bounded parallel verification (N6 follow-up)
+
+Actual amd64 profiling of the 1,199-group real-pixel file attributes roughly
+12.5 s to depth PNG decoding, 3.5 s to depth SHA-256 and 2.5 s to H.264 decoding.
+One versus automatic H.264 decoder threads both take about 20-21 s alone;
+changing decoder thread count alone does not resolve the combined 25 s limit.
+
+Within the aligned resource-debugging scope, allow three bounded image-check
+jobs in the independent verifier for the explicit simulation profile. Metadata,
+identity, ordering, counts and authority checks remain single-owned. Retain at
+most one six-payload group and await every check before advancing to another
+group; capture first-frame status before submitting work. Each H.264 context
+has one decoder thread and never handles concurrent packets. Validate exact
+depth, first-keyframe rules, serial/parallel agreement and cleanup on corruption.
+Store `verification_workers=3` in the snapshot; legacy and physical profiles
+default to one worker. The 25 s verification deadline and all capture/control
+gates remain unchanged. Rerun native and installed checks and a fresh long
+real-pixel batch before accepting throughput.
+
+Software acceptance: 419 native PASS / 5 environment skips (10.57 s), Black
+PASS (153 files), production/script Pylint PASS. All serial/parallel encoding
+and verification combinations round-trip; injected wrong depth pixels and
+missing first-frame headers fail and reap worker threads. Worker counts outside
+1/3, including boolean values, are rejected. Actual combined throughput remains
+pending until the candidate is rebuilt and a fresh batch passes.
