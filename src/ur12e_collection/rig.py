@@ -148,7 +148,9 @@ class Rig:
         self.backend = backend
         self.clock_id = str(uuid.uuid4())
         self._context = multiprocessing.get_context("spawn")
-        self._stop = stop if stop is not None else self._context.Event()
+        self._stop = (
+            stop if stop is not None else workers.Cancellation(self._context)
+        )
         self._cameras: dict[str, _Camera] = {}
         self._epoch_offset = time.time_ns() - time.monotonic_ns()
         self._closed = False

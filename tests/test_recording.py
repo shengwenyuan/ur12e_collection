@@ -1,6 +1,7 @@
 """Receipt watermarks and verified stops guard independent recording commits."""
 
 import dataclasses
+import multiprocessing
 import queue
 import threading
 from types import SimpleNamespace
@@ -24,6 +25,54 @@ class Source:
     def read(self):
         result, self.frames = self.frames, []
         return result
+
+
+def test_busy_heartbeat_lock_does_not_block_or_refresh_control(monkeypatch):
+    owner = recording.Recorder.__new__(recording.Recorder)
+    owner.process = mock.Mock()
+    owner.process.is_alive.return_value = True
+    owner.replies = queue.Queue()
+    owner.commands = queue.Queue()
+    owner.pulse = multiprocessing.get_context("spawn").Value("q", 0)
+    owner.ready = True
+    now = time.monotonic_ns()
+    owner.last_reply = owner.last_heartbeat = now
+    held, release = threading.Event(), threading.Event()
+
+    def hold_lock():
+        with owner.pulse.get_lock():
+            owner.pulse.get_obj().value = now + 10
+            held.set()
+            release.wait(1)
+
+    thread = threading.Thread(target=hold_lock)
+    thread.start()
+    try:
+        assert held.wait(1)
+        started = time.monotonic()
+        assert owner.poll() == []
+        assert time.monotonic() - started < 0.05
+        assert owner.last_reply == now
+        monkeypatch.setattr(
+            recording.time,
+            "monotonic_ns",
+            lambda: now + recording.HEARTBEAT_NS + 1,
+        )
+        with pytest.raises(RuntimeError, match="status is stale"):
+            owner.poll()
+    finally:
+        release.set()
+        thread.join(2)
+
+
+def test_exited_recorder_is_rejected_before_receiving_messages():
+    owner = recording.Recorder.__new__(recording.Recorder)
+    owner.process = mock.Mock()
+    owner.process.is_alive.return_value = False
+    owner.replies = mock.Mock()
+    with pytest.raises(RuntimeError, match="process exited"):
+        owner.poll()
+    owner.replies.get_nowait.assert_not_called()
 
 
 def test_watermark_excludes_post_stop_frames_and_waits_for_standstill(

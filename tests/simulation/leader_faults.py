@@ -2,6 +2,7 @@
 
 import argparse
 import dataclasses
+import faulthandler
 import json
 import multiprocessing
 import pathlib
@@ -42,12 +43,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--leader-trace", type=pathlib.Path, required=True)
     parser.add_argument("--leader-speed", type=float, default=1)
+    parser.add_argument("--home-repeats", type=int, choices=range(1, 101))
     args = parser.parse_args()
     root = pathlib.Path("/results") / f"leader-faults-{time.time_ns()}"
     root.mkdir()
     report = {"status": "FAIL", "cases": []}
     try:
-        for fault in (
+        faults = (
             "home_recorder",
             "stale",
             "epoch",
@@ -56,7 +58,12 @@ def main():
             "disk",
             "writer_backlog",
             "held_torque",
-        ):
+        )
+        if args.home_repeats:
+            faults = ("home_recorder",) * args.home_repeats
+            faulthandler.dump_traceback_later(20, repeat=True)
+        for index, fault in enumerate(faults):
+            case = f"{fault}-{index:03d}" if args.home_repeats else fault
             trace = FaultTrace(args.leader_trace)
             trigger = multiprocessing.get_context("spawn").Event()
             camera_input = (
@@ -71,7 +78,7 @@ def main():
             with connection.open_station() as station:
                 active = session.create(
                     station,
-                    root / fault,
+                    root / case,
                     inputs=session.Inputs(trace, camera_input),
                 )
                 try:
@@ -157,19 +164,20 @@ def main():
                     assert (
                         len(
                             list(
-                                (root / fault).glob(
+                                (root / case).glob(
                                     "episode-[0-9][0-9][0-9][0-9]/metadata.json"
                                 )
                             )
                         )
                         == retained
                     )
-                    (root / f"{fault}-feedback.json").write_text(
+                    (root / f"{case}-feedback.json").write_text(
                         json.dumps(samples)
                     )
                     report["cases"].append(
                         {
                             "fault": fault,
+                            "case": case,
                             "status": "PASS",
                             "error": error,
                             "fault_and_release_s": fault_and_release_s,

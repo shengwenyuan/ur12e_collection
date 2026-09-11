@@ -227,6 +227,18 @@ URSim and 4-9 for the collector client. This is a local test setting on the
 10-CPU Docker VM, not a new Ubuntu hardware constraint. Memory remains 5 GiB
 for real-image replay. Restore the prior URSim CPU setting after the comparison.
 
+Historical PC comparison comes from the supplied replay's `host-snapshot.txt`
+and `workload-summary.json`, not a new SSH probe: Core Ultra 9 285, 24 reported
+CPUs and about 62.25 GiB RAM. Its two 30-second read-only captures used serial
+encoding, averaged 21.03/21.88 ms per group, peaked at one queued group, and had
+28.23/30.91 ms maximum writer delay. Camera delivery maxima were 9.37-11.89 ms;
+no camera sequence gaps/repeats were reported. Storage was 337.87/347.68 MB.
+This is an older image and has no active leader/control workload. The present
+Mac M5/16 GB runs both the amd64 collector and URSim inside a 10-CPU Docker VM;
+neither CPU percentage nor replay RSS is a direct prediction for that PC.
+The next Ubuntu gate must add actual leader acquisition and the current image
+to live-camera load before accepting the full resource allocation.
+
 The first-anchor comparison resolves one timing ambiguity: the failed original
 replay scheduled its first wrist anchor about 72.212 ms after recording start
 and delivered it at 72.325 ms. Its boundary failure was already present in the
@@ -265,3 +277,63 @@ three-worker verification of the earlier failed batch's closed MCAP took 8.70 s,
 versus about 20 s serially, with identical decoded counts and exact depth hashes.
 This diagnostic does not accept its partial episode. A fresh full batch tests
 the unchanged 25-second finalization deadline in normal session operation.
+
+### N6 final full-load result
+
+#### Confirmed cancellation deadlock and correction plan
+
+Final-image HOME cancellation initially hung. A focused repeat with Python
+stacks reproduced the owner blocked inside `multiprocessing.Event.set()` ->
+`Condition.notify_all()` -> `notify()`, called by `Session.fail()`. A killed
+recorder can leave the shared waiter's wake-up acknowledgement unconsumed.
+The synchronous cancellation notification then prevents subsequent stop/HOLD
+handling. Evidence: `n7-home-cancel-stress.log`. The intervening diagnostic
+eight-case PASS is retained but did not establish a fix.
+
+Within N6's recorder-death/cancellation scope, replace cross-process stop Events
+with a monotonic shared-byte cancellation flag: initially zero, writers only set
+one, no reset, lock, acknowledgement or coupled payload transfer. Waiters poll
+locally at up to 5 ms intervals. Supported Mac/Ubuntu 64-bit hosts share this
+single-byte state; no general lock-free multiword protocol is introduced. Apply
+the same primitive to recorder, camera and read-only feedback shutdown. Keep
+thread-local Events unchanged. Also make shared heartbeat-lock inspection
+nonblocking, retaining the last observed timestamp rather than refreshing it
+when the lock is busy. Reject an exited recorder before draining its messages.
+Add real spawned-process killed-waiter tests and heartbeat-contention tests;
+rerun the focused actual URSim cancellation campaign, complete fault suite,
+native/installed regressions and affected final-image sessions before delivery.
+No stop/freshness/quality deadline is increased. Targeted cancellation/session/
+recording tests: 39 PASS. Full native regression: 431 PASS / five environment
+skips (10.58 s); Black and production/script Pylint PASS. Four new tests cover
+the killed waiter, surviving waiter, bounded cancellation, busy heartbeat lock
+without timestamp refresh, and dead-process rejection before receiving replies.
+The focused actual URSim repeat and final-image regressions remain pending.
+
+The installed `5219105` candidate completed 14 strict 40-second real-pixel
+episodes, then FAILed during episode 15 on a 155.436 ms leader interval
+(sequences 2827 to 2856). Evidence: `session-1789114231754512844`. The requested
+20-episode batch remains FAIL; six shorter or later episodes cannot complete it.
+No threshold, queue, timeout or arrival tolerance was relaxed.
+
+The completed subset had 16,794/16,799 accepted groups (99.9702%), with its
+lowest episode at 99.8333%. It wrote 6,464,209,345 bytes, averaging 461.73 MB per
+episode. Peak writer queue was 13/16; maximum writer delay 418.53 ms and maximum
+replay delivery lateness 225.09 ms. Completed episodes had command gaps up to
+70.21 ms and replay-source age up to 15.29 ms. Synthetic view phase was 8 ms
+maximum by construction; this is not a new physical synchronization result.
+Finalization completed within the unchanged deadline for all 14 files: elapsed
+capture-plus-close time was 50.80-55.18 seconds for 40-second captures.
+
+Twenty-four sampled resource observations saw up to 279.23% client CPU and
+2.751 GiB client memory, plus 145.55% CPU / 1.386 GiB for URSim. Docker percentages
+use one CPU as 100%; sparse samples do not prove peak instantaneous utilization.
+The repeated 100 ms source/host gap failures remain unresolved on Mac amd64.
+After the demonstrated codec improvement, further unchanged long-run retries
+are not treated as a fix. Finish functional/fault/image gates and deliver the
+unchanged full-load gate for Ubuntu, as authorized in N6. Preserve the failed
+partial file and independently audit all 14 already committed files.
+
+The subsequent HOME-fault correction `e06ca3a` passes 427 native tests / five
+environment skips (12.31 s), Black (153 files) and production/script Pylint.
+Its final-image checks exercise the changed fault path; it does not inherit a
+20-episode throughput pass from this failed batch.

@@ -61,6 +61,7 @@ def _arguments():
     parser.add_argument("--kill-observer", action="store_true")
     parser.add_argument("--leader-trace", type=pathlib.Path)
     parser.add_argument("--leader-speed", type=float, default=1.0)
+    parser.add_argument("--home-fault-repeats", type=int, choices=range(1, 101))
     camera = parser.add_mutually_exclusive_group()
     camera.add_argument("--camera-cache", type=pathlib.Path)
     camera.add_argument(
@@ -79,6 +80,8 @@ def _arguments():
         help="verify source hashes and use the installed package",
     )
     args = parser.parse_args()
+    if args.home_fault_repeats and args.mode != "leader-faults":
+        parser.error("HOME fault repeats require leader-faults mode")
     if args.camera_cache or args.camera_volume:
         if args.mode != "session":
             parser.error("camera replay requires session mode")
@@ -271,6 +274,11 @@ def _entrypoint(args, revision):
         ]
     return [
         f"/checks/{args.mode.replace('-', '_')}.py",
+        *(
+            ["--home-repeats", str(args.home_fault_repeats)]
+            if args.home_fault_repeats
+            else []
+        ),
         *([args.signal] if args.mode == "watchdog" else []),
         *(
             [

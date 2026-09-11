@@ -93,7 +93,7 @@ class Feedback:
         self.config = config
         self.backend = backend
         self._context = multiprocessing.get_context("spawn")
-        self._stop = self._context.Event()
+        self._stop = workers.Cancellation(self._context)
         self._devices = {}
         self._closed = False
 

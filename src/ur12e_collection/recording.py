@@ -224,7 +224,7 @@ class Recorder:
     def __init__(self, config: dict, context: dict, *, source_factory=None):
         ctx = multiprocessing.get_context("spawn")
         self.commands, self.replies = ctx.Queue(CAPACITY), ctx.Queue(CAPACITY)
-        self.abort = ctx.Event()
+        self.abort = workers.Cancellation(ctx)
         self.pulse = ctx.Value("q", 0)
         self.slots = {}
         try:
@@ -280,6 +280,8 @@ class Recorder:
 
     def poll(self) -> list:
         """Check health, refresh ownership and drain reliable replies."""
+        if not self.process.is_alive():
+            raise RuntimeError("recorder process exited")
         now = time.monotonic_ns()
         result = []
         while True:
@@ -292,9 +294,16 @@ class Recorder:
                 raise RuntimeError(f"recorder failed: {value}")
             if operation != "heartbeat":
                 result.append((operation, value))
-        self.last_reply = max(self.last_reply, self.pulse.value)
         if not self.process.is_alive():
             raise RuntimeError("recorder process exited")
+        lock = self.pulse.get_lock()
+        if lock.acquire(block=False):
+            try:
+                self.last_reply = max(
+                    self.last_reply, self.pulse.get_obj().value
+                )
+            finally:
+                lock.release()
         if self.ready and now - self.last_reply > HEARTBEAT_NS:
             raise RuntimeError("recorder status is stale")
         if self.ready and now - self.last_heartbeat >= 100_000_000:
