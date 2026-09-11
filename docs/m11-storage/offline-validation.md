@@ -2,6 +2,11 @@
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
+Current scope update (2026-09-12): LeRobot export was retired by user decision.
+The following dated results retain their historical scope; training-export
+requirements below are superseded by [the retirement record](lerobot-export.md).
+MCAP plus JSON, codecs, verification and recording remain this module's scope.
+
 ## Current scope
 
 M08 matching and the M11 encoding/storage API run without SSH, physical cameras, or robot motion. Session/shadow/calibration commands remain unavailable. The fixture script is explicitly synthetic and cannot claim accepted physical demonstrations. The user requested local checks now and lab deployment during the next lab session; no remote connection or scheduled deployment was made.

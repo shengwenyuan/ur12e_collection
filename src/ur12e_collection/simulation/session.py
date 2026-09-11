@@ -1,5 +1,6 @@
 """Explicit simulation composition; no physical station or leader fallback."""
 
+import contextlib
 import dataclasses
 import json
 import pathlib
@@ -71,6 +72,7 @@ def create(
         companion = leader_trace.companion()
         context["control"]["leader_id"] = "gello"
         context["control"]["leader_mapping"] = "episode_relative_conditioned_v1"
+        context["control"]["inputs"] = {"leader": leader_trace.origin}
     config, source_factory = synthetic.configuration(), None
     if inputs.camera_input is not None:
         config, source_factory, provenance = inputs.camera_input
@@ -105,15 +107,47 @@ def create(
     )
 
 
-def run(output: pathlib.Path, revision: str, stream, *, observe=False) -> dict:
+def run(
+    output: pathlib.Path,
+    revision: str,
+    stream,
+    *,
+    observe=False,
+    live_config=None,
+) -> dict:
     """Run the explicit simulator console and retain its report."""
-    with console.keyboard(stream) as read_keys:
+    with (
+        console.keyboard(stream) as read_keys,
+        contextlib.ExitStack() as inputs,
+    ):
+        live = None
+        if live_config is not None:
+            # pylint: disable-next=import-outside-toplevel
+            from ur12e_collection.simulation.live_leader import Live
+
+            live = inputs.enter_context(Live(*live_config))
+
+        def guarded_keys():
+            if live is not None:
+                live.samples(time.monotonic_ns())
+            return read_keys()
+
         output.mkdir(parents=True, exist_ok=False)
         report = {"state": "failed", "episodes": []}
         with connection.open_station() as station:
-            owner = create(station, output, revision, observe=observe)
+            owner = create(
+                station,
+                output,
+                revision,
+                observe=observe,
+                inputs=Inputs(leader_trace=live),
+            )
             try:
-                report = console.drive(owner, read_keys)
+                report = console.drive(owner, guarded_keys)
+            except Exception as error:
+                report["error"] = f"{type(error).__name__}: {error}"
+                report["episodes"] = owner.completed
+                raise
             finally:
                 owner.close()
                 report["timings"] = owner.timings

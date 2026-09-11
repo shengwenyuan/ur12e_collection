@@ -7,7 +7,7 @@ import pathlib
 import av
 
 from .feed import Cache
-from ur12e_collection import codecs, contracts, projection
+from ur12e_collection import codecs, contracts, mcap_read
 
 
 def summarize(values):
@@ -40,7 +40,7 @@ def measure(path, cache):
     }
     scores = {role: [] for role in contracts.CAMERA_ROLES}
     group, pending = None, set()
-    for topic, message in projection.messages(
+    for topic, message in mcap_read.messages(
         path / "episode.mcap",
         ["camera/frame_set"]
         + [f"camera/{role}/rgb" for role in contracts.CAMERA_ROLES],

@@ -6,14 +6,14 @@ Updated: 2026-09-09. Jazzy, keyboard controls, initial camera skew, and the MCAP
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Build a local single-arm collection tool: a custom GELLO leader commands one UR12e and its Hand-E gripper while three RealSense cameras capture RGB-D. Each episode is independently committed. The production storage direction is compressed MCAP plus JSON, using standard H.264 encoding for RGB and lossless 16-bit PNG for depth. Real-scene quality, throughput, and storage cost still require shadow validation; LeRobot v3 is a local export target.
+Build a local single-arm collection tool: a custom GELLO leader commands one UR12e and its Hand-E gripper while three RealSense cameras capture RGB-D. Each episode is independently committed. The production storage direction is compressed MCAP plus JSON, using standard H.264 encoding for RGB and lossless 16-bit PNG for depth. Real-scene quality, throughput, and storage cost still require shadow validation; LeRobot conversion is owned by a separate repository (confirmed 2026-09-12).
 
 This document preserves confirmed requirements, proposed choices, and unresolved questions. A proposal is not an approved implementation or a hardware acceptance result. Detailed development workflow lives in the repository's `plan-module-work` skill; all project documentation and plans are written in English.
 
 The [native-rate recording correction](docs/m13-acceptance/native-rate-recording.md)
 aligns shadow UR observation retention to 125 Hz while preserving 120 Hz
 actions and 30 fps images. Raw MCAP retains independent high-rate streams;
-the existing 30 Hz LeRobot projection is not a high-rate action export.
+training projection and dataloader cadence belong to the external consumer.
 
 ## M00. Scope and Module Registry
 
@@ -57,7 +57,7 @@ IDs identify responsibility, not mandatory execution order. Never renumber or re
 | M08 | Frame matching and time semantics | `docs/m08-frame-matching/` | M07 |
 | M09 | Session, episode and keyboard lifecycle | `docs/m09-session/` | M06, M08, M10, M11 |
 | M10 | Data semantics and metadata | `docs/m10-data-contract/` | None |
-| M11 | Encoding, storage and dataset export | `docs/m11-storage/` | M08, M10 |
+| M11 | Encoding, storage and verification | `docs/m11-storage/` | M08, M10 |
 | M12 | Independent visual calibration | `docs/m12-calibration/` | M06, M07 |
 | M13 | Shadow diagnostics and release acceptance | `docs/m13-acceptance/` | Camera path: M07, M08, M11; full collection: M09 |
 | M14 | Digital-twin interfaces | `docs/m14-digital-twin/` | M10 |
@@ -90,7 +90,6 @@ GELLO read/write adapter <-> ControlArbiter <-> UR / Hand-E adapters
                                   |
 RealSense rig -> RGB-D alignment -> wrist-anchored groups -> EpisodeWriter
                                                            `-> MCAP + JSON
-                                                               `-> offline LeRobot v3
                      read-only observations -> twin / future policy
 ```
 
@@ -116,7 +115,6 @@ Mac tests cover builds, fake devices, sample writing, and replay. Physical USB a
 | Python | 3.12 series |
 | RealSense | librealsense 2.56.5; matching Python bindings if used |
 | UR adapter | SDU Robotics ur_rtde 1.6.5 candidate, using UR RTDE / URScript |
-| LeRobot | Package 0.6.1, commit `7e241bd630a3719a56157a497ce5d08f244784f1`; dataset format v3.0 |
 | RGB video | FFmpeg 7.1.1 + PyAV 15.1.0 candidates |
 | Depth | OpenCV 4.12.0; 16-bit PNG, initial compression level 1 |
 | ROS 2 | Jazzy confirmed; matching rosbag2/MCAP package set, exact package versions recorded at release |
@@ -124,7 +122,7 @@ Mac tests cover builds, fake devices, sample writing, and replay. Physical USB a
 | CUDA / Isaac Sim | Not collector dependencies in v0.1 |
 | Device firmware and UR software | UR Software `5.22.1` and component versions are user-reported in the actual unit inventory; independent readback and Hand-E firmware remain pending; no automatic updates |
 
-The M01 foundation now pins and validates its runtime SDK dependencies and image identity; its formal plan and bundle manifests record the exact tested versions. MCAP encoding and optional RGB/arm LeRobot export now pass their software gates. The initial hardware environment is installed; full gripper/depth training projection remains separate M11 work. LeRobot 0.6.1 requires Python >=3.12. ur_rtde is an SDU Robotics project, not an official UR SDK. [LeRobot dependencies](https://github.com/huggingface/lerobot/blob/v0.6.1/pyproject.toml), [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/pages/getting_started/installation.html).
+The M01 foundation pins and validates runtime SDK dependencies and image identity; its formal plan and bundle manifests record tested versions. MCAP encoding passes its software gates. LeRobot dependencies and conversion were removed on 2026-09-12; training projection is outside this collector. ur_rtde is an SDU Robotics project, not an official UR SDK. [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/pages/getting_started/installation.html).
 
 Deliver an image archive, Compose configuration, launcher, identity-free templates, and short instructions. A colleague loads the image and initializes the station without source code or cloud accounts. Persist configuration and data on host mounts. USB/udev, networking, kernel, and scheduling remain host responsibilities; privileged containers do not create hard real-time guarantees.
 
@@ -330,7 +328,7 @@ auxiliary diagnostics rather than required model dimensions. Preserve validity
 and fault information for data selection even when it is not a model input.
 Version the direction and endpoint mappings separately for actual and requested
 position; observed open/closed extrema from a short test are not automatically
-accepted calibration endpoints. The training export implementation remains pending.
+accepted calibration endpoints. Training normalization and conversion are external consumer responsibilities.
 
 Do not replace action with the follower's next state or silently redefine it as filtered/rate-limited executed commands. Preserve differences in `control/command`; training rules later decide eligibility for rejected/limited intervals.
 
@@ -346,7 +344,7 @@ Acceptance targets: `M10-A01` leader intent, sent commands and actual feedback s
 
 ### M11.1 Episode container: MCAP direction aligned
 
-Use **`episode.mcap + metadata.json`** as the production direction. On 2026-09-09 the user selected MCAP provided H.264 encoding does not require substantial custom codec development. Existing FFmpeg/PyAV encoding and the documented Foxglove H.264 schema provide that standard path; this is an implementation-feasibility judgment, not measured three-camera acceptance. A bootstrap probe on Mac with PyAV 15.1.0 / libx264 successfully encoded and independently decoded three synthetic 640x480 sequences of 60 frames each; see the [environment record](docs/development-environment.md). This was not a camera, MCAP replay, or sustained throughput test. No custom codec is planned. Preserve local LeRobot v3 export instead of writing two production representations.
+Use **`episode.mcap + metadata.json`** as the production direction. On 2026-09-09 the user selected MCAP provided H.264 encoding does not require substantial custom codec development. Existing FFmpeg/PyAV encoding and the documented Foxglove H.264 schema provide that standard path; this is an implementation-feasibility judgment, not measured three-camera acceptance. A bootstrap probe on Mac with PyAV 15.1.0 / libx264 successfully encoded and independently decoded three synthetic 640x480 sequences of 60 frames each; see the [environment record](docs/development-environment.md). This was not a camera, MCAP replay, or sustained throughput test. No custom codec is planned. Produce MCAP plus JSON only; the external training repository owns conversion.
 
 Validate the selected encoder's availability, per-episode decodability, real-scene quality, bounded queues, and measured storage cost in M11/M13. If these fail materially, revisit the decision explicitly; do not silently switch format or keep large raw duplicates. H.264 is a codec and MCAP is a container; storage savings primarily come from the encoded payloads.
 
@@ -359,8 +357,7 @@ The [M11 encoding/storage slice](docs/m11-storage/plan.md) writes accepted group
 - Choose CRF/bitrate/GOP after comparing real 480p scenes for detail, CPU, latency, seek/replay, and size. No initial AV1 requirement.
 - H.264 and PNG already compress images. Initially keep MCAP indexes and omit additional chunk Zstd or whole-file recompression. Do not write all raw RGB first and rewrite a huge episode later.
 - Stream through bounded buffers into a partial directory. Flush encoders, check frame/group counts and timestamps, decode beginning/middle/end samples, close every writer, and atomically commit. Failed closing or validation leaves `.partial`, never a seemingly valid episode.
-- Provide local offline v3 export from MCAP. Reuse packets/remux where valid; explicitly report cases requiring re-encoding rather than silently recompressing lossy video.
-- Validate exported v3 data with official finalization and the pinned loader. A v3 dataset can share shards across episodes; a standalone episode does not exploit all such consolidation benefits. Package version and dataset format version are different. [LeRobot v3](https://huggingface.co/docs/lerobot/lerobot-dataset-v3).
+- Preserve independent source timestamps, action/observation semantics and immutable metadata for external consumers. Do not include a LeRobot writer, projection CLI or training dependencies in this repository.
 - Everything remains local. No upload, cloud authentication, or Hub account is required.
 
 ### M11.3 Depth: decided as lossless 16-bit PNG
@@ -460,7 +457,7 @@ Acceptance targets: `M15-A01` disabled policy interfaces cannot command hardware
 | M05 | Resolve the preferred server-client endpoint/protocol, device wiring/raw register access, and gripper hold behavior |
 | M06, M09 | Define READY targets/routes, success labels, discard review/retention semantics, and shutdown details. Space / a / Ctrl+C controls are confirmed |
 | M08 | Skew 16.7 ms, default wait 75 ms, eight-frame buffers and non-reuse confirmed; validate live clock mapping and startup behavior |
-| M11 | H.264/PNG MCAP and optional official v3 RGB/arm export are software-tested; full gripper/depth projection and physical task-image export quality remain pending |
+| M11 | H.264/PNG MCAP and independent verification are software-tested; training export belongs to another repository |
 | M12 | Two rounds and taught/scripted motion confirmed; resolve board geometry, controller/checkpoint interface, actual pose reference/TCP offset, pose allocation and validation thresholds in the lab |
 | M13 | Agree numerical acceptance tolerances without expanding the 40-second x 20-episode requirement |
 
@@ -550,7 +547,7 @@ The [2026-09-10 simulator sprint](docs/m13-acceptance/simulator-sprint.md) and
 [module matrix](docs/m13-acceptance/simulator-matrix.md) supersede older
 not-yet-implemented status notes where their dated results overlap. Native Home,
 UR-only control/session behavior, independent MCAP recording, optional official
-LeRobot v3 RGB/arm export, and offline calibration/activation are implemented.
+offline calibration/activation are implemented. The former LeRobot exporter was retired on 2026-09-12; external consumers own training conversion.
 Physical control remains disabled. GELLO, physical Hand-E actuation, physical
 calibration capture, calibration services and calibrated TF remain distinct
 open work. Optional read-only ROS typed observation now passes Jazzy and URSim

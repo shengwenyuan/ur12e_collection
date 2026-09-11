@@ -47,7 +47,8 @@ def _fresh(sample, now_ns, age_ns):
         raise ValueError("stale leader sample")
 
 
-def _advance(previous, current, age_ns):
+def check_advance(previous, current, age_ns):
+    """Validate source continuity without wrapping or inventing samples."""
     if previous.epoch != current.epoch:
         raise ValueError("source epoch changed; new engagement required")
     if (
@@ -96,7 +97,7 @@ class EpisodeMapper:
             self._calibration.angles(sample.raw)
             self._calibration.gripper(sample.raw[6])
             if index:
-                _advance(samples[index - 1], sample, self._age_ns)
+                check_advance(samples[index - 1], sample, self._age_ns)
         if samples[-1].start_ns - samples[0].start_ns < 40_000_000:
             raise ValueError("startup reference must span at least 40 ms")
         if any(max(v) - min(v) > 2 for v in zip(*(s.raw for s in samples))):
@@ -135,7 +136,7 @@ class EpisodeMapper:
         self._healthy()
         try:
             _fresh(sample, now_ns, self._age_ns)
-            _advance(self._last, sample, self._age_ns)
+            check_advance(self._last, sample, self._age_ns)
             current = self._calibration.angles(sample.raw)
             start = self._calibration.angles(self._baseline.raw)
             self._calibration.gripper(sample.raw[6])

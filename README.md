@@ -2,7 +2,7 @@
 
 A local single-arm collection tool for UR12e, Robotiq Hand-E, a custom GELLO leader, and three RealSense RGB-D views.
 
-The application provides persistent three-camera acquisition, verified MCAP recording, explicit URSim control/session testing, read-only ROS observation and offline calibration. Optional LeRobot export is separately provisioned. Physical control remains disabled; real GELLO and Hand-E actuation are pending. See the module matrix for software, simulation and physical acceptance boundaries.
+The application provides persistent three-camera acquisition, verified MCAP recording, explicit URSim control/session testing, read-only ROS observation and offline calibration. The collection artifact is MCAP plus JSON; LeRobot conversion belongs to a separate repository. Physical control remains disabled; real GELLO and Hand-E actuation are pending. See the module matrix for software, simulation and physical acceptance boundaries.
 
 - [Requirements and stable module IDs](meta_plan.md)
 - [Current module acceptance matrix](docs/m13-acceptance/simulator-matrix.md)
@@ -32,3 +32,5 @@ ur-collect --help
 Use one daily Docker image, `ur12e-collection:current`, for collection, development tests and simulator clients. Build with `docker build --platform linux/amd64 --target development -t ur12e-collection:current .`, then run `./scripts/run dev doctor --format json --require-mounts`. The development container has no network or hardware access. Ubuntu deployment and explicit physical probes are described in the quickstart.
 
 Formal plans and actual acceptance results live under `docs/`. Temporary ideas, station identities, recordings, and release artifacts stay in ignored local directories. Do not infer hardware readiness from passing software tests.
+
+Real physical leader / local URSim rehearsal: see [the live console guide](docs/m13-acceptance/live-leader-ursim.md). This uses read-only motor acquisition and the existing simulator session lifecycle; manual joint-direction acceptance remains separate.

@@ -56,7 +56,7 @@ def test_cache_preserves_depth_and_rejects_missing_images():
         for kind in ("rgb", "depth")
     }
     with mock.patch.object(
-        CACHE.projection, "messages", return_value=iter(messages)
+        CACHE.mcap_read, "messages", return_value=iter(messages)
     ):
         assert len(CACHE._decode(None, streams)) == 1
     for role in contracts.CAMERA_ROLES:
@@ -65,7 +65,7 @@ def test_cache_preserves_depth_and_rejects_missing_images():
         )
         assert len(streams[role, "rgb"].getvalue()) == 480 * 640 * 3
     with mock.patch.object(
-        CACHE.projection, "messages", return_value=iter(messages[:-1])
+        CACHE.mcap_read, "messages", return_value=iter(messages[:-1])
     ):
         with pytest.raises(ValueError, match="incomplete"):
             CACHE._decode(None, streams)
@@ -82,7 +82,7 @@ def test_cache_rejects_corrupted_depth_and_partial_input(tmp_path):
         for kind in ("rgb", "depth")
     }
     with mock.patch.object(
-        CACHE.projection, "messages", return_value=iter(messages)
+        CACHE.mcap_read, "messages", return_value=iter(messages)
     ):
         with pytest.raises(ValueError, match="hash mismatch"):
             CACHE._decode(None, streams)

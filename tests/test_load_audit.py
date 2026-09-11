@@ -44,7 +44,7 @@ def prepare(root, monkeypatch):
     monkeypatch.setattr(
         load_audit.storage, "verify_episode", lambda _path: {"verified": True}
     )
-    monkeypatch.setattr(load_audit.projection, "messages", lambda *_args: [])
+    monkeypatch.setattr(load_audit.mcap_read, "messages", lambda *_args: [])
     monkeypatch.setattr(
         load_audit,
         "decisions",

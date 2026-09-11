@@ -5,7 +5,7 @@ import json
 import math
 import pathlib
 
-from ur12e_collection import projection
+from ur12e_collection import mcap_read
 
 
 def distribution(values):
@@ -25,7 +25,7 @@ def episode(root, item):
     """Read small MCAP records; decoding integrity has a separate verifier."""
     path = root / item["episode"] / "episode.mcap"
     ages, skews, delays, commands = [], [], [], []
-    for topic, message in projection.messages(
+    for topic, message in mcap_read.messages(
         path, ("leader/state", "control/command", "camera/frame_set")
     ):
         value = json.loads(message.data)

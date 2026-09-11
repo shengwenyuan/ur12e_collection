@@ -5,7 +5,7 @@ import json
 import pathlib
 
 from simulation.acceptance import decisions
-from ur12e_collection import projection, storage
+from ur12e_collection import mcap_read, storage
 from ur12e_collection.leader.probe import distribution
 
 
@@ -26,7 +26,7 @@ def audit(root):
         verified = storage.verify_episode(path)
         rows = [
             json.loads(message.data)
-            for _, message in projection.messages(
+            for _, message in mcap_read.messages(
                 path / "episode.mcap",
                 ("camera/frame_set", "diagnostics/frame_rejection"),
             )

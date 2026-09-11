@@ -18,8 +18,7 @@ Ubuntu installed regression also PASSes (456 tests). A fresh 40-second physical
 shadow recheck independently verifies 5,000 UR records in MCAP at 125 Hz with
 zero missing 8 ms slots and 99.75% camera grouping. The first physical attempt
 stopped on a camera counter/timestamp fault and remains unresolved. The existing
-LeRobot export remains a 30 Hz camera-anchored projection, not an accepted
-high-rate action consumer. See [native-rate recording](native-rate-recording.md).
+LeRobot conversion is external as of 2026-09-12. The collector retains independent high-rate MCAP streams and JSON metadata; its former 30 Hz exporter has been removed.
 
 | Module | Implemented behavior | Current software/simulation evidence | Remaining physical or delivery gate |
 | --- | --- | --- | --- |
@@ -33,11 +32,15 @@ high-rate action consumer. See [native-rate recording](native-rate-recording.md)
 | M08 | Wrist anchors, 16.7 ms skew, 75 ms wait/drain, bounded buffers and no accepted reuse | Matching/failure tests PASS; physical 20 x 40 audit PASS: 99.8375% accepted, worst 99.75%; historical Mac replay batch failed after 13 complete files | Mac amd64 long-load stability and full teleoperation recording remain separate open gates |
 | M09 | Space HOME/start/stop, held review, `a` discard, Ctrl+C and fault latch; leader coordinator shares this lifecycle | Replay lifecycle and source/recorder/held-leader faults PASS; historical Mac 20 x 40 batch stopped after 13 completed files | Real leader/Hand-E coordination remains pending |
 | M10 | Separate raw acquisition, desired intent, conditioned sent target and actual feedback; immutable baseline/calibration; original versus replay clocks | Independent MCAP audits and mutation tests PASS; all 13 final-image completed real-pixel files reverified | Physical sign/scale validation and verified TF publication are separate gates |
-| M11 | Streaming H.264/uint16 PNG MCAP; bounded writer; optional three camera encoding and image-verification workers; official v3 RGB/arm export | Codec/corruption/atomic-write tests PASS; real replay round trips exact depth; serial/parallel payloads match | Physical camera/leader resource workload PASS; combined control-session throughput and gripper/depth training projection remain separate |
+| M11 | Streaming H.264/uint16 PNG MCAP; bounded writer; optional three camera encoding and image-verification workers; independent MCAP verification | Codec/corruption/atomic-write tests PASS; real replay round trips exact depth; serial/parallel payloads match | Physical camera/leader resource workload PASS; combined control-session throughput remains separate; training projection is external |
 | M12 | Offline board solver and held-out checks; taught traversal with 2 s stationary capture; parallel leader configuration workflow | Native geometry/config tests PASS; actual URSim 20 checkpoints / 30 synthetic image-readback pairs PASS | Real board geometry, TCP offset, taught routes, visibility and accuracy thresholds remain open |
 | M13 | Shadow, isolated actual URSim checks, strict independent episode audit and fault campaigns | 450 native PASS / 5 environment skips; 453 Mac installed PASS / 2 host skips on recheck; physical read-only 20 x 40 audit PASS | Historical Mac replay and initial new queue failures retained; physical control NOT RUN |
 | M14 | Verified typed trajectory export and bounded optional observation mailbox | Export from completed MCAP PASS; stalled/full mailbox cannot own or block control | Isaac scene/integration is interface-only future work |
 | M15 | Disabled policy interface and explicit future handover requests | Policy cannot issue commands; handover metadata does not grant ownership: PASS | Policy inference and takeover behavior require future alignment |
+
+The [live physical leader console](live-leader-ursim.md) now reuses the URSim
+session and relative mapping. Stationary live-input HOME/record/stop passed;
+manual directions remain pending. Leader motor writes remain disabled.
 
 ## Current behavior and resource boundaries
 

@@ -4,7 +4,7 @@
 
 Status: implemented; software and physical 125 Hz shadow recheck PASS. Initial
 Mac replay and physical camera failures remain unresolved. High-rate training
-projection remains a separate design item. The user requested shadow alignment with the latest rate
+projection belongs to a separate repository. The user requested shadow alignment with the latest rate
 requirements on 2026-09-12. The already selected 120 Hz commands / independent
 125 Hz feedback contract remains valid; physical control is not authorized.
 
@@ -42,15 +42,11 @@ M10: new shadow snapshots state 125 Hz. Continue accepting historical 30 Hz
 snapshots without relabeling them. The observer rate is a target, not a promise
 that every packet was retained: actual timestamps/counts/gaps determine success.
 
-M11: the current LeRobot RGB/arm export is explicitly camera-anchored at 30 Hz
-and therefore discards intervening action rows in that projection. Raw MCAP
-retains them. This existing export is not an accepted high-rate training path.
-A later aligned projection must preserve high-rate action sequences, either
-using timestamp-indexed action windows alongside 30 fps images or a documented
-high-rate row timeline with explicit image references. Do not encode duplicate
-images at 120 fps merely to make metadata frequencies equal. The dataloader and
-model's action horizon must have a known physical duration. No exporter behavior
-is silently changed by this shadow correction.
+M11: MCAP preserves high-rate actions independently of the 30 fps images. On
+2026-09-12 the user assigned LeRobot conversion to a separate repository; the
+former camera-anchored exporter was removed. External consumers own timestamp
+association, action windows and a known physical duration for the model horizon.
+Do not rewrite or interpolate the raw collection archive to match image cadence.
 
 ## Acceptance
 
@@ -76,8 +72,8 @@ five environment skips, 10.78 s). Black and production/script Pylint PASS
 1 ms cache polling and preservation of both historical 30 Hz and new 125 Hz
 snapshot values. Existing cached-packet and rollback cases remain passing.
 Installed-image and physical MCAP rate evidence follow; no physical control
-has been enabled. The existing camera-anchored LeRobot export remains 30 Hz
-and is explicitly not accepted as the future high-rate action consumer.
+has been enabled. The historical camera-anchored exporter was later retired; external conversion
+owns high-rate training semantics.
 
 
 The first Mac/amd64 installed suite failed in the unchanged, feedback-free

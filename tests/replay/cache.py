@@ -9,7 +9,7 @@ import time
 
 import av
 
-from ur12e_collection import codecs, contracts, projection
+from ur12e_collection import codecs, contracts, mcap_read
 
 
 def build(episode: pathlib.Path, output: pathlib.Path) -> dict:
@@ -87,7 +87,7 @@ def _decode(path, streams):
     groups = []
     pending = set()
     context = None
-    for topic, message in projection.messages(path, topics):
+    for topic, message in mcap_read.messages(path, topics):
         if topic == "camera/frame_set":
             if pending:
                 raise ValueError("source group has missing image payloads")

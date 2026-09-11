@@ -3,13 +3,13 @@
 import collections
 import json
 
-from ur12e_collection import contracts, filesystem, projection, storage
+from ur12e_collection import contracts, filesystem, mcap_read, storage
 
 
 def export(source, destination):
     """Publish a removable JSONL bundle without retiming or robot access."""
     identities = {
-        name: projection.digest(source / name)
+        name: mcap_read.digest(source / name)
         for name in ("episode.mcap", "metadata.json", "outcome.json")
     }
     checksum = identities["episode.mcap"]
@@ -23,7 +23,7 @@ def export(source, destination):
     partial.mkdir(parents=True)
     counts = collections.Counter()
     with (partial / "trajectory.jsonl").open("x", encoding="utf-8") as output:
-        for topic, decoded in projection.messages(
+        for topic, decoded in mcap_read.messages(
             source / "episode.mcap",
             (
                 "control/authority",
@@ -39,7 +39,7 @@ def export(source, destination):
             )
             counts[value["kind"]] += 1
     if any(
-        projection.digest(source / name) != digest
+        mcap_read.digest(source / name) != digest
         for name, digest in identities.items()
     ):
         raise ValueError("trajectory source changed during export")

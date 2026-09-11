@@ -6,7 +6,7 @@ import pathlib
 import time
 import traceback
 
-from ur12e_collection import projection, storage, timing
+from ur12e_collection import mcap_read, storage, timing
 from acceptance import decisions
 from ur12e_collection.simulation import connection, session
 
@@ -125,7 +125,7 @@ def main():
                         context = completed["recording"]["snapshot"]["control"]
                         rows = [
                             json.loads(message.data)
-                            for _, message in projection.messages(
+                            for _, message in mcap_read.messages(
                                 owner.active.destination / "episode.mcap",
                                 (
                                     "camera/frame_set",

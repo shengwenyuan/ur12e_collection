@@ -1,6 +1,7 @@
 """Run control checks in an isolated, verified local URSim network."""
 
 import argparse
+import contextlib
 import json
 import os
 import pathlib
@@ -60,6 +61,10 @@ def _arguments():
     parser.add_argument("--ros-observe", action="store_true")
     parser.add_argument("--kill-observer", action="store_true")
     parser.add_argument("--leader-trace", type=pathlib.Path)
+    parser.add_argument("--leader-port")
+    parser.add_argument("--leader-baudrate", type=int, default=3000000)
+    parser.add_argument("--leader-calibration", type=pathlib.Path)
+    parser.add_argument("--manual-support", action="store_true")
     parser.add_argument("--leader-speed", type=float, default=1.0)
     parser.add_argument("--home-fault-repeats", type=int, choices=range(1, 101))
     camera = parser.add_mutually_exclusive_group()
@@ -80,6 +85,17 @@ def _arguments():
         help="verify source hashes and use the installed package",
     )
     args = parser.parse_args()
+    if args.leader_port:
+        if (
+            args.mode != "console"
+            or args.leader_trace
+            or not (args.leader_calibration and args.manual_support)
+        ):
+            parser.error(
+                "live console requires calibration and --manual-support"
+            )
+    elif args.leader_calibration or args.manual_support:
+        parser.error("live leader options require --leader-port")
     if args.home_fault_repeats and args.mode != "leader-faults":
         parser.error("HOME fault repeats require leader-faults mode")
     if args.camera_cache or args.camera_volume:
@@ -98,14 +114,8 @@ def _arguments():
     return args
 
 
-def main() -> None:
-    """Launch verified simulator clients without a physical host option."""
-    args = _arguments()
-    client = inspect("image", args.client_image)
-    if (client["Os"], client["Architecture"]) != ("linux", "amd64"):
-        raise ValueError("simulator client requires a local linux/amd64 image")
-    if args.installed_package:
-        release.source_hashes(client["Id"], ROOT)
+def verified_peer():
+    """Inspect the exact official service and isolated control network."""
     sim = inspect("container", SIMULATOR)
     image = inspect("image", IMAGE)
     network = inspect("network", NETWORK)
@@ -123,6 +133,18 @@ def main() -> None:
     peer = sim["NetworkSettings"]["Networks"][NETWORK]
     if "ursim-control" not in peer["Aliases"]:
         raise RuntimeError("simulator control alias is missing")
+    return peer
+
+
+def main() -> None:
+    """Launch verified simulator clients without a physical host option."""
+    args = _arguments()
+    client = inspect("image", args.client_image)
+    if (client["Os"], client["Architecture"]) != ("linux", "amd64"):
+        raise ValueError("simulator client requires a local linux/amd64 image")
+    if args.installed_package:
+        release.source_hashes(client["Id"], ROOT)
+    peer = verified_peer()
     home = (
         sim_program.prepare(SIMULATOR)
         if args.mode
@@ -143,7 +165,10 @@ def main() -> None:
     output.mkdir(parents=True, exist_ok=True)
     lock = output / "lock"
     lock.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="permit-", dir=output) as temporary:
+    with (
+        tempfile.TemporaryDirectory(prefix="permit-", dir=output) as temporary,
+        contextlib.ExitStack() as sources,
+    ):
         frozen = sim_source.freeze(ROOT, pathlib.Path(temporary))
         frozen["client_image"] = client["Id"]
         frozen["package_origin"] = (
@@ -172,6 +197,21 @@ def main() -> None:
             ),
             encoding="utf-8",
         )
+        live_root = None
+        if args.leader_port:
+            # pylint: disable-next=import-outside-toplevel
+            from ur12e_collection.simulation.live_publisher import Publisher
+
+            live_root = output / f"live-leader-{time.time_ns()}"
+            sources.enter_context(
+                Publisher(live_root, args.leader_port, args.leader_baudrate)
+            )
+            print(f"Read-only leader evidence: {live_root}", flush=True)
+            print(
+                "Support the leader. Space: follower HOME, then start/stop. "
+                "No leader motor commands will be sent.",
+                flush=True,
+            )
         completed = subprocess.run(
             [
                 "docker",
@@ -212,6 +252,17 @@ def main() -> None:
                 f"{lock}:/sim-lock:rw",
                 "-v",
                 f"{output}:/results:rw",
+                *(
+                    [
+                        "-v",
+                        f"{live_root}:/live-leader:rw",
+                        "-v",
+                        str(args.leader_calibration.resolve())
+                        + ":/live-calibration.json:ro",
+                    ]
+                    if live_root is not None
+                    else []
+                ),
                 *(
                     [
                         "-v",
@@ -271,6 +322,16 @@ def _entrypoint(args, revision):
             "--revision",
             revision,
             *(["--ros-observe"] if args.ros_observe else []),
+            *(
+                [
+                    "--live-leader",
+                    "/live-leader",
+                    "--leader-calibration",
+                    "/live-calibration.json",
+                ]
+                if args.leader_port
+                else []
+            ),
         ]
     return [
         f"/checks/{args.mode.replace('-', '_')}.py",

@@ -4,7 +4,7 @@ import argparse
 import json
 import pathlib
 
-from ur12e_collection import projection, storage
+from ur12e_collection import mcap_read, storage
 
 
 def decisions(items: list, start: int, stop: int, replay=None) -> dict:
@@ -92,7 +92,7 @@ def audit(root: pathlib.Path, count: int = 20, duration: float = 40) -> dict:
                 raise ValueError("native source integrity gate failed")
         items = [
             json.loads(message.data)
-            for _, message in projection.messages(
+            for _, message in mcap_read.messages(
                 root / name / "episode.mcap",
                 ("camera/frame_set", "diagnostics/frame_rejection"),
             )

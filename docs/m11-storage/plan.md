@@ -2,6 +2,11 @@
 
 > **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
+Current scope update (2026-09-12): LeRobot export was retired by user decision.
+The following dated results retain their historical scope; training-export
+requirements below are superseded by [the retirement record](lerobot-export.md).
+MCAP plus JSON, codecs, verification and recording remain this module's scope.
+
 - Module: M11
 - Status: implemented / full-module acceptance pending (encoding/storage slice)
 - Parent: [meta plan](../../meta_plan.md)
