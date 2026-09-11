@@ -924,3 +924,23 @@ URSim smoke PASS: one 8-second episode using the completed operator trace at
 file verification passed. Native focused tests cover reuse/staleness, epoch reset,
 1,200 jittered/reversing conditioner steps and forged archive values. Simulation
 signs/ranges and accelerated replay do not accept physical calibration.
+
+### N3 coordinated motion software
+
+An injected `Motion` transport now provides staged current-position hold, powered
+HOME and explicit supported torque-off leading. Single-turn bindings must be
+provided and checked before torque enable; goals are preloaded before enable.
+No physical serial write transport or production factory is enabled.
+ID3 is blocked by default; coordinated HOME refuses before any motor write when
+any axis lacks clearance. The simulated fixture explicitly clears its own cable
+constraint and models coordinate resets, lag, residual error and torque loss.
+
+The shared session requires both follower HOME and leader HOME before READY, and
+waits for leader HOLD after stopping the follower. Reference acquisition occurs
+after supported release. The software target is <=2 counts for 200 ms, not the
+historical 20 counts. This does not establish physical load capability or absolute
+accuracy. Fault hold is best effort and logged; no automatic torque-off on close.
+The [ROBOTIS control table](https://emanual.robotis.com/docs/en/dxl/x/xl430-w250/)
+defines signed feedback and torque-reset behavior; real transition binding and
+profile parameters remain hardware gates. Six motion/coordinator tests and four
+local Hand-E wire tests PASS. Full integrated simulation is being rerun.

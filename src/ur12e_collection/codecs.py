@@ -1,6 +1,8 @@
 """Independent episode H.264 encoders and exact aligned-depth PNG payloads."""
 
+import concurrent.futures
 import dataclasses
+import time
 import fractions
 import hashlib
 import math
@@ -9,7 +11,7 @@ import av
 import cv2
 import numpy as np
 
-from ur12e_collection import matching
+from ur12e_collection import contracts, matching
 
 
 @dataclasses.dataclass(frozen=True)
@@ -123,3 +125,61 @@ def rgb_psnr(reference: np.ndarray, decoded: np.ndarray) -> float | None:
     """Measure RGB loss; None denotes an exact match."""
     error = float(np.mean((reference.astype(np.float32) - decoded) ** 2))
     return 10 * math.log10(255**2 / error) if error else None
+
+
+class RigEncoder:
+    """Encode one triple concurrently, with no inter-group reordering."""
+
+    def __init__(self, crf=20, workers=1):
+        if workers not in (1, 3):
+            raise ValueError("encoding requires one or three workers")
+        self.video = {
+            role: VideoEncoder(crf) for role in contracts.CAMERA_ROLES
+        }
+        self.pool = (
+            concurrent.futures.ThreadPoolExecutor(
+                max_workers=3, thread_name_prefix="camera-encoder"
+            )
+            if workers == 3
+            else None
+        )
+
+    def _encode(self, frame):
+        started = time.perf_counter_ns()
+        rgb = self.video[frame.role].encode(
+            frame.payload.rgb, frame.timestamp_ns
+        )
+        rgb_ns = time.perf_counter_ns() - started
+        started = time.perf_counter_ns()
+        depth = encode_depth(frame.payload.depth)
+        depth_ns = time.perf_counter_ns() - started
+        return (
+            rgb,
+            depth,
+            depth_digest(frame.payload.depth),
+            {
+                "rgb": rgb_ns,
+                "depth": depth_ns,
+            },
+        )
+
+    def group(self, members):
+        """Finish one job per camera before accepting another group."""
+        if self.pool is None:
+            return [self._encode(frame) for frame in members]
+        jobs = [self.pool.submit(self._encode, frame) for frame in members]
+        return [job.result() for job in jobs]
+
+    def finish(self):
+        """Flush independent video streams and close all workers."""
+        try:
+            for video in self.video.values():
+                video.finish()
+        finally:
+            self.close()
+
+    def close(self):
+        """Join the bounded worker set after success or failure."""
+        if self.pool is not None:
+            self.pool.shutdown(wait=True, cancel_futures=True)
+            self.pool = None

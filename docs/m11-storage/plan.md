@@ -184,3 +184,18 @@ The corrected simulator batch `session-1789028767567594961` completes all twenty
 queue peak is 68/128, image peak 10/16, maximum queue delay 339.03 ms. Each MCAP
 is independently decoded and all depth hashes verified. This closes the simulator
 long-duration gate; it does not change physical resource/quality acceptance.
+
+### N4/N6 recorded-image workload increment
+
+The aligned offline sprint resumes resource debugging with real recorded inputs.
+The first amd64 Docker run failed after 20 encoded groups: average group work
+59.5 ms, exceeding the 33.3 ms input period; the bounded 16-group queue correctly
+aborted. Camera producer queues peaked at one. Preserve the failed evidence.
+
+Add an explicit `encoding_workers=3` snapshot option for the simulator workload.
+Exactly one RGB/depth job per camera can run concurrently; all three finish before
+the single MCAP owner serializes the group or starts another. Codec contexts are
+never used concurrently with themselves. Preserve H.264 CRF20/veryfast, PNG level1,
+depth hashes, FIFO order and all queue/freshness gates. Serial remains the default
+for previously accepted physical profiles. Reap workers after success or failure.
+Performance and final-image acceptance remain NOT RUN for this increment.

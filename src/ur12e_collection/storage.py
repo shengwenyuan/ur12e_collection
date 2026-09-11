@@ -279,6 +279,7 @@ class EpisodeWriter:
 
     def _run(self) -> None:
         started = time.monotonic()
+        writer = None
         try:
             with (self.partial / "episode.mcap").open("xb") as stream:
                 writer = archive.ArchiveWriter(
@@ -360,6 +361,8 @@ class EpisodeWriter:
             except OSError:
                 pass  # An unwritable filesystem cannot hold an error record.
         finally:
+            if writer is not None:
+                writer.close()
             while not self._queue.empty():
                 try:
                     self._queue.get_nowait()

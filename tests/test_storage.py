@@ -516,3 +516,42 @@ def test_jittered_matcher_outputs_obey_recording_contract(
     for result in results:
         if result.accepted:
             validator.check(result)
+
+
+def test_parallel_encoder_preserves_bytes_and_reaps_workers(group_factory):
+    import threading
+
+    serial = codecs.RigEncoder(workers=1)
+    parallel = codecs.RigEncoder(workers=3)
+    try:
+        for index in range(5):
+            members = group_factory(index).members
+            left, right = serial.group(members), parallel.group(members)
+            assert [item[:3] for item in left] == [item[:3] for item in right]
+    finally:
+        serial.close()
+        parallel.close()
+    assert not any(
+        t.name.startswith("camera-encoder") for t in threading.enumerate()
+    )
+
+
+def test_parallel_codec_failure_is_reaped_without_publishing(
+    group_factory, monkeypatch
+):
+    import threading
+
+    parallel = codecs.RigEncoder(workers=3)
+
+    def fail(_image):
+        raise RuntimeError("injected native codec failure")
+
+    monkeypatch.setattr(codecs, "encode_depth", fail)
+    try:
+        with pytest.raises(RuntimeError, match="native codec"):
+            parallel.group(group_factory().members)
+    finally:
+        parallel.close()
+    assert not any(
+        t.name.startswith("camera-encoder") for t in threading.enumerate()
+    )

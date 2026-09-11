@@ -31,19 +31,21 @@ def inspect(kind: str, name: str) -> dict:
     return json.loads(result.stdout)[0]
 
 
-def main() -> None:
-    """Launch only supported test entrypoints with no station or host option."""
+def _arguments():
+    """Parse explicit simulation inputs and resource options."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "mode",
         choices=(
             "motion",
+            "calibration",
             "watchdog",
             "native-home",
             "prepare-home",
             "home",
             "session",
             "session-faults",
+            "leader-faults",
             "console",
         ),
     )
@@ -58,13 +60,27 @@ def main() -> None:
     parser.add_argument("--kill-observer", action="store_true")
     parser.add_argument("--leader-trace", type=pathlib.Path)
     parser.add_argument("--leader-speed", type=float, default=1.0)
+    camera = parser.add_mutually_exclusive_group()
+    camera.add_argument("--camera-cache", type=pathlib.Path)
+    camera.add_argument(
+        "--camera-volume", choices=("ur12e-replay-cache-20260911",)
+    )
+    parser.add_argument("--client-memory", choices=("2g", "5g"), default="2g")
     args = parser.parse_args()
-    if args.leader_trace and args.mode != "session":
-        parser.error("leader replay requires session mode")
+    if (
+        args.camera_cache or args.camera_volume or args.leader_trace
+    ) and args.mode not in ("session", "leader-faults"):
+        parser.error("recorded input replay requires session mode")
     if args.ros_observe and args.mode not in ("session", "console"):
         parser.error("ROS observation requires session or console mode")
     if args.kill_observer and (args.mode != "session" or not args.ros_observe):
         parser.error("observer kill test requires session --ros-observe")
+    return args
+
+
+def main() -> None:
+    """Launch verified simulator clients without a physical host option."""
+    args = _arguments()
     client = inspect("image", args.client_image)
     if (client["Os"], client["Architecture"]) != ("linux", "amd64"):
         raise ValueError("simulator client requires a local linux/amd64 image")
@@ -88,7 +104,14 @@ def main() -> None:
     home = (
         sim_program.prepare(SIMULATOR)
         if args.mode
-        in ("prepare-home", "home", "session", "session-faults", "console")
+        in (
+            "prepare-home",
+            "home",
+            "session",
+            "session-faults",
+            "leader-faults",
+            "console",
+        )
         else None
     )
     if args.mode == "prepare-home":
@@ -134,7 +157,7 @@ def main() -> None:
                 "--network",
                 NETWORK,
                 "--memory",
-                "2g",
+                args.client_memory,
                 "--cap-drop",
                 "ALL",
                 "--security-opt",
@@ -158,6 +181,16 @@ def main() -> None:
                         f"{args.leader_trace.resolve()}:/leader-trace.jsonl:ro",
                     ]
                     if args.leader_trace
+                    else []
+                ),
+                *(
+                    ["-v", f"{args.camera_cache.resolve()}:/camera-cache:ro"]
+                    if args.camera_cache
+                    else []
+                ),
+                *(
+                    ["-v", f"{args.camera_volume}:/camera-cache:ro"]
+                    if args.camera_volume
                     else []
                 ),
                 "-e",
@@ -209,6 +242,11 @@ def _entrypoint(args, revision):
                 str(args.leader_speed),
             ]
             if args.leader_trace
+            else []
+        ),
+        *(
+            ["--camera-cache", "/camera-cache"]
+            if args.camera_cache or args.camera_volume
             else []
         ),
         *(["--ros-observe"] if args.ros_observe else []),

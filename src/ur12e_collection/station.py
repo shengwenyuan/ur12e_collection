@@ -37,6 +37,11 @@ def validate(document: dict[str, Any], *, cameras_ready: bool = False) -> None:
             raise ValueError(
                 f"invalid calibration configuration: {error}"
             ) from error
+    if document["gello"].get("calibration") is not None:
+        # pylint: disable-next=import-outside-toplevel
+        from ur12e_collection.leader import mapping
+
+        mapping.validate_binding(document)
     cameras = document["cameras"]
     serials = [cameras[role]["serial"] for role in contracts.CAMERA_ROLES]
     present = [serial for serial in serials if serial is not None]

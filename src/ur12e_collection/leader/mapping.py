@@ -221,3 +221,30 @@ def reference(path: pathlib.Path) -> dict:
         "directions_confirmed": False,
         "motion_ready": False,
     }
+
+
+def validate_binding(config):
+    """Reject stale assembly, changed HOME or altered embedded calibration."""
+    leader = config["gello"]
+    value = leader.get("calibration")
+    if value is None:
+        return
+    if set(value) != {
+        "schema_version",
+        "setup_id",
+        "simulated",
+        "calibration_id",
+        "document",
+        "physical_verified",
+    }:
+        raise ValueError("leader calibration binding fields differ")
+    if value["schema_version"] != 1 or value["physical_verified"] is not False:
+        raise ValueError("physical calibration acceptance is not implemented")
+    setup = leader.get("setup")
+    if setup != {"id": value["setup_id"], "simulated": value["simulated"]}:
+        raise ValueError("leader assembly differs from active calibration")
+    calibrated = from_document(value["document"])
+    if calibrated.identity() != value["calibration_id"]:
+        raise ValueError("leader calibration identity differs")
+    if list(calibrated.home_rad) != config["ur"]["ready_q_rad"]:
+        raise ValueError("leader calibration and follower HOME differ")

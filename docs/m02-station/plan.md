@@ -52,3 +52,12 @@ restores prior visible bytes if replacement-directory synchronization fails.
 M02-A02/A03 software portions PASS in M12 activation tests, including corrupted
 inputs, failed fsync, immutable snapshots and moved-camera invalidation. Physical
 mount verification and real startup/control acceptance remain NOT RUN.
+
+### N5 leader calibration binding
+
+Under the aligned offline completion plan, optional GELLO setup/calibration fields
+now use the same serialized atomic station update path. Evidence hashes, assembly
+identity, provenance and follower HOME are checked. A remount invalidates the
+leader result without rewriting past episode snapshots. Software tests pass;
+physical verification and motion activation remain explicitly false. Details
+are in the M12 plan.

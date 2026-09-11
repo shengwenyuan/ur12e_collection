@@ -60,20 +60,7 @@ def parser() -> argparse.ArgumentParser:
     robot.add_argument("--seconds", type=float, default=2)
     robot.add_argument("--output", type=pathlib.Path, required=True)
     _leader_arguments(devices)
-    episodes = commands.add_parser("episode").add_subparsers(dest="operation")
-    verify = episodes.add_parser(
-        "verify", help="decode and check a local episode"
-    )
-    verify.add_argument("path", type=pathlib.Path)
-    export = episodes.add_parser("export", help="offline LeRobot v3 projection")
-    export.add_argument("paths", nargs="+", type=pathlib.Path)
-    export.add_argument("--output", type=pathlib.Path, required=True)
-    export.add_argument(
-        "--action-source",
-        choices=("sent_command", "leader_intent"),
-        required=True,
-    )
-    export.add_argument("--rgb-arm-only", action="store_true", required=True)
+    _episode_arguments(commands)
     shadow = commands.add_parser(
         "shadow", help="camera-only batch; no robot motion"
     )
@@ -225,6 +212,15 @@ def _episode(args: argparse.Namespace) -> int:
     # pylint: disable-next=import-outside-toplevel
     from ur12e_collection import storage
 
+    if args.operation == "trajectory":
+        # pylint: disable-next=import-outside-toplevel
+        from ur12e_collection import trajectory
+
+        result = trajectory.export(args.path, args.output)
+        print(
+            json.dumps({"output": str(args.output), "counts": result["counts"]})
+        )
+        return 0
     if args.operation == "export":
         # pylint: disable-next=import-outside-toplevel
         from ur12e_collection import lerobot_export
@@ -300,3 +296,26 @@ def _session(args: argparse.Namespace) -> int:
         args.output, args.revision, sys.stdin, observe=args.ros_observe
     )
     return 130 if result["state"] == "interrupted" else 0
+
+
+def _episode_arguments(commands):
+    """Configure offline data commands without importing optional codecs."""
+    episodes = commands.add_parser("episode").add_subparsers(dest="operation")
+    verify = episodes.add_parser(
+        "verify", help="decode and check a local episode"
+    )
+    verify.add_argument("path", type=pathlib.Path)
+    export = episodes.add_parser("export", help="offline LeRobot v3 projection")
+    export.add_argument("paths", nargs="+", type=pathlib.Path)
+    export.add_argument("--output", type=pathlib.Path, required=True)
+    export.add_argument(
+        "--action-source",
+        choices=("sent_command", "leader_intent"),
+        required=True,
+    )
+    export.add_argument("--rgb-arm-only", action="store_true", required=True)
+    trajectory = episodes.add_parser(
+        "trajectory", help="export a verified local trajectory"
+    )
+    trajectory.add_argument("path", type=pathlib.Path)
+    trajectory.add_argument("--output", type=pathlib.Path, required=True)

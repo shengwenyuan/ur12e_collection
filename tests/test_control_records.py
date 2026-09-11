@@ -30,9 +30,11 @@ def samples(snapshot):
     ]
 
 
+@pytest.mark.parametrize("workers", [1, 3])
 def test_control_archive_decodes_and_preserves_actual(
-    tmp_path, controlled, group_factory
+    tmp_path, controlled, group_factory, workers
 ):
+    controlled["control"]["encoding_workers"] = workers
     path = tmp_path / "episode.mcap"
     with path.open("wb") as stream:
         writer = archive.ArchiveWriter(stream, controlled, True, 20)

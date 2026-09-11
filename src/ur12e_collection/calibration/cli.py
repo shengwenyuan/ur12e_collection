@@ -36,6 +36,18 @@ def configure(parser: argparse.ArgumentParser) -> None:
         "leader-validate", help="validate joint calibration without hardware"
     )
     leader.add_argument("input", type=pathlib.Path)
+    declaration = commands.add_parser(
+        "leader-declare", help="declare leader assembly"
+    )
+    declaration.add_argument("--station", type=pathlib.Path, required=True)
+    declaration.add_argument("--setup-id", required=True)
+    declaration.add_argument("--simulated", action="store_true")
+    activation = commands.add_parser(
+        "leader-activate", help="bind verified leader evidence"
+    )
+    activation.add_argument("input", type=pathlib.Path)
+    activation.add_argument("--evidence", type=pathlib.Path, required=True)
+    activation.add_argument("--station", type=pathlib.Path, required=True)
 
 
 def run(args: argparse.Namespace) -> int:
@@ -68,10 +80,17 @@ def run(args: argparse.Namespace) -> int:
 
 def _leader(args: argparse.Namespace) -> int:
     # No SDK, serial device or robot controller is imported by calibration.
-    # pylint: disable-next=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
     from ur12e_collection.leader import mapping
+    from ur12e_collection.calibration import leader_config
 
-    if args.operation == "leader-reference":
+    if args.operation == "leader-declare":
+        value = leader_config.declare(
+            args.station, args.setup_id, simulated=args.simulated
+        )
+    elif args.operation == "leader-activate":
+        value = leader_config.activate(args.input, args.evidence, args.station)
+    elif args.operation == "leader-reference":
         value = mapping.reference(args.input)
         with args.output.open("x", encoding="utf-8") as stream:
             stream.write(json.dumps(value, indent=2) + "\n")

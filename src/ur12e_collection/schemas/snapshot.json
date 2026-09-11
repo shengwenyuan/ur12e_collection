@@ -232,6 +232,15 @@
         },
         "leader_mapping": {
           "const": "episode_relative_conditioned_v1"
+        },
+        "inputs": {
+          "type": "object"
+        },
+        "encoding_workers": {
+          "enum": [
+            1,
+            3
+          ]
         }
       },
       "required": [

@@ -4,7 +4,6 @@ import collections
 import dataclasses
 import json
 import pathlib
-import time
 
 import av
 from mcap.reader import make_reader
@@ -181,9 +180,9 @@ class ArchiveWriter:
         self.schemas = {
             k: self.writer.register_msgdef(*v) for k, v in _SCHEMAS.items()
         }
-        self.video = {
-            r: codecs.VideoEncoder(crf) for r in contracts.CAMERA_ROLES
-        }
+        self.encoder = codecs.RigEncoder(
+            crf, snapshot.get("control", {}).get("encoding_workers", 1)
+        )
         self.validator = GroupValidator(snapshot, simulated, config)
         self.records = (
             control_records.Validator(snapshot)
@@ -238,22 +237,7 @@ class ArchiveWriter:
             if not isinstance(frame.payload, codecs.Images):
                 raise ValueError("accepted group requires owned RGB-D arrays")
             frame.payload.validate()
-        images = []
-        info = group.metadata()
-        info["depth_sha256"] = {}
-        for frame in group.members:
-            started = time.perf_counter_ns()
-            rgb = self.video[frame.role].encode(
-                frame.payload.rgb, frame.timestamp_ns
-            )
-            self._timing(frame.role + "/rgb", started)
-            started = time.perf_counter_ns()
-            depth = codecs.encode_depth(frame.payload.depth)
-            self._timing(frame.role + "/depth", started)
-            info["depth_sha256"][frame.role] = codecs.depth_digest(
-                frame.payload.depth
-            )
-            images.append((frame, rgb, depth))
+        info, images = self._images(group)
         index = self.counts["camera/frame_set"]
         self._write(
             "camera/frame_set",
@@ -304,10 +288,25 @@ class ArchiveWriter:
             self.counts["diagnostics/frame_rejection"],
         )
 
-    def _timing(self, name: str, started: int) -> None:
-        elapsed = time.perf_counter_ns() - started
-        self.encode_ns[name] += elapsed
-        self.max_encode_ns[name] = max(self.max_encode_ns[name], elapsed)
+    def _images(self, group):
+        images = []
+        info = group.metadata()
+        info["depth_sha256"] = {}
+        encoded = self.encoder.group(group.members)
+        for frame, (rgb, depth, digest, timings) in zip(group.members, encoded):
+            info["depth_sha256"][frame.role] = digest
+            for kind, elapsed in timings.items():
+                name = frame.role + "/" + kind
+                self.encode_ns[name] += elapsed
+                self.max_encode_ns[name] = max(
+                    self.max_encode_ns[name], elapsed
+                )
+            images.append((frame, rgb, depth))
+        return info, images
+
+    def close(self):
+        """Reap bounded encoding workers on any exit."""
+        self.encoder.close()
 
     def record(self, record, timestamp_ns: int) -> None:
         """Keep intent, commands and actual state in distinct typed topics."""
@@ -328,9 +327,9 @@ class ArchiveWriter:
     def finish(self) -> None:
         """Flush every encoder and write the MCAP summary/footer."""
         self.records.finish()
-        for video in self.video.values():
-            video.finish()
+        self.encoder.finish()
         self.writer.finish()
+        self.close()
 
 
 def _record_check(info: dict, simulated: bool):

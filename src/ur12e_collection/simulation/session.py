@@ -1,5 +1,6 @@
 """Explicit simulation composition; no physical station or leader fallback."""
 
+import dataclasses
 import json
 import pathlib
 import time
@@ -11,13 +12,21 @@ from ur12e_collection.simulation import connection
 from ur12e_collection.simulation import profile, targets
 
 
+@dataclasses.dataclass(frozen=True)
+class Inputs:
+    """Explicit simulator fixtures; never inferred from station settings."""
+
+    leader_trace: object = None
+    camera_input: object = None
+
+
 def create(
     station,
     output: pathlib.Path,
     revision: str | None = None,
     *,
     observe=False,
-    leader_trace=None,
+    inputs: Inputs = Inputs(),
 ) -> Session:
     """Start persistent synthetic cameras before acquiring motion control."""
     permit = json.loads(
@@ -53,10 +62,21 @@ def create(
             "simulator": {"image": profile.IMAGE, "version": profile.VERSION},
         },
     }
+    leader_trace = inputs.leader_trace
+    companion = None
     if leader_trace is not None:
+        companion = leader_trace.companion()
         context["control"]["leader_id"] = "gello"
         context["control"]["leader_mapping"] = "episode_relative_conditioned_v1"
-    recorder = recording.Recorder(synthetic.configuration(), context)
+    config, source_factory = synthetic.configuration(), None
+    if inputs.camera_input is not None:
+        config, source_factory, provenance = inputs.camera_input
+        context["control"]["inputs"] = provenance
+        context["control"]["camera_transport"] = "pickle"
+        context["control"]["encoding_workers"] = 3
+    recorder = recording.Recorder(
+        config, context, source_factory=source_factory
+    )
     observer = None
     try:
         snapshot = recorder.start()
@@ -77,6 +97,7 @@ def create(
             snapshot,
             output,
             leader_trace.factory(profile.LIMITS) if leader_trace else None,
+            companion,
         ),
         observer,
     )

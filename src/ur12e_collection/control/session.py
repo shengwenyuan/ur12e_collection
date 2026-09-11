@@ -57,6 +57,7 @@ class Setup:
     snapshot: dict
     output: pathlib.Path
     input_factory: Any = None
+    companion: Any = None
 
 
 class Session:
@@ -82,6 +83,8 @@ class Session:
         operation = self.lifecycle.key(key, now_ns)
         try:
             if operation == "home":
+                if self.setup.companion:
+                    self.setup.companion.start_home(now_ns)
                 self.active.program = self.active.stack.enter_context(
                     self.station.home()
                 )
@@ -100,6 +103,8 @@ class Session:
 
     def _prepare(self):
         self.active = Active()
+        if self.setup.companion:
+            self.setup.companion.begin()
         transport = self.active.stack.enter_context(self.station.motion())
         self.active.program = owner.Controller(
             transport, self.setup.limits, self.snapshot["control"]["leader_id"]
@@ -144,6 +149,8 @@ class Session:
         self.active.program.halt(now_ns)
         if self.setup.input_factory is not None:
             self.active.leader.close()
+        if self.setup.companion:
+            self.setup.companion.hold(time.monotonic_ns())
 
     def step(self) -> None:
         """Feed the current SDK owner and supervise independent recording."""
@@ -176,7 +183,12 @@ class Session:
         active = self.active
         if self.state == "homing":
             active.program.step()
-            if active.program.state == "hold":
+            leader_ready = (
+                self.setup.companion.home_ready(time.monotonic_ns())
+                if self.setup.companion
+                else True
+            )
+            if active.program.state == "hold" and leader_ready:
                 active.held = active.program.feedback.q
                 self._release()
                 self.lifecycle.complete("home")
@@ -193,7 +205,14 @@ class Session:
                 self.recorder.send("samples", (time.monotonic_ns(), samples))
                 if self.observer is not None:
                     self.observer.records(samples)
-            elif self.state == "stopping" and active.program.state == "hold":
+            elif (
+                self.state == "stopping"
+                and active.program.state == "hold"
+                and (
+                    self.setup.companion is None
+                    or self.setup.companion.held(time.monotonic_ns())
+                )
+            ):
                 active.held = state.q
                 self.recorder.send("settled")
                 self._release()
@@ -254,6 +273,14 @@ class Session:
         if isinstance(program, owner.Controller):
             program.fail("session ownership failed")
         self._release()
+        if self.setup.companion and self.setup.companion.phase == "leading":
+            try:
+                self.setup.companion.hold(time.monotonic_ns())
+            # Retain device failures without masking the original session fault.
+            except Exception as error:  # pylint: disable=broad-exception-caught
+                self.timings.append(
+                    {"operation": "leader_fault_hold", "error": str(error)}
+                )
 
     def close(self) -> None:
         """Interrupted work remains partial; completed held episodes survive."""
@@ -263,7 +290,11 @@ class Session:
             else:
                 self._release()
         finally:
-            self.recorder.close()
+            try:
+                if self.setup.companion:
+                    self.setup.companion.close()
+            finally:
+                self.recorder.close()
             self.lifecycle.close()
             if self.observer is not None:
                 self.observer.status(self.state, None)

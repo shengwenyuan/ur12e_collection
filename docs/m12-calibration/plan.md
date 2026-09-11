@@ -397,3 +397,36 @@ Binding creation does not attest a stationary physical transition.
 M04-A03 / M12-A05 software slice PASS: 28 focused mapping, episode and guided
 capture tests, including negative input and a torque reset. Physical calibration
 and powered transitions remain NOT RUN. No motor writes occurred.
+
+### N5 offline completion increment
+
+The user aligned the cross-module offline completion plan on 2026-09-11.
+`leader-declare` binds an assembly identity and simulation provenance; a changed
+assembly invalidates its prior calibration. `leader-activate` verifies the actual
+evidence file hash and embeds schema-3 calibration under station GELLO config.
+The shared station validator rejects a different follower HOME, altered calibration
+hash or assembly mismatch. Physical verification remains false and activation
+does not enable device control. Snapshots reject mixed setup provenance.
+
+`Traversal` preflights every taught route before the first motion and reuses the
+existing controller owner. Each checkpoint requires measured stopped arrival,
+continuous two-second dwell and at least one accepted image for every expected
+camera. Images use preceding actual readback, never a target or future packet.
+Missing views or failed capture stop the traversal without activating a result.
+A round supports 1..40 poses; the previously agreed total remains 20..40 across
+the two rounds, with split/board/TCP details supplied by the eventual lab setup.
+Image detection/storage is an injected capture consumer; the existing ChArUco
+solver and immutable result activation remain shared. No production script
+transport or unverified flange/TCP transform is silently selected.
+
+Native tests PASS: assembly/hash/HOME invalidation; 20 taught poses with exact
+two-second windows; missing-view failure; all-route preflight. Actual URSim
+traversal is run separately with synthetic image fixtures and makes no geometric
+accuracy claim. Physical board visibility, taught routes, calibration accuracy
+and leader sign/scale/load remain NOT RUN.
+
+Actual URSim traversal PASS: `calibration-1789110837993802217/report.json`
+contains 20 completed two-second checkpoints and 30 selected synthetic images
+with original frame metadata and actual UR readback. This accepts the simulated
+M12-A01 orchestration slice; the images contain no calibration-board geometry,
+so physical/geometric acceptance is not inferred.

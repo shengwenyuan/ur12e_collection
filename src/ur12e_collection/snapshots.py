@@ -42,6 +42,12 @@ def copy(snapshot: dict) -> dict:
             expected["model"],
         ):
             raise ValueError(f"observed camera differs from station: {role}")
+    leader_setup = result["station"]["gello"].get("setup")
+    if (
+        leader_setup is not None
+        and leader_setup["simulated"] != result["simulated"]
+    ):
+        raise ValueError("leader setup provenance differs from episode")
     _calibration(result)
     if "capture" in result and result["capture"] != capture.resolve(
         result["station"]

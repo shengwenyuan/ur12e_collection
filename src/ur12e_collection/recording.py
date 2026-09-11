@@ -116,15 +116,19 @@ class _Capture:
         return report
 
 
-def _worker(config, context, channels):
+def _worker(config, context, channels, source_factory=None):
     workers.ignore_terminal_interrupt()
     _, replies, abort, _, slots = channels
-    source = rig.Rig(
-        config,
-        "synthetic" if context["simulated"] else "hardware",
-        queue_capacity=context["control"]["camera_queue_capacity"],
-        shared_slots=slots,
-        stop=abort,
+    source = (
+        source_factory(config, context, abort)
+        if source_factory
+        else rig.Rig(
+            config,
+            "synthetic" if context["simulated"] else "hardware",
+            queue_capacity=context["control"]["camera_queue_capacity"],
+            shared_slots=slots,
+            stop=abort,
+        )
     )
     owner = capture_owner = verifier = None
     try:
@@ -217,7 +221,7 @@ def _run(capture_owner, channels):
 class Recorder:
     """Nonblocking control-side IPC; queue loss is a session fault."""
 
-    def __init__(self, config: dict, context: dict):
+    def __init__(self, config: dict, context: dict, *, source_factory=None):
         ctx = multiprocessing.get_context("spawn")
         self.commands, self.replies = ctx.Queue(CAPACITY), ctx.Queue(CAPACITY)
         self.abort = ctx.Event()
@@ -248,6 +252,7 @@ class Recorder:
                         for role, slots in self.slots.items()
                     },
                 ),
+                source_factory,
             ),
             name="episode-recorder",
         )

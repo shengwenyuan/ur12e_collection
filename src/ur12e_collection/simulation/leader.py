@@ -1,11 +1,14 @@
 """Recorded encoder replay, with no serial-device fallback."""
 
 import bisect
+import dataclasses
 import hashlib
 import json
 import pathlib
 
-from ur12e_collection.leader import episode, input as leader_input, mapping
+from ur12e_collection.leader import coordinator, episode
+from ur12e_collection.leader import input as leader_input, mapping, motion
+from ur12e_collection.simulation.motors import Motors
 
 
 class Trace:
@@ -41,6 +44,7 @@ class Trace:
         self.started_ns = None
         self.epoch = None
         self.times = []
+        self.motor_fixture = None
 
     def start(self, now_ns):
         """Start a new replay epoch at the recorded reference."""
@@ -77,6 +81,10 @@ class Trace:
                     tuple(row["errors"]),
                 )
             )
+        if self.motor_fixture is not None:
+            self.motor_fixture.value = dataclasses.replace(
+                self.motor_fixture.value, counts=result[-1].raw
+            )
         return tuple(result)
 
     def calibration(self, home):
@@ -93,6 +101,18 @@ class Trace:
             3388,
             "operator reference; simulation direction candidates",
             self.identity,
+        )
+
+    def companion(self):
+        """Model powered transitions with explicit simulated cable clearance."""
+        home = tuple(self.rows[self.reference]["position"])
+        self.motor_fixture = Motors(home, realtime=True)
+        return coordinator.Coordinator(
+            motion.Motion(
+                self.motor_fixture, home, ((0, 4095),) * 7, blocked=()
+            ),
+            self.motor_fixture.bindings,
+            supported=True,
         )
 
     def factory(self, limits):

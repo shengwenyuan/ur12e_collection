@@ -71,6 +71,26 @@
               }
             }
           ]
+        },
+        "setup": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "simulated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "simulated"
+          ],
+          "additionalProperties": false
+        },
+        "calibration": {
+          "type": "object"
         }
       },
       "required": [

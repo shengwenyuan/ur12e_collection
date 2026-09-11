@@ -232,3 +232,19 @@ were retained. No production deployment or source change was made. Evidence:
 `/home/robot2026fall/hande-wired-20260911/` remotely, including route, probe,
 launcher, request traces, ICMP, session and offline feedback summaries. See
 [M13 wired integration results](../m13-acceptance/readonly-integration.md).
+
+### N3 offline command owner
+
+The offline completion plan authorizes a command client on an injected connection
+only; the physical read-only constructor and entrypoints remain unchanged.
+Use bounded ASCII GET and SET, with an exact three-byte `ack` assembled across
+partial reads. POS/SPE/FOR/GTO are sent together after active/fault-free readback.
+An explicit activation request exists but startup/move never invokes it. Closing
+or ending an episode sends no automatic release/reset. PRE and POS remain distinct
+from the successful request. Local socket-pair tests cover fragmentation, failed
+acknowledgement, inactive refusal and retained request on close. No real Hand-E
+actuation or grasp-retention acceptance is claimed.
+
+Protocol references: [Robotiq bridge archive](https://dof.robotiq.com/discussion/2420/control-robotiq-gripper-mounted-on-ur-robot-via-socket-communication-python)
+and the [ur_rtde Hand-E example](https://sdurobotics.gitlab.io/ur_rtde/_static/robotiq_gripper.py).
+The installed URCap version/target selection still needs lab verification.

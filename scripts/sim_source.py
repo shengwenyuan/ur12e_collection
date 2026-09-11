@@ -9,7 +9,11 @@ import subprocess
 
 def freeze(root: pathlib.Path, destination: pathlib.Path) -> dict:
     """Copy only runtime/check sources and record their exact content hashes."""
-    for source, target in (("src", "src"), ("tests/simulation", "checks")):
+    for source, target in (
+        ("src", "src"),
+        ("tests/simulation", "checks"),
+        ("tests/replay", "checks/replay"),
+    ):
         shutil.copytree(
             root / source,
             destination / target,

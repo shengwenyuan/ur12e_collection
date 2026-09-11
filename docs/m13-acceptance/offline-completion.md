@@ -102,3 +102,34 @@ episode (240 image groups, stop/HOLD, independent audit). Black and production
 Pylint PASS. Logs: `artifacts/offline-completion/n2-*`; actual simulator report
 `artifacts/simulator-control/session-1789109729156955468/report.json`. Full
 three-view recorded imagery and the new long batch remain N4/N6, not yet accepted.
+
+## N3-N5 progress and resource evidence
+
+Native regression before the final extra codec tests: 386 PASS / 5 environment
+skips; production/script Pylint and Black PASS. Stateful motor/coordinator and
+local Hand-E wire tests pass. N4 functional smoke with three recorded RGB-D
+streams and actual URSim control completed an 8-second file and held review.
+Its 230/240 grouping result fails the stricter quality gate; the runner's PASS
+label describes its older smoke assertions, not a full M13 quality pass.
+
+Serial amd64 encoding failed a bounded queue (59.5 ms/group). Three concurrent
+camera encoder jobs reduced the average to about 22 ms in a later run, but
+long-load stalls still failed recording. Increasing client memory from 2 GiB to
+5 GiB did not establish a throughput pass. An internal Docker replay-cache volume
+removes the host bind path for a separate comparison; it is removable test data.
+No failed run is reclassified, and no queue/skew/freshness gate was relaxed.
+
+N5 software checks cover leader configuration activation/invalidation, taught
+checkpoint traversal, optional read-only twin events and disabled DAgger hooks.
+Remaining image/release and long-batch results will be appended after execution.
+
+N5 URSim traversal PASS: 20 taught checkpoints and 30 image/readback pairs in
+`artifacts/simulator-control/calibration-1789110837993802217/`. Exact dwell and
+actual readback assertions passed; image geometry remains a separate solver gate.
+
+Reviewed N3-N5 commit baseline: **389 native PASS / 5 environment skips**
+(10.12 s), Black PASS, production/script Pylint PASS, whitespace checks PASS.
+Parallel/serial codec payloads are byte-identical in regression; injected codec
+failures reap all encoding threads. Local trajectory export was verified against
+an actual completed URSim/replay MCAP. New source-fault and full-load campaigns
+remain N6; no throughput failure is hidden by this functional commit.
