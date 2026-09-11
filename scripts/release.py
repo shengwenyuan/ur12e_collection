@@ -30,6 +30,8 @@ def source_hashes(image_id: str, root: pathlib.Path) -> dict:
                 "docker",
                 "run",
                 "--rm",
+                "--platform",
+                "linux/amd64",
                 "--network",
                 "none",
                 "--entrypoint",

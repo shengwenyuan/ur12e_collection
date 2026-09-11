@@ -51,12 +51,14 @@ class Motion:
             raise RuntimeError("leader motion owner unavailable")
         value = self.transport.read(now_ns)
         reset = self.epoch is not None and value.epoch != self.epoch
+        reordered = False
+        if self.previous is not None:
+            delta = value.received_ns - self.previous.received_ns
+            reordered = delta < 0 or (delta == 0 and value != self.previous)
         if (
             not 0 <= now_ns - value.received_ns <= 100_000_000
             or any(value.errors)
-            or (
-                self.previous and value.received_ns <= self.previous.received_ns
-            )
+            or reordered
             or reset
         ):
             self.state = "fault"
@@ -150,8 +152,8 @@ class Motion:
             raise RuntimeError("leader hold drift or torque loss")
         if arrived:
             if self.settled_ns is None:
-                self.settled_ns = now_ns
-            if now_ns - self.settled_ns >= 200_000_000:
+                self.settled_ns = value.received_ns
+            if value.received_ns - self.settled_ns >= 200_000_000:
                 self.state = "held"
         else:
             self.settled_ns = None

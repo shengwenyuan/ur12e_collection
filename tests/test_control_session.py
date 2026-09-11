@@ -4,6 +4,7 @@ import contextlib
 import dataclasses
 import threading
 import time
+from unittest import mock
 
 import pytest
 
@@ -114,6 +115,31 @@ def test_no_servo_before_recorder_preparation(controlled, tmp_path):
     owner.close()
     assert station.transport.stops == [True]
     assert not station.home_calls
+
+
+@pytest.mark.parametrize("phase", ["ready", "held", "finalizing"])
+@pytest.mark.parametrize("result", [True, False, "fault"])
+def test_leader_hold_stays_supervised_between_episodes(
+    controlled, tmp_path, phase, result
+):
+    owner, station, recorder = make(controlled, tmp_path)
+    companion = mock.Mock(phase="holding")
+    companion.held.return_value = result
+    if result == "fault":
+        companion.held.side_effect = RuntimeError("leader torque lost")
+    owner.setup = dataclasses.replace(owner.setup, companion=companion)
+    owner.lifecycle.state = phase
+    if result is True:
+        owner.step()
+        owner.step()
+        assert owner.state == phase and companion.held.call_count == 2
+    else:
+        with pytest.raises(RuntimeError, match="leader"):
+            owner.step()
+        assert owner.state == "fault" and recorder.abort.is_set()
+    assert not station.transport.sent and not station.home_calls
+    companion.hold.assert_not_called()
+    owner.close()
 
 
 @pytest.mark.parametrize("failure", ["prepare", "poll", "samples"])

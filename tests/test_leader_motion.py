@@ -83,6 +83,36 @@ def test_arrival_timeout_latches_failure():
     assert owner.state == "fault"
 
 
+def test_fresh_duplicate_readback_does_not_fabricate_acquisition_progress():
+    motors, owner = make()
+    original = motors.value
+    assert owner.step(original.received_ns + 20_000_000) == "held"
+    assert owner.previous == original
+    with pytest.raises(RuntimeError, match="stale"):
+        owner.step(original.received_ns + 100_000_001)
+    assert owner.state == "fault"
+
+
+def test_reused_receipt_cannot_hide_changed_motor_state():
+    motors, owner = make()
+    motors.value = dataclasses.replace(motors.value, counts=(2000,) * 7)
+    with pytest.raises(RuntimeError, match="faulty"):
+        owner.step(motors.value.received_ns + 20_000_000)
+
+
+def test_arrival_dwell_uses_observed_time_instead_of_delivery_delay():
+    motors = Motors()
+    owner = motion.Motion(motors, (2048,) * 7, ((0, 4095),) * 7, blocked=())
+    motors.advance(1)
+    owner.hold(1, motors.bindings())
+    motors.advance(10_000_001)
+    assert owner.step(100_000_001) == "holding"
+    motors.advance(150_000_001)
+    assert owner.step(250_000_001) == "holding"
+    motors.advance(211_000_001)
+    assert owner.step(310_000_001) == "held"
+
+
 def test_coordinator_traverses_ready_leading_hold_and_blocks_clearance():
     from ur12e_collection.leader.coordinator import Coordinator
 

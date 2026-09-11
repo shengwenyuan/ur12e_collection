@@ -44,3 +44,20 @@ must leave meaningful failure reports and source provenance intact.
 M01-A01/A02/A03 and M13-A04: NOT RUN for the new image. Actual identity, installed
 checks, archive checksum, cleanup outcome and remaining Ubuntu gates will be
 recorded here after execution.
+
+
+### First candidate checks
+
+Built `ur12e-collection:offline-1ab61d7` from commit `1ab61d7`, image ID
+`sha256:f4b9e1b87717ac20b80b3c105e3860d206eb6a49413dc6e0597ff348a04c218c`.
+Both host mount tests PASS (4.20 s). The first installed regression FAILed with
+a 15-second Ctrl+C exit timeout in the synthetic shadow test (395 PASS, 2 skips,
+1 failure). An isolated recheck, 15 diagnostic repeats and 100 further diagnostic
+repeats all PASS; a subsequent full installed run PASSes 396 tests / 2 host-only
+skips (23.08 s). No cancellation code or timeout was changed to obtain the
+passes. The original intermittent failure remains unexplained and is recorded
+as an open reliability item, not a proven fix. Logs are under
+`artifacts/offline-completion/n7-installed-*` and `n7-interrupt-*`.
+
+The final installed-package long batch is now running. The accepted current
+image remains unchanged; this candidate is not promoted by the regression rerun.

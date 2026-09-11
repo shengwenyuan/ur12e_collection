@@ -63,3 +63,21 @@ files: acceptance reopens and decodes MCAP; timing-cost reports summarize source
 age, view skew, command gaps, queue/encode metrics and bytes without changing
 acceptance. Full-load failure on Mac remains failure until a fresh unchanged
 gate passes; Ubuntu with live devices needs separate acceptance.
+
+
+`--camera-pacing uniform30` adds a separate real-pixel workload comparison with
+30 Hz replay timestamps and fixed 0/4/8 ms view phases. The default `original`
+keeps historical receipt/exposure timing, including source gaps. Both retain
+original acquisition provenance. Never present uniform pacing as hardware
+synchronization or as a pass of the original-timing replay. Optional
+`--client-cpus 4-9` records an explicit Docker CPU set in the launch manifest.
+
+After capture, compare second-generation RGB against the immutable cache:
+
+```bash
+PYTHONPATH=tests python -m replay.quality /path/to/completed/episode /path/to/cache
+```
+
+The tool decodes every RGB packet, checks role/identity association, and reports
+PSNR without inventing a pass threshold. Depth equality remains the independent
+MCAP verifier's gate.

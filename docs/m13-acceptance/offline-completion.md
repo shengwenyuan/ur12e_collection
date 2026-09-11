@@ -175,3 +175,40 @@ N6 checkpoint regression: 393 native PASS / 5 environment skips (10.38 s),
 Black PASS (149 files), production/script Pylint PASS. The replay identity/gap
 audit has positive and adversarial tests. This commit accepts software changes
 and records failed batch evidence; it does not accept the pending long batch.
+
+
+### Separating image workload from historical delivery loss
+
+Add an explicit test-only `uniform30` pacing comparison, alongside the default
+original-timing replay. The original cache contains accepted payloads only; its
+omitted source frames and historical delivery gaps can themselves violate the
+new batch's first/last-anchor gate. The comparison emits the same real pixels at
+30 Hz with declared synthetic view phases (0/4/8 ms), preserving original
+acquisition provenance and assigning separate replay timestamps. It measures
+codec/storage/control workload, not historical exposure or USB timing. It must
+never replace or relabel the original-timing FAIL, nor claim live-camera quality.
+Use the same 16.7 ms, 75 ms, queue, source-age and batch-quality gates. Record
+which pacing was used in each immutable snapshot and independently measure RGB
+re-encoding loss; no new visual-quality threshold is silently accepted.
+
+
+N6 reviewed follow-up: 409 native PASS / 5 environment skips (11.29 s), Black
+PASS (151 files), production/script Pylint PASS. Twelve added leader-HOLD cases
+cover all held phases, duplicate/stale readback and measured arrival duration;
+four pacing/quality cases preserve original identity and explicit timing modes.
+The first installed-package batch completed seven 40-second synthetic-image
+episodes, then FAILed on a 109.719 ms leader gap (sequences 6799 to 6820), above
+the unchanged 100 ms gate: `session-1789112535942329628`. Its preceding failed
+startup correctly rejected the earlier C207A0 latch; explicit local simulator
+recovery was logged and never added to automatic session startup.
+
+Real-image RGB comparison decoded all 1,196 frames per view against the exact
+first-generation cache: mean PSNR 40.18/39.94/40.88 dB and minimum
+37.13/36.66/38.62 dB for wrist/left/right. These measure a second H.264 generation,
+not raw-sensor capture quality; no new quality threshold was assigned. Results:
+`session-1789111147726326930/episode-0000/rgb-reencode-quality.json`.
+
+The next explicit resource comparison reserves Docker CPUs 0-3 for official
+URSim and 4-9 for the collector client. This is a local test setting on the
+10-CPU Docker VM, not a new Ubuntu hardware constraint. Memory remains 5 GiB
+for real-image replay. Restore the prior URSim CPU setting after the comparison.

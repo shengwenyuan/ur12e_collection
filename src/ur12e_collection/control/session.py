@@ -246,6 +246,10 @@ class Session:
             or model.distance(state.q, active.held) > self.setup.limits.arrival
         ):
             raise model.ControlError("released arm did not hold its pose")
+        if self.setup.companion and not self.setup.companion.held(
+            time.monotonic_ns()
+        ):
+            raise model.ControlError("leader hold is no longer confirmed")
 
     def _release(self):
         started = time.monotonic_ns()

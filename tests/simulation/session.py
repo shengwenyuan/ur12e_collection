@@ -44,12 +44,15 @@ def main():
     parser.add_argument("--leader-trace", type=pathlib.Path)
     parser.add_argument("--leader-speed", type=float, default=1.0)
     parser.add_argument("--camera-cache", type=pathlib.Path)
+    parser.add_argument(
+        "--camera-pacing", choices=("original", "uniform30"), default="original"
+    )
     args = parser.parse_args()
     camera_input = None
     if args.camera_cache:
         from replay.rig import configuration
 
-        camera_input = configuration(args.camera_cache)
+        camera_input = configuration(args.camera_cache, args.camera_pacing)
     trace = None
     if args.leader_trace:
         from ur12e_collection.simulation.leader import Trace

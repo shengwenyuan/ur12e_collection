@@ -66,13 +66,24 @@ def _arguments():
     camera.add_argument(
         "--camera-volume", choices=("ur12e-replay-cache-20260911",)
     )
+    parser.add_argument(
+        "--camera-pacing", choices=("original", "uniform30"), default="original"
+    )
     parser.add_argument("--client-memory", choices=("2g", "5g"), default="2g")
+    parser.add_argument(
+        "--client-cpus", help="explicit Docker CPU set, e.g. 4-9"
+    )
     parser.add_argument(
         "--installed-package",
         action="store_true",
         help="verify source hashes and use the installed package",
     )
     args = parser.parse_args()
+    if args.camera_cache or args.camera_volume:
+        if args.mode != "session":
+            parser.error("camera replay requires session mode")
+    elif args.camera_pacing != "original":
+        parser.error("camera pacing requires a recorded camera input")
     if (
         args.camera_cache or args.camera_volume or args.leader_trace
     ) and args.mode not in ("session", "leader-faults"):
@@ -135,6 +146,10 @@ def main() -> None:
         frozen["package_origin"] = (
             "installed" if args.installed_package else "frozen_source_overlay"
         )
+        frozen["client_resources"] = {
+            "memory": args.client_memory,
+            "cpuset_cpus": args.client_cpus,
+        }
         frozen["source_revision"] += (
             "-image-" + client["Id"].split(":")[-1][:12]
         )
@@ -169,6 +184,11 @@ def main() -> None:
                 NETWORK,
                 "--memory",
                 args.client_memory,
+                *(
+                    ["--cpuset-cpus", args.client_cpus]
+                    if args.client_cpus
+                    else []
+                ),
                 "--cap-drop",
                 "ALL",
                 "--security-opt",
@@ -263,7 +283,12 @@ def _entrypoint(args, revision):
             else []
         ),
         *(
-            ["--camera-cache", "/camera-cache"]
+            [
+                "--camera-cache",
+                "/camera-cache",
+                "--camera-pacing",
+                args.camera_pacing,
+            ]
             if args.camera_cache or args.camera_volume
             else []
         ),

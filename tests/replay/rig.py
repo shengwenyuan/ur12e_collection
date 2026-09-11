@@ -10,11 +10,16 @@ import uuid
 from .feed import Cache
 from ur12e_collection import contracts
 
+PHASE_NS = {"wrist": 0, "third_left": 4_000_000, "third_right": 8_000_000}
+
 
 class Rig:
     """Three bounded producers; no camera or hardware SDK is loaded."""
 
-    def __init__(self, path, _config, _context, abort):
+    def __init__(self, path, _config, _context, abort, *, pacing="original"):
+        if pacing not in ("original", "uniform30"):
+            raise ValueError("explicit supported replay pacing required")
+        self.pacing = pacing
         self.cache = Cache(path)
         self.clock_id = f"replay:{uuid.uuid4().hex}"
         self.observations = self.cache.snapshot("probe", "fixture")["cameras"]
@@ -46,14 +51,7 @@ class Rig:
         sequence = 0
         try:
             while not self.stop.is_set() and not self.abort.is_set():
-                due = self.started + self.cache.due(role, sequence)
-                frame = self.cache.frame(
-                    role,
-                    sequence,
-                    self.clock_id,
-                    due,
-                    self.started + self.offset,
-                )
+                due, frame = self.scheduled(role, sequence)
                 if self.stop.wait(max(0, (due - time.monotonic_ns()) / 1e9)):
                     return
                 now = time.monotonic_ns()
@@ -82,6 +80,26 @@ class Rig:
         except Exception as error:
             self.stats[role]["error"] = f"{type(error).__name__}: {error}"
             self.stop.set()
+
+    def scheduled(self, role, sequence):
+        """Separate actual source provenance from an explicit replay clock."""
+        offset = (
+            self.cache.due(role, sequence)
+            if self.pacing == "original"
+            else sequence * 1_000_000_000 // 30 + PHASE_NS[role]
+        )
+        due = self.started + offset
+        frame = self.cache.frame(
+            role, sequence, self.clock_id, due, self.started + self.offset
+        )
+        if self.pacing == "uniform30":
+            depth_offset = frame.depth_timestamp_ns - frame.timestamp_ns
+            frame = dataclasses.replace(
+                frame,
+                timestamp_ns=due + self.offset,
+                depth_timestamp_ns=due + self.offset + depth_offset,
+            )
+        return due, frame
 
     def read(self):
         if (
@@ -112,13 +130,13 @@ class Rig:
         self.cache.close()
 
 
-def configuration(path):
+def configuration(path, pacing="original"):
     cache = Cache(path)
     try:
         config = cache.snapshot("probe", "fixture")["station"]
         return (
             config,
-            functools.partial(Rig, path),
+            functools.partial(Rig, path, pacing=pacing),
             {
                 "cameras": {
                     "kind": "recorded_rgbd_replay",
@@ -130,6 +148,11 @@ def configuration(path):
                         for i in range(len(cache.groups))
                     ],
                     "cache_prefault_before_control": True,
+                    "pacing": pacing,
+                    "preserves_original_receipt_schedule": pacing == "original",
+                    "synthetic_view_phase_ns": (
+                        PHASE_NS if pacing == "uniform30" else None
+                    ),
                     "original_source": cache.manifest["source_metadata"],
                     "replays_usb_or_alignment_cost": False,
                 },

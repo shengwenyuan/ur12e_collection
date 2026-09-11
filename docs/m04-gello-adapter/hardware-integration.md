@@ -944,3 +944,27 @@ The [ROBOTIS control table](https://emanual.robotis.com/docs/en/dxl/x/xl430-w250
 defines signed feedback and torque-reset behavior; real transition binding and
 profile parameters remain hardware gates. Six motion/coordinator tests and four
 local Hand-E wire tests PASS. Full integrated simulation is being rerun.
+
+
+### N3 held-state supervision correction
+
+Review during N6 found that the shared session checked the leader until its
+first confirmed HOLD, but only checked the follower during READY/review/finalize.
+Within the aligned coordinated-HOLD scope, keep checking measured leader HOLD
+in those phases. A dropped torque, stale sample or drift must latch the session
+fault and prevent another engagement; never compensate by releasing torque or
+automatically moving HOME. Add healthy/unsettled/faulting companion cases for
+all three phases, then repeat actual URSim handovers with the stateful fixture.
+This is software supervision, not evidence of physical supported holding.
+
+The same review also covers the intended latest-sample transport: a fresh,
+unchanged readback may be observed on successive controller polls. Do not call
+it a reset or refresh its acquisition timestamp. Reject changed data with a
+reused timestamp, backwards time and age over 100 ms. Measure the 200 ms arrival
+window from actual readback timestamps, so delayed delivery cannot make an
+unobserved stationary interval pass. Add deterministic tests before acceptance.
+
+Software correction acceptance: PASS. The full native suite passes 409 tests
+with five environment skips; all 23 focused motion/session cases also pass
+after the final readability refactor. Actual URSim handover regression and
+physical holding acceptance remain separate, pending checks.
