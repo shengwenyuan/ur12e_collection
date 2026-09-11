@@ -340,7 +340,7 @@ Episode metadata includes task, outcome, device/calibration snapshot, configurat
 
 Acceptance targets: `M10-A01` leader intent, sent commands and actual feedback stay distinct; `M10-A02` raw gripper values and units are preserved; `M10-A03` timestamps, identities, calibration and schema versions are traceable.
 
-## M11. Encoding, Storage and Dataset Export
+## M11. Encoding, Storage and Verification
 
 ### M11.1 Episode container: MCAP direction aligned
 

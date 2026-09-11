@@ -232,8 +232,9 @@ applies at episode boundaries; an internal callback interval is not a physical
 exposure-clock measurement. Internal decision IDs must still be contiguous and
 receipt order must advance. Synthetic scheduling jitter remains visible in the
 original timestamps and rejection counts; it is never replaced with idealized
-30 Hz timestamps. The optional LeRobot projection has its own stricter cadence
-requirements and may reject an otherwise valid raw episode.
+30 Hz timestamps. The retired LeRobot projection had its own stricter cadence
+requirements and could reject an otherwise valid raw episode. Conversion now
+belongs to a separate repository (2026-09-12).
 
 ## Full controlled URSim batch result (2026-09-10)
 

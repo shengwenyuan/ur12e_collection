@@ -2,7 +2,8 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: implemented; live-source lifecycle checked, installed-image and manual acceptance tracked below.
+Status: implemented; live-source lifecycle and installed-image recheck PASS.
+Manual direction acceptance remains pending; initial failures are retained below.
 On 2026-09-12 the user assigned LeRobot conversion to another repository and
 requested manual physical-leader / URSim follower validation before proceeding.
 Reuse the aligned episode-relative mapping, HOME, signs-under-verification,
@@ -153,3 +154,22 @@ read/publication races, startup stability, isolated-worker cleanup, source fault
 propagation through console cleanup, and removal of the export CLI. Independently
 reopening the completed live MCAP passed all RGB/depth checks and confirmed
 physical-live-leader provenance plus the immutable per-episode baseline.
+
+Installed image: `ur12e-collection:live-leader`, linux/amd64, source `bafeb20`,
+immutable ID `sha256:954b379d1e88869d7b3fdbcf39b32c13fd3c0b715e3e919bbc30d87f4bace41c`.
+All 87 installed Python/schema files match the committed source. This is one
+unified development/runtime image; official URSim remains a separate service.
+No physical station deployment or old-image deletion was performed in this slice.
+
+The first installed regression had two failures (469 passed, two host skips):
+`test_readonly_two_episode_files_have_no_actions` reported camera IPC overflow
+on `third_left`; `test_two_real_process_episodes_keep_one_rig` reported writer
+`queued=4 + 1 > 4`. These existing Mac/amd64 queue failures are retained; all new
+live-input tests passed. One unchanged full recheck follows. No queue/freshness
+threshold was relaxed to obtain acceptance.
+
+Unchanged installed full recheck PASS: 471 tests, two host skips (26.91 s).
+The first two queue failures remain unresolved and are not represented as fixed.
+The exact documented `--installed-package` live command also reached
+`needs_home` with the physical leader and exited through Ctrl+C; no source
+package overlay was used. Manual joint movement remains the next user gate.
