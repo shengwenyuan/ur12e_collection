@@ -9,6 +9,8 @@ import pathlib
 from ur12e_collection.control import model
 
 RADIANS_PER_COUNT = 2 * math.pi / 4096
+MIN_COUNT = -(2**31)
+MAX_COUNT = 2**31 - 1
 
 
 def integer(value):
@@ -19,7 +21,7 @@ def integer(value):
 
 @dataclasses.dataclass(frozen=True)
 class Joint:
-    """One mechanically validated single-turn encoder interval."""
+    """One explicit signed teaching interval; never a powered goal range."""
 
     home_count: int
     sign: int
@@ -32,7 +34,7 @@ class Joint:
             integer(value)
         if (
             self.sign not in (-1, 1)
-            or not 0 <= self.minimum < self.maximum <= 4095
+            or not MIN_COUNT <= self.minimum < self.maximum <= MAX_COUNT
             or not self.minimum <= self.home_count <= self.maximum
         ):
             raise ValueError("invalid calibrated joint interval/sign")
@@ -78,8 +80,10 @@ class Calibration:
             raise ValueError("six calibrated joints are required in ID order")
         for endpoint in (self.gripper_open, self.gripper_closed):
             integer(endpoint)
-            if not 0 <= endpoint <= 4095:
-                raise ValueError("gripper endpoint outside single-turn range")
+            if not MIN_COUNT <= endpoint <= MAX_COUNT:
+                raise ValueError(
+                    "gripper endpoint outside signed register range"
+                )
         if not 20 <= abs(self.gripper_closed - self.gripper_open) < 2048:
             raise ValueError("invalid gripper travel")
         if (
@@ -108,14 +112,14 @@ class Calibration:
         fraction = (raw - self.gripper_open) / (
             self.gripper_closed - self.gripper_open
         )
-        if not 0 <= fraction <= 1:
-            raise ValueError("gripper input outside calibrated travel")
-        return round(255 * fraction)
+        if not MIN_COUNT <= raw <= MAX_COUNT:
+            raise ValueError("gripper input outside signed register range")
+        return round(255 * min(1, max(0, fraction)))
 
     def document(self) -> dict:
         """Describe fixed physical context independently of episode mapping."""
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "kind": "leader_joint_calibration",
             **dataclasses.asdict(self),
         }
@@ -147,7 +151,7 @@ def load(path: pathlib.Path) -> Calibration:
     if (
         not isinstance(version, int)
         or isinstance(version, bool)
-        or version != 2
+        or version != 3
         or value.pop("kind") != "leader_joint_calibration"
     ):
         raise ValueError("unsupported calibration version or kind")
@@ -195,8 +199,8 @@ def reference(path: pathlib.Path) -> dict:
             )
         for count in row["position"]:
             integer(count)
-            if not 0 <= count <= 4095:
-                raise ValueError("reference lies outside single-turn branch")
+            if not MIN_COUNT <= count <= MAX_COUNT:
+                raise ValueError("reference outside signed register range")
     values = list(zip(*(row["position"] for row in rows)))
     spreads = [max(v) - min(v) for v in values]
     if max(spreads) > 2:

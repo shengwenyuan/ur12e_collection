@@ -49,13 +49,15 @@ def test_calibration_requires_verified_shapes_and_does_not_wrap():
         dataclasses.replace(c, gripper_open=c.gripper_closed)
 
 
-def test_gripper_raw_direction_is_explicit_and_no_out_of_range_clipping():
+def test_gripper_assigned_range_saturates_in_both_directions():
     c = calibration()
     assert [c.gripper(r) for r in (3200, 3500, 3800)] == [0, 128, 255]
     reverse = dataclasses.replace(c, gripper_open=3800, gripper_closed=3200)
     assert reverse.gripper(3200) == 255
-    with pytest.raises(ValueError):
-        c.gripper(3801)
+    assert c.gripper(3801) == 255
+    assert c.gripper(3100) == 0
+    assert reverse.gripper(3100) == 255
+    assert reverse.gripper(3900) == 0
 
 
 def test_file_round_trip_preserves_fixed_mapping_and_rejects_offsets(tmp_path):
@@ -110,7 +112,7 @@ def test_calibration_is_independent_of_episode_mode(tmp_path, capsys):
     c = calibration()
     c.save(path)
     document = json.loads(path.read_text())
-    assert document["schema_version"] == 2
+    assert document["schema_version"] == 3
     assert document["kind"] == "leader_joint_calibration"
     assert "mapping" not in document
     assert cli.main(["calibrate", "leader-validate", str(path)]) == 0
@@ -172,3 +174,41 @@ def test_reference_uses_actual_last_sample_not_an_average(tmp_path):
     assert (
         value["reference_selection"] == "last_actual_sample_in_stable_capture"
     )
+
+
+def test_signed_teaching_coordinates_do_not_wrap_or_change_physical_bounds():
+    c = dataclasses.replace(
+        calibration(),
+        joints=tuple(mapping.Joint(42, 1, -600, 600) for _ in range(6)),
+        gripper_open=3256,
+        gripper_closed=3388,
+    )
+    for count in (-433, -1, 0, 42, 308):
+        assert c.angles((count,) * 6 + (3256,))[0] == pytest.approx(
+            (count - 42) * mapping.RADIANS_PER_COUNT
+        )
+    with pytest.raises(ValueError):
+        c.angles((4096 + 42,) * 6 + (3256,))
+    assert [c.gripper(v) for v in (2500, 3256, 3322, 3388, 3500)] == [
+        0,
+        0,
+        128,
+        255,
+        255,
+    ]
+
+
+def test_powered_coordinates_require_a_new_binding_after_reset():
+    from ur12e_collection.leader.coordinates import PoweredAxis
+
+    bound = PoweredAxis("torque-1", -433, 3663, 0, 4095)
+    assert bound.goal(-433, "torque-1") == 3663
+    assert bound.goal(-400, "torque-1") == 3696
+    with pytest.raises(ValueError, match="epoch"):
+        bound.goal(-433, "torque-2")
+    with pytest.raises(ValueError, match="interval"):
+        bound.goal(308, "torque-1")
+    rebound = PoweredAxis("torque-2", 308, 308, 0, 4095)
+    assert rebound.goal(308, "torque-2") == 308
+    with pytest.raises(ValueError):
+        PoweredAxis("torque-1", -433, -433, 0, 4095)

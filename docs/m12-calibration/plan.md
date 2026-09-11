@@ -381,3 +381,19 @@ OPEN=0 and count 3388 as CLOSED=255. These are assigned input endpoints, not
 claimed mechanical limits or repeatability measurements. Saturation outside this
 assigned range is the intended lever mapping policy; arm limits and signed-input
 handling remain separate. Save the convention without activating motor control.
+
+### N1 signed reference and assigned lever mapping
+
+Aligned by the offline completion plan on 2026-09-11. Calibration schema 3
+explicitly supports signed 32-bit teaching coordinates; old schema 2 requires
+review and regeneration rather than silently changing its gripper semantics.
+Configured joint bounds remain mandatory and no modulo wrapping is performed.
+Assigned gripper endpoints saturate to Robotiq raw 0..255 independently of
+mechanical travel. The actual initial sample remains the reference.
+`PoweredAxis` binds an explicitly measured logical/powered offset to one epoch
+and rejects stale epochs or goals outside the configured mode-3 interval.
+Binding creation does not attest a stationary physical transition.
+
+M04-A03 / M12-A05 software slice PASS: 28 focused mapping, episode and guided
+capture tests, including negative input and a torque reset. Physical calibration
+and powered transitions remain NOT RUN. No motor writes occurred.
