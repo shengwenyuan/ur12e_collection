@@ -19,10 +19,10 @@ def validate(value):
         raise ValueError("physical HOME must not release the gripper")
     limits = value["limits"]
     ceilings = {
-        "speed": math.radians(5),
-        "acceleration": math.radians(5),
-        "ready_speed": math.radians(1),
-        "ready_acceleration": math.radians(2),
+        "speed": math.radians(8),
+        "acceleration": math.radians(10),
+        "ready_speed": math.radians(3),
+        "ready_acceleration": math.radians(6),
         "freshness_ns": 250_000_000,
         "arrival": math.radians(0.1),
         "stopped_speed": math.radians(0.01),

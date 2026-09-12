@@ -6,6 +6,10 @@ from ur12e_collection.control import model
 from ur12e_collection.leader import mapping
 
 
+class UnstableReference(ValueError):
+    """Valid acquisitions need a steadier window before engagement."""
+
+
 @dataclasses.dataclass(frozen=True)
 class Sample:
     """One real acquisition in a source epoch, using the owner's host clock."""
@@ -115,7 +119,7 @@ class EpisodeMapper:
         if samples[-1].start_ns - samples[0].start_ns < 40_000_000:
             raise ValueError("startup reference must span at least 40 ms")
         if any(max(v) - min(v) > 10 for v in zip(*(s.raw for s in samples))):
-            raise ValueError("leader startup reference is moving")
+            raise UnstableReference("leader startup reference is moving")
 
     def context(self) -> dict:
         """Return a detached record for immutable episode metadata."""

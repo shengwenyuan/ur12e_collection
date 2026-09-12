@@ -578,3 +578,29 @@ carry the new committed diagnostics before collecting additional handover data.
 Earlier descriptions of a proposed handover fix are superseded by this section;
 primary-versus-cleanup exception preservation and recoverable leader engagement
 remain unimplemented. Current movement parameters are unchanged.
+
+### Post-acceptance teleop adjustments (aligned, 2026-09-13)
+
+The operator approves the previously proposed 8 degrees/s following speed,
+10 degrees/s squared acceleration and corresponding 9.6 degrees/s observed-speed
+guard. SDK HOME becomes 3 degrees/s and 6 degrees/s squared. Stop decelerations
+remain unchanged. Additional physical stopping/fault/contact tests are deferred
+by the operator; mark them NOT RUN rather than infer coverage from the emergency
+stop button. Existing software protections remain active.
+
+A leader startup reference whose spread exceeds 10 counts is a recoverable
+engagement condition: remain in a waiting-for-leader state, retry on fresh input,
+and report the reason once. Keep the follower held at HOME; never start following
+or recording until a genuine stable reference passes. Space may cancel this
+pending start and Ctrl+C exits. Other invalid/stale/failed inputs remain faults.
+Use a typed transient exception, not matching arbitrary error strings.
+
+Run static and behavioral regressions and commit these adjustments before
+recording integration. Physical acceptance at these new rates is NOT RUN.
+The operator supplied a 127-mm TCP translation; local-axis and active-controller
+configuration confirmation is pending and must not be invented.
+
+Teleop adjustment software results: 124 focused tests PASS, Black PASS, Pylint
+10/10. Tests retain unchanged stopping deceleration, enforce the revised profile,
+verify one retry message for repeated unstable windows and preserve fatal stale
+input behavior. This increment has not yet been deployed or physically tested.

@@ -41,10 +41,10 @@
       1.5707963267948966,
       0
     ],
-    "speed": 0.08726646259971647,
-    "acceleration": 0.08726646259971647,
-    "ready_speed": 0.017453292519943295,
-    "ready_acceleration": 0.03490658503988659,
+    "speed": 0.13962634015954636,
+    "acceleration": 0.17453292519943295,
+    "ready_speed": 0.05235987755982989,
+    "ready_acceleration": 0.10471975511965978,
     "freshness_ns": 250000000,
     "arrival": 0.0017453292519943296,
     "stopped_speed": 0.00017453292519943296,
@@ -63,7 +63,7 @@
     "intent_error": 0.5235987755982988,
     "tracking_error": 0.017453292519943295,
     "tracking_seconds": 0.25,
-    "measured_speed": 0.10471975511965978
+    "measured_speed": 0.16755160819145562
   },
   "evidence": "../artifacts/physical-teleop",
   "physical_profile": "commissioning-v1"

@@ -26,11 +26,11 @@ def sample(raw, sequence=0, stamp=1_000_000_000):
 
 def test_physical_profile_has_separate_units_and_conservative_bounds():
     value = configuration()
-    assert value["limits"].speed == math.radians(5)
-    assert value["limits"].ready_speed == math.radians(1)
-    assert value["limits"].acceleration == math.radians(5)
-    assert value["limits"].ready_acceleration == math.radians(2)
-    assert value["guards"].measured_speed == math.radians(6)
+    assert value["limits"].speed == math.radians(8)
+    assert value["limits"].ready_speed == math.radians(3)
+    assert value["limits"].acceleration == math.radians(10)
+    assert value["limits"].ready_acceleration == math.radians(6)
+    assert value["guards"].measured_speed == math.radians(9.6)
     assert value["home_open_gripper"] is False
     assert value["gripper"]["speed"] == value["gripper"]["force"] == 32
 
@@ -523,3 +523,30 @@ def test_handover_reports_feedback_and_waits_only_for_normal_startup(
     assert events.call_args_list[0] == mock.call(
         "handover_before", feedback=before
     )
+
+
+def test_unstable_leader_retries_without_engaging_or_repeating_warning(capsys):
+    instance, device = session()
+    instance.state = "engaging"
+    with mock.patch(
+        "ur12e_collection.control.teleop.leader_input.Input",
+        side_effect=episode.UnstableReference("moving"),
+    ):
+        instance._engage(1_000_000_000)
+        instance._engage(1_000_000_001)
+    assert instance.state == "waiting_leader"
+    assert capsys.readouterr().out.count("retrying") == 1
+    device.servo.assert_not_called()
+    instance.key(" ", 2_000_000_000)
+    assert instance.state == "ready"
+
+
+def test_nontransient_leader_failure_is_not_retried():
+    instance, _ = session()
+    instance.state = "engaging"
+    with mock.patch(
+        "ur12e_collection.control.teleop.leader_input.Input",
+        side_effect=ValueError("stale leader sample"),
+    ):
+        with pytest.raises(ValueError, match="stale"):
+            instance._engage(1_000_000_000)

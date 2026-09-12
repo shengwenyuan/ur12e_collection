@@ -11,7 +11,7 @@ from ur12e_collection.control import (
     settling,
 )
 from ur12e_collection.leader import input as leader_input
-from ur12e_collection.leader import mapping
+from ur12e_collection.leader import episode, mapping
 
 
 # The fields describe one input/owner interval, not independent controllers.
@@ -63,7 +63,7 @@ class Teleoperation:
                 print("Open and empty the gripper before starting.", flush=True)
                 return
             self.state = "engaging"
-        elif self.state == "engaging":
+        elif self.state in ("engaging", "waiting_leader"):
             self.state = "ready"
         elif self.state in ("following", "homing"):
             if self.input is not None:
@@ -76,14 +76,20 @@ class Teleoperation:
         age = now_ns - self.controller.progress.feedback.received_ns
         if not 0 <= age <= min(100_000_000, self.limits.freshness_ns):
             return
-        self.input = leader_input.Input(
-            self.source,
-            self.calibration,
-            self.limits,
-            self.controller.progress.feedback,
-            now_ns,
-            guards=self.guards,
-        )
+        try:
+            self.input = leader_input.Input(
+                self.source,
+                self.calibration,
+                self.limits,
+                self.controller.progress.feedback,
+                now_ns,
+                guards=self.guards,
+            )
+        except episode.UnstableReference:
+            if self.state != "waiting_leader":
+                print("Steady the leader; retrying. Ctrl+C exits.", flush=True)
+            self.state = "waiting_leader"
+            return
         self.gripper_reference = mapping.GripperReference(
             self.input.reading.raw[6], self.closing_sign
         )
@@ -114,7 +120,7 @@ class Teleoperation:
         ):
             self.state = "ready"
             self.held = self.controller.progress.feedback.q
-        elif self.state == "engaging":
+        elif self.state in ("engaging", "waiting_leader"):
             self._engage(time.monotonic_ns())
         elif self.state == "following":
             if self.tracking is not None:
