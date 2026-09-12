@@ -26,6 +26,26 @@ The diagnostic sampling interval is not a servo-loop commitment or production ti
 
 ## Results and remaining work
 
+### TODO: Active TCP offset and flange pose
+
+Status: **TODO / not implemented**, explicitly requested for future unfinished-work
+summaries on 2026-09-12. Primary scope: M03-A01; related: M10-A03 and M12 pose
+semantics. Current recordings contain base-to-active-TCP pose, but the adapter
+reports `controller_active_value_not_read_back` for the offset.
+
+Future work: verify a read-only acquisition path for the controller's active
+`tcp_offset`, persist the numeric flange-to-TCP transform with its applicable
+timestamp/configuration provenance, and define explicit derived flange-pose
+semantics. Use `T_base_flange = T_base_tcp * inverse(T_flange_tcp)`; do not
+subtract six-vector coordinates or assume the historical zero offset still
+applies. Do not instantiate a control interface just to obtain a readback.
+
+Before implementation, align the field/schema and offset-change handling.
+Acceptance must cover zero/nonzero translation and rotation, unavailable offset,
+offset changes and preservation of historical recordings. Controller/SDK support
+and physical read-only acceptance remain unverified for this addition. No code
+change or device access is authorized by this tracking entry.
+
 The user-reported [actual unit inventory](controller-inventory.md) records UR
 Software `5.22.1`, controller hostname/serial, component versions and installed
 URCaps. The pendant reports DHCP and `Not connected to network!` despite reported

@@ -481,6 +481,18 @@ Acceptance targets: `M15-A01` disabled policy interfaces cannot command hardware
 
 ## Open Decisions by Module
 
+### TODO: Read and record the active TCP offset (M03 / M10)
+
+Status: **TODO / not implemented**. The user requested explicit tracking on
+2026-09-12. Include this item whenever summarizing unfinished work until its
+implementation and acceptance are recorded in the
+[M03 plan](docs/m03-ur-adapter/plan.md#todo-active-tcp-offset-and-flange-pose).
+Obtain the active flange-to-TCP transform through a verified read-only path and
+persist it with enough timing/provenance to derive base-to-flange pose from the
+recorded active TCP pose. Current MCAP stores neither the numeric offset nor an
+explicit flange pose. Do not infer zero offset from earlier operator reports.
+Tracking this TODO does not authorize implementation or a hardware test.
+
 | Modules | Next decision |
 | --- | --- |
 | M01 | Foundation authorized and implemented; complete release acceptance evidence. Ubuntu Docker access is resolved; final UR control integration remains M03 |
@@ -684,3 +696,17 @@ Loaded capture failures remain open but do not block passive calibration.
 The user authorized the seven-node [offline completion plan](docs/m13-acceptance/offline-completion.md), coherent commits and obsolete-image cleanup. N1-N5 software is implemented with native and actual URSim evidence. No physical UR, Hand-E or leader writes, and no lab SSH are authorized for this sprint. Signed leader calibration schema 3, immutable episode baselines, separate raw intent/conditioned command audit and injected motor coordination replace the earlier unavailable-only simulation path. The physical device factory remains gated.
 
 M12 now includes configuration-bound leader calibration and taught traversal software alongside the visual solver. M14/M15 have bounded read-only trajectory/policy contracts, not Isaac or inference implementation. Recorded RGB-D replay uses the actual matcher/codec/writer and explicit non-contemporaneous provenance. A strict single 40-second real-image run passes, but the repeated full-load attempt fails; retain both facts and the unchanged gates. New batch, image and lab follow-up results are recorded in M13 rather than inherited from earlier synthetic-only acceptance.
+
+### 2026-09-13: First physical teleoperation control loop
+
+The operator accepted the first real leader -> UR + Hand-E control-only loop;
+reviewed run `1789252989310631297` confirms HOME, 84.98 seconds of following,
+Space hold and a completed 30-second post-Ctrl+C observation. The scoped result
+is PASS; camera/MCAP recording and complete module acceptance remain separate.
+Current following settings are 5 degrees/s, 5 degrees/s squared and 30-degree
+intent lag. HOME proximity is checked at engagement; configured broad operating
+joint bounds apply during following. Held monitoring uses 0.05 degrees/s and
+0.05-degree drift, while stop confirmation retains 0.01 degrees/s for 200 ms.
+Leader startup spread allows 10 counts. See the current candidate identity,
+prior lag-triggered stop, gripper coverage and remaining gates in
+[the physical control acceptance record](docs/m06-control-motion/real-teleop-edge-cases.md).
