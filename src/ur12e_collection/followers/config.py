@@ -5,6 +5,9 @@ import math
 import pathlib
 
 from ur12e_collection.control import model
+from ur12e_collection.followers import physics
+
+BACKENDS = ("isaac_kinematic", "isaac_physics")
 
 
 def resolve(base: pathlib.Path, value: str) -> pathlib.Path:
@@ -18,7 +21,7 @@ def load(path: pathlib.Path) -> dict:
     value = json.loads(path.read_text(encoding="utf-8"))
     if value.get("schema_version") != 1 or value.get("recording") is not False:
         raise ValueError("native teleop requires schema 1 and recording=false")
-    if value["follower"]["backend"] != "isaac_kinematic":
+    if value["follower"]["backend"] not in BACKENDS:
         raise model.ControlError("physical follower control is disabled")
     limits = dict(value["limits"])
     for key in ("lower", "upper", "ready"):
@@ -43,14 +46,21 @@ def load(path: pathlib.Path) -> dict:
         raise ValueError("leader manual support must be explicit")
     endpoints = set()
     for follower in [value["follower"], *value.get("twins", [])]:
-        if follower["backend"] != "isaac_kinematic":
+        if follower["backend"] not in BACKENDS:
             raise model.ControlError("only native Isaac endpoints are enabled")
         follower["endpoint"] = resolve(path.parent, follower["endpoint"])
         if follower["endpoint"] in endpoints:
             raise ValueError("primary and twin endpoints must be distinct")
         endpoints.add(follower["endpoint"])
-    scene = value["scene"]
-    scene["root"] = resolve(path.parent, scene["root"])
+    scene_paths(value["scene"], path.parent)
+    if value["follower"]["backend"] == "isaac_physics":
+        value["physics"] = physics.Settings(**value["physics"])
+    return value
+
+
+def scene_paths(scene, base):
+    """Validate portable scene entrypoints independently of device settings."""
+    scene["root"] = resolve(base, scene["root"])
     for key in ("entrypoint", "adapter"):
         location = (scene["root"] / scene[key]).resolve()
         if not location.is_relative_to(scene["root"]) or not location.is_file():
@@ -60,4 +70,3 @@ def load(path: pathlib.Path) -> dict:
         scene[key] = location
     if not 1 <= scene["display_hz"] <= 60:
         raise ValueError("display_hz must be in [1, 60]")
-    return value

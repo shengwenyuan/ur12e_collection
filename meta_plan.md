@@ -462,6 +462,13 @@ real-plus-sim hardware execution remain pending. USB sampling and the installed
 native lifecycle smoke pass on Ubuntu; this does not establish camera/MCAP or
 physical motion acceptance.
 
+The [physical-drive increment](docs/m14-digital-twin/physics-follower.md) implements
+an optional native `isaac_physics` backend. Static/software validation passed on
+2026-09-12: measured solver feedback, separate finger state, physical scene
+composition and native ownership contracts. Actual solver startup, dynamics and
+contact acceptance remain pending. The accepted kinematic default and deployed
+image remain unchanged; the development native protocol is version 3.
+
 Acceptance targets: `M14-A01` traceable commanded/measured trajectory distinction; `M14-A02` absent or stalled sinks cannot affect real control or recording.
 
 ## M15. DAgger Interfaces

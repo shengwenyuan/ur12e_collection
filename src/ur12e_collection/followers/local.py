@@ -7,9 +7,14 @@ import time
 import uuid
 
 from ur12e_collection.control import model
+from ur12e_collection.followers import state
 from ur12e_collection.followers import kinematic
 
+# Wire integers must exclude bool, which is an int subclass.
+# pylint: disable=unidiomatic-typecheck
+
 MAX_PACKET = 4096
+VERSION = 3
 
 
 def encode(value: dict) -> bytes:
@@ -63,7 +68,7 @@ def command(data: bytes) -> dict:
         ):
             raise model.ControlError("invalid command identity or clock")
     if (
-        value["version"] != 2
+        value["version"] != VERSION
         or not isinstance(value.get("epoch"), str)
         or not 0 < len(value["epoch"]) <= 64
         or value.get("operation")
@@ -76,7 +81,11 @@ def command(data: bytes) -> dict:
 class Transport:
     """One owner, one endpoint, no host network or robot SDK."""
 
-    def __init__(self, endpoint: pathlib.Path):
+    def __init__(self, endpoint: pathlib.Path, backend="isaac_kinematic"):
+        if backend not in ("isaac_kinematic", "isaac_physics"):
+            raise model.ControlError("unsupported native follower backend")
+        self.backend = backend
+        self.sample_sequence = -1
         self.epoch = uuid.uuid4().hex
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 16384)
@@ -108,7 +117,7 @@ class Transport:
         payload = (
             encode(
                 {
-                    "version": 2,
+                    "version": VERSION,
                     "epoch": self.epoch,
                     "sequence": self.sequence,
                     "operation": operation,
@@ -129,19 +138,45 @@ class Transport:
         for data in self.frames.receive(self.socket):
             value = json.loads(data)
             if (
-                value.get("version") != 2
+                value.get("version") != VERSION
                 or value["epoch"] != self.epoch
-                or value["source"] != "isaac_kinematic"
+                or value["source"] != self.backend
             ):
                 raise model.ControlError("follower source or ownership changed")
-            self.feedback = kinematic.Feedback(
+            sequence = value["sequence"]
+            acquired = value["acquired_ns"]
+            if (
+                type(sequence) is not int
+                or sequence < self.sample_sequence
+                or type(acquired) is not int
+                or not 0 <= acquired <= time.monotonic_ns()
+            ):
+                raise model.ControlError("invalid follower sample provenance")
+            if sequence == self.sample_sequence:
+                if value["fault"] or not value["active"]:
+                    raise model.ControlError(
+                        value["fault"] or "inactive follower"
+                    )
+                continue
+            self.sample_sequence = sequence
+            self.feedback = state.Feedback(
                 tuple(value["q"]),
                 tuple(value["qd"]),
                 value["time_s"],
-                time.monotonic_ns(),
+                acquired,
                 value["active"] and not value["fault"],
                 value["fault"] or "Isaac owner is inactive",
+                source_clock=(
+                    "isaac_physics_simulation"
+                    if self.backend == "isaac_physics"
+                    else "isaac_kinematic_monotonic"
+                ),
                 gripper_position=value["gripper_position"],
+                gripper_open=value["gripper_open"],
+                finger_positions_m=tuple(value.get("finger_positions_m", ())),
+                finger_velocities_m_s=tuple(
+                    value.get("finger_velocities_m_s", ())
+                ),
             )
         return self.feedback
 
@@ -191,7 +226,7 @@ class Transport:
 class Service:
     """Render-thread command acceptance with epoch, sequence and age checks."""
 
-    def __init__(self, endpoint, limits, gripper_speed=255.0):
+    def __init__(self, endpoint, limits, gripper_speed=255.0, *, engine=None):
         self.endpoint = endpoint
         endpoint.parent.mkdir(parents=True, exist_ok=True)
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -199,7 +234,9 @@ class Service:
         # Never delete an existing socket: another service may own it.
         self.socket.bind(str(endpoint))
         self.socket.listen(1)
-        self.engine = kinematic.Engine(limits, time.monotonic(), gripper_speed)
+        self.engine = engine or kinematic.Engine(
+            limits, time.monotonic(), gripper_speed
+        )
         self.epoch, self.peer, self.sequence = None, None, -1
         self.began = time.monotonic()
         self.frames = Frames()
@@ -265,15 +302,9 @@ class Service:
             self.outgoing = (
                 encode(
                     {
-                        "version": 2,
-                        "source": "isaac_kinematic",
+                        "version": VERSION,
                         "epoch": self.epoch,
-                        "time_s": time.monotonic() - self.began,
-                        "q": self.engine.q,
-                        "qd": self.engine.qd,
-                        "gripper_position": self.engine.gripper_position,
-                        "active": self.engine.active,
-                        "fault": self.engine.fault,
+                        **self.engine.snapshot(time.monotonic()),
                     }
                 )
                 + b"\n"

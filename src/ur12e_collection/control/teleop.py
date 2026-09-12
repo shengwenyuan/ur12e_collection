@@ -68,7 +68,7 @@ class Teleoperation:
         if (
             self.state == "homing"
             and self.controller.state == "hold"
-            and self.controller.progress.feedback.gripper_position == 0
+            and self.controller.progress.feedback.gripper_open
         ):
             self.state = "ready"
         elif self.state == "engaging":

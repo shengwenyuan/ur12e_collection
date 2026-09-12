@@ -1,62 +1,9 @@
 """Deterministic joint-space execution, explicitly without physical dynamics."""
 
-import dataclasses
 import math
 
 from ur12e_collection.control import model
-
-
-def gripper_position(value):
-    """Validate simulated command coordinates, never a device register."""
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or not math.isfinite(value)
-        or not 0 <= value <= 255
-    ):
-        raise model.ControlError("invalid simulated gripper position")
-    return value
-
-
-@dataclasses.dataclass(frozen=True)
-class Feedback:
-    """Executed simulated joints; never fabricate UR safety/program codes."""
-
-    q: tuple
-    qd: tuple
-    timestamp: float
-    received_ns: int
-    motion_allowed: bool
-    motion_error: str
-    source_clock: str = "isaac_kinematic_monotonic"
-    gripper_position: float = 0.0
-
-    def __post_init__(self):
-        model.joints(self.q)
-        model.joints(self.qd)
-        gripper_position(self.gripper_position)
-        if not isinstance(self.motion_allowed, bool) or not isinstance(
-            self.motion_error, str
-        ):
-            raise model.ControlError("invalid kinematic health")
-        if (
-            not isinstance(self.received_ns, int)
-            or isinstance(self.received_ns, bool)
-            or self.received_ns < 0
-        ):
-            raise model.ControlError("invalid kinematic receipt time")
-        if (
-            not isinstance(self.timestamp, (int, float))
-            or isinstance(self.timestamp, bool)
-            or not math.isfinite(self.timestamp)
-            or self.timestamp < 0
-        ):
-            raise model.ControlError("invalid kinematic source time")
-
-    @property
-    def holding_allowed(self):
-        """Kinematic state has no separately running UR program."""
-        return self.motion_allowed and not any(self.qd)
+from ur12e_collection.followers.state import gripper_position
 
 
 class Engine:
@@ -64,6 +11,8 @@ class Engine:
 
     # One owner retains joint, gripper and watchdog execution state together.
     # pylint: disable=too-many-instance-attributes
+
+    source = "isaac_kinematic"
 
     def __init__(self, limits, now: float, gripper_speed=255.0):
         if not math.isfinite(gripper_speed) or gripper_speed <= 0:
@@ -75,6 +24,8 @@ class Engine:
         self.target = self.q
         self.route = None
         self.previous = self.heartbeat_at = now
+        self.began = now
+        self.sequence = 0
         self.active = False
         self.fault = None
 
@@ -130,6 +81,10 @@ class Engine:
         if self.active and now - self.heartbeat_at > 0.5:
             self.fault = "kinematic owner heartbeat expired"
             self.hold()
+        return self.advance_targets(now)
+
+    def advance_targets(self, now: float):
+        """Advance bounded targets; physical execution owns its own watchdog."""
         previous = self.q
         dt = max(0, now - self.previous)
         if self.active and not self.fault:
@@ -154,4 +109,20 @@ class Engine:
             else (0.0,) * 6
         )
         self.previous = now
+        self.sequence += 1
         return self.q
+
+    def snapshot(self, _now):
+        """Describe the last applied update, never a new sample from a send."""
+        return {
+            "source": self.source,
+            "time_s": self.previous - self.began,
+            "sequence": self.sequence,
+            "acquired_ns": round(self.previous * 1e9),
+            "q": self.q,
+            "qd": self.qd,
+            "gripper_position": self.gripper_position,
+            "gripper_open": self.gripper_position == 0,
+            "active": self.active,
+            "fault": self.fault,
+        }

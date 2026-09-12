@@ -1,4 +1,4 @@
-"""Native Isaac kinematic follower application; no UR transport or relay."""
+"""Native Isaac application; scene execution is selected at its boundary."""
 
 import importlib.util
 import json
@@ -7,6 +7,7 @@ import time
 
 from ur12e_collection.followers import config as configuration
 from ur12e_collection.followers import local
+from ur12e_collection.followers import physical_application
 
 
 def scene_adapter(path, stage, root):
@@ -22,6 +23,8 @@ def run(args):
     if not math.isfinite(args.duration) or args.duration < 0:
         raise ValueError("duration must be finite and nonnegative")
     config = configuration.load(args.config)
+    if config["follower"]["backend"] == "isaac_physics" and args.capture:
+        raise ValueError("physical follower capture is not implemented")
     # All rendering imports must follow SimulationApp startup.
     # pylint: disable=import-outside-toplevel,import-error
     from isaacsim import SimulationApp
@@ -40,6 +43,12 @@ def run(args):
     try:
         import omni.timeline
         import omni.usd
+
+        if config["follower"]["backend"] == "isaac_physics":
+            physical_application.run(
+                app, omni.usd.get_context().get_stage(), config, args
+            )
+            return 0
         from omni import ui
         from omni.kit.viewport import utility
 

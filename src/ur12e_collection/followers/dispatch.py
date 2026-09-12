@@ -3,7 +3,7 @@
 import queue
 import threading
 
-from ur12e_collection.followers import kinematic, local
+from ur12e_collection.followers import local, state
 
 
 class Twin:
@@ -73,7 +73,7 @@ class Group:
 
     def gripper(self, position):
         """Stage the gripper component of the next atomic arm/tool command."""
-        self.gripper_position = kinematic.gripper_position(position)
+        self.gripper_position = state.gripper_position(position)
 
     def _motion(self, operation, *args):
         if self.gripper_position is not None:
@@ -111,9 +111,9 @@ class Group:
 
 def open_group(config):
     """Open only configured native simulation endpoints; never UR sockets."""
-    primary = local.Transport(config["follower"]["endpoint"])
+    primary = local.Transport(**config["follower"])
     factories = [
-        lambda endpoint=value["endpoint"]: local.Transport(endpoint)
+        lambda value=value: local.Transport(**value)
         for value in config.get("twins", [])
     ]
     return Group(primary, factories)

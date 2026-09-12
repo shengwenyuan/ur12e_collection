@@ -8,6 +8,7 @@ from unittest import mock
 import pytest
 
 from ur12e_collection.control import model
+from ur12e_collection.followers import state
 from ur12e_collection.followers import dispatch, kinematic
 from ur12e_collection.leader import mapping
 
@@ -131,7 +132,7 @@ def test_optional_twin_receives_atomic_latest_arm_and_gripper():
 
 
 def test_simulated_gripper_feedback_validates_its_own_domain():
-    feedback = kinematic.Feedback((0.0,) * 6, (0.0,) * 6, 1, 1, True, "")
+    feedback = state.Feedback((0.0,) * 6, (0.0,) * 6, 1, 1, True, "")
     assert (
         dataclasses.replace(feedback, gripper_position=127.5).gripper_position
         == 127.5
@@ -156,9 +157,7 @@ def test_engagement_waits_for_fresh_feedback_before_capturing_origin(age):
         freshness_ns=500_000_000,
     )
     now = 1_000_000_000
-    feedback = kinematic.Feedback(
-        limits.ready, (0.0,) * 6, 1, now - age, True, ""
-    )
+    feedback = state.Feedback(limits.ready, (0.0,) * 6, 1, now - age, True, "")
     source = mock.Mock()
     raw = tuple(j.home_count for j in calibration.joints) + (4321,)
     source.samples.return_value = tuple(

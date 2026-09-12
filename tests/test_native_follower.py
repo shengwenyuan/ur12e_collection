@@ -11,6 +11,7 @@ from unittest import mock
 import pytest
 
 from ur12e_collection.control import model, owner
+from ur12e_collection.followers import state
 from ur12e_collection.followers import dispatch, kinematic, local
 
 
@@ -60,7 +61,7 @@ def test_stop_and_watchdog_hold_executed_pose(limits):
 
 
 def test_native_feedback_does_not_invent_ur_status(limits):
-    feedback = kinematic.Feedback((0.0,) * 6, (0.0,) * 6, 1, 10, True, "")
+    feedback = state.Feedback((0.0,) * 6, (0.0,) * 6, 1, 10, True, "")
     transport = mock.Mock(read=mock.Mock(return_value=feedback))
     controller = owner.Controller(transport, limits)
     assert controller.tick(10) == feedback
@@ -144,12 +145,13 @@ def test_local_follower_ownership_and_executed_feedback(limits):
         ("created_ns", 1.5),
         ("epoch", ""),
         ("version", True),
+        ("version", 2),
         ("operation", "power_on"),
     ],
 )
 def test_command_boundary_rejects_bad_identity(field, value):
     packet = {
-        "version": 2,
+        "version": local.VERSION,
         "sequence": 1,
         "created_ns": 1,
         "epoch": "fixture",
@@ -185,7 +187,7 @@ def test_service_rejects_expired_reordered_and_foreign_commands(limits):
 
         def send(connection, sequence, operation, **fields):
             packet = {
-                "version": 2,
+                "version": local.VERSION,
                 "epoch": "owner",
                 "sequence": sequence,
                 "created_ns": time.monotonic_ns(),
