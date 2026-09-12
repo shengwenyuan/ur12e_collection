@@ -1,4 +1,4 @@
-# M14: Read-Only Trajectory Interfaces
+# M14: Digital-Twin Interfaces
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
@@ -10,7 +10,13 @@ authority and phase events; it has no control transport or lease. Overflow count
 lost optional telemetry without blocking collection. A consumer may drain events
 and export separate commanded/measured trajectories using preserved units/clocks.
 An absent/stalled consumer cannot affect the control or authoritative MCAP path.
-Isaac Sim scenes, synchronization and physical-model validation are excluded.
+The original passive observation/export slice remains separate from the
+[aligned native follower increment](native-teleop.md). The latter supports Isaac
+as the required primary simulated follower and bounded optional command twins.
+Required primary feedback loss stops teleoperation; optional twin loss cannot
+block or acquire primary control. The user accepted native arm teleoperation on 2026-09-12. The separately aligned
+[gripper extension](gripper-teleop.md) is implemented and deployed; the user completed manual arm/gripper trend
+verification on 2026-09-12. Physical and recording acceptance remain separate.
 
 M14-A01: preserve source kind, provenance and commanded/measured distinction.
 M14-A02: full/closed mailboxes and absent consumers cannot delay or acquire control.

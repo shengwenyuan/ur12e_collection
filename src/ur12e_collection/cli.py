@@ -85,8 +85,18 @@ def parser() -> argparse.ArgumentParser:
     session.add_argument("--output", type=pathlib.Path)
     session.add_argument("--revision")
     session.add_argument("--ros-observe", action="store_true")
-    session.add_argument("--live-leader", type=pathlib.Path)
-    session.add_argument("--leader-calibration", type=pathlib.Path)
+    teleop = commands.add_parser(
+        "teleop", help="native configured teleoperation"
+    )
+    teleop.add_argument("--config", type=pathlib.Path, required=True)
+    follower = commands.add_parser(
+        "follower", help="native Isaac follower service"
+    )
+    follower.add_argument("--config", type=pathlib.Path, required=True)
+    follower.add_argument("--headless", action="store_true")
+    follower.add_argument("--duration", type=float, default=0)
+    follower.add_argument("--report", type=pathlib.Path)
+    follower.add_argument("--capture", type=pathlib.Path)
     calibration_cli.configure(
         commands.add_parser(
             "calibrate", help="offline camera and leader calibration"
@@ -189,6 +199,8 @@ def main(argv: list[str] | None = None) -> int:
             "episode": _episode,
             "shadow": _shadow,
             "session": _session,
+            "teleop": _teleop,
+            "follower": _follower,
             "calibrate": calibration_cli.run,
         }.get(args.command)
         if handler is not None:
@@ -271,10 +283,6 @@ def _session(args: argparse.Namespace) -> int:
         return 2
     if args.output is None or not args.revision:
         raise ValueError("simulator session requires --output and --revision")
-    if bool(args.live_leader) != bool(args.leader_calibration):
-        raise ValueError(
-            "live leader and calibration must be provided together"
-        )
     # Enter the verified simulator boundary only by explicit selection.
     # pylint: disable-next=import-outside-toplevel
     from ur12e_collection.simulation import session
@@ -284,13 +292,22 @@ def _session(args: argparse.Namespace) -> int:
         args.revision,
         sys.stdin,
         observe=args.ros_observe,
-        live_config=(
-            (args.live_leader, args.leader_calibration)
-            if args.live_leader
-            else None
-        ),
     )
     return 130 if result["state"] == "interrupted" else 0
+
+
+def _teleop(args):
+    # pylint: disable-next=import-outside-toplevel
+    from ur12e_collection.control import teleop
+
+    return teleop.run(args.config, sys.stdin)
+
+
+def _follower(args):
+    # pylint: disable-next=import-outside-toplevel
+    from ur12e_collection.followers import application
+
+    return application.run(args)
 
 
 def _episode_arguments(commands):

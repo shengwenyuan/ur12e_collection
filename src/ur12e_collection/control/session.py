@@ -240,8 +240,7 @@ class Session:
             raise model.ControlError("held feedback is stale")
         active.observed = state
         if (
-            (state.robot_mode, state.safety_mode, state.runtime_state)
-            != (7, 1, 1)
+            not state.holding_allowed
             or max(map(abs, state.qd)) >= self.setup.limits.stopped_speed
             or model.distance(state.q, active.held) > self.setup.limits.arrival
         ):

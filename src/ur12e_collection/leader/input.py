@@ -9,7 +9,7 @@ from ur12e_collection.leader import episode
 class Input:
     """Consume source views; freshness uses original acquisition time."""
 
-    # Explicit rehearsal timing policy; the production default stays 100 ms.
+    # Acquisition validity is independent of follower feedback timing.
     # pylint: disable-next=too-many-arguments
     def __init__(
         self,

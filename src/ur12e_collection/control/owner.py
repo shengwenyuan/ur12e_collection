@@ -7,7 +7,7 @@ from ur12e_collection.control import settling
 from ur12e_collection.control.model import (
     ControlError,
     Limits,
-    State,
+    Feedback,
     Target,
     Transport,
     distance,
@@ -22,7 +22,7 @@ class Progress:
     # pylint: disable=too-many-instance-attributes
 
     state: str = "hold"
-    feedback: State | None = None
+    feedback: Feedback | None = None
     progress_ns: int = 0
     deadline_ns: int = 0
     settled_ns: int | None = None
@@ -76,24 +76,15 @@ class Controller:
         except Exception as error:  # pylint: disable=broad-exception-caught
             p.error += f"; stop unconfirmed: {error}"
 
-    def tick(self, now_ns: int) -> State:
+    def tick(self, now_ns: int) -> Feedback:
         """Validate feedback before refreshing the controller watchdog."""
         self._require("hold", "moving", "following", "stopping")
         p = self.progress
         try:
             feedback = self.transport.read()
             self.limits.check(feedback.q)
-            if (
-                feedback.robot_mode,
-                feedback.safety_mode,
-                feedback.runtime_state,
-            ) != (7, 1, 2):
-                raise ControlError(
-                    "controller modes are not normal: "
-                    f"robot={feedback.robot_mode}, "
-                    f"safety={feedback.safety_mode}, "
-                    f"runtime={feedback.runtime_state}"
-                )
+            if not feedback.motion_allowed:
+                raise ControlError(feedback.motion_error)
             # The adapter stamps receipt after the read, not tick entry.
             age = now_ns - feedback.received_ns
             if age < -100_000_000 or age > self.limits.freshness_ns:
@@ -119,7 +110,7 @@ class Controller:
             self.fail(str(error))
             raise ControlError(str(error)) from error
 
-    def _settle(self, feedback: State, now_ns: int) -> None:
+    def _settle(self, feedback: Feedback, now_ns: int) -> None:
         p = self.progress
         if p.state == "stopping":
             if p.standstill.update(feedback.qd, feedback.timestamp, now_ns):

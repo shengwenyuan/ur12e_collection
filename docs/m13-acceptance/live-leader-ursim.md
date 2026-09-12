@@ -1,6 +1,13 @@
-# Live Read-Only Leader to Isolated URSim
+# Historical Mac Leader / URSim Rehearsal (Retired)
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
+
+Status: retired on 2026-09-12 by explicit user direction. The Mac acquisition,
+clock/file bridge and live rehearsal entry were removed. Historical commands
+below are not runnable interfaces. Use the PC-only mainline
+[native Isaac follower](../m14-digital-twin/native-teleop.md) instead.
+
+## Historical evidence (superseded runtime)
 
 Status: lightweight preview implemented; final installed short smoke PASS.
 Manual joint-direction confirmation remains pending; this is not production

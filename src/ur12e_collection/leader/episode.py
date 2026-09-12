@@ -69,7 +69,7 @@ def check_advance(previous, current, age_ns):
 class EpisodeMapper:
     """Generate absolute follower intents; never contact or control a device."""
 
-    # Explicit rehearsal timing policy; the production default stays 100 ms.
+    # Acquisition validity is independent of follower feedback timing.
     # pylint: disable-next=too-many-arguments
     def __init__(
         self,

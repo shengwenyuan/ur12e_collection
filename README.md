@@ -2,7 +2,7 @@
 
 A local single-arm collection tool for UR12e, Robotiq Hand-E, a custom GELLO leader, and three RealSense RGB-D views.
 
-The application provides persistent three-camera acquisition, verified MCAP recording, explicit URSim control/session testing, read-only ROS observation and offline calibration. The collection artifact is MCAP plus JSON; LeRobot conversion belongs to a separate repository. Physical control remains disabled; real GELLO and Hand-E actuation are pending. See the module matrix for software, simulation and physical acceptance boundaries.
+The application provides persistent three-camera acquisition, verified MCAP recording, explicit URSim control/session testing, read-only ROS observation and offline calibration. The collection artifact is MCAP plus JSON; LeRobot conversion belongs to a separate repository. Physical follower control remains disabled; native read-only GELLO can drive the configured Isaac kinematic follower. Leader motor and Hand-E actuation are pending. See the module matrix for software, simulation and physical acceptance boundaries.
 
 - [Requirements and stable module IDs](meta_plan.md)
 - [Current module acceptance matrix](docs/m13-acceptance/simulator-matrix.md)
@@ -33,7 +33,12 @@ Use one daily Docker image, `ur12e-collection:current`, for collection, developm
 
 Formal plans and actual acceptance results live under `docs/`. Temporary ideas, station identities, recordings, and release artifacts stay in ignored local directories. Do not infer hardware readiness from passing software tests.
 
-Real physical leader / local URSim rehearsal: see [the live console guide](docs/m13-acceptance/live-leader-ursim.md). This is a lightweight motion preview with read-only motor acquisition, HOME/start/stop controls and no camera or recording workload. Production teleoperation and recording acceptance remain separate.
+Native PC leader → Isaac kinematic follower: see the
+[M14 launch and acceptance guide](docs/m14-digital-twin/native-teleop.md).
+The Ubuntu PC owns USB acquisition, shared teleoperation and local simulated
+execution. Configure external scene paths in `config/teleop.isaac.json`.
+No Mac input process or URSim intermediary is used. This first entry controls
+motion only; camera/MCAP acceptance stays with the collection session.
 
 For an independent read-only 3D view of actual URSim joint angles, run
 `.venv/bin/python scripts/sim_viewer.py` and open http://127.0.0.1:8787.

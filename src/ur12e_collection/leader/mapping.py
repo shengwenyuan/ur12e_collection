@@ -13,6 +13,30 @@ MIN_COUNT = -(2**31)
 MAX_COUNT = 2**31 - 1
 
 
+@dataclasses.dataclass(frozen=True)
+class GripperReference:
+    """An immutable full-open origin with 45-degree relative closing travel."""
+
+    count: int
+    closing_sign: int
+
+    def __post_init__(self):
+        integer(self.count)
+        integer(self.closing_sign)
+        if not MIN_COUNT <= self.count <= MAX_COUNT:
+            raise ValueError("gripper reference outside encoder range")
+        if self.closing_sign not in (-1, 1):
+            raise ValueError("gripper closing sign must be -1 or 1")
+
+    def position(self, count: int) -> int:
+        """Return a saturated request without wrapping or rebasing counts."""
+        integer(count)
+        if not MIN_COUNT <= count <= MAX_COUNT:
+            raise ValueError("gripper input outside encoder range")
+        fraction = self.closing_sign * (count - self.count) / 512
+        return round(255 * min(1, max(0, fraction)))
+
+
 def integer(value):
     """Reject booleans and non-integer encoder/configuration values."""
     if not isinstance(value, int) or isinstance(value, bool):

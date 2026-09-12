@@ -112,15 +112,8 @@ def run(
     stream,
     *,
     observe=False,
-    live_config=None,
 ) -> dict:
     """Run the explicit simulator console and retain its report."""
-    if live_config is not None:
-        # The physical leader preview does not construct a production session.
-        # pylint: disable-next=import-outside-toplevel
-        from ur12e_collection.simulation import rehearsal
-
-        return rehearsal.run(output, revision, stream, live_config)
     with console.keyboard(stream) as read_keys:
         output.mkdir(parents=True, exist_ok=False)
         report = {"state": "failed", "episodes": []}

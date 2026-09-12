@@ -179,7 +179,13 @@ Use single-turn Position Mode=3 where the mechanical range permits it. A joint r
 
 Before enabling motion, resolve the actual position branch, seed the current pose, set bounded nonzero motion profiles, and verify the handover. Only then command READY when requested. Block UR following if a torque transition or restart makes continuous-angle mapping ambiguous. Disable or exclude goal-update auto-enabling behavior; leading does not write position goals.
 
-The aligned design uses episode-relative arm mapping: configured follower HOME plus the calibrated leader joint delta from one immutable recording-start reference. Verify the follower is stationary at HOME before each episode; never accumulate prior episode targets or re-anchor during an episode. Calibrate signs, ratios, ranges and HOME, but exact leader/follower startup equality is not required. Keep gripper OPEN/CLOSED mapping absolute. Persist baseline and mapping provenance; HOME/HOLD accuracy remains an independent acceptance gate.
+The aligned design uses episode-relative arm mapping: configured follower HOME plus the calibrated leader joint delta from one immutable recording-start reference. Verify the follower is stationary at HOME before each episode; never accumulate prior episode targets or re-anchor during an episode. Calibrate signs, ratios, ranges and HOME, but exact leader/follower startup equality is not required. For the native gripper extension aligned on 2026-09-12, capture the leader
+gripper reference at each following start with follower fingers fully open.
+Counterclockwise 45 degrees from that reference commands full closure; returning
+clockwise to the reference commands full opening. Interpolate linearly and
+saturate outside this 45-degree interval. Do not use historical fixed encoder
+endpoints or rebase during a following interval. See the
+[M14 gripper plan](docs/m14-digital-twin/gripper-teleop.md); user trend verification passed on 2026-09-12. Persist baseline and mapping provenance; HOME/HOLD accuracy remains an independent acceptance gate.
 
 ### M04.2 Holding and gravity boundary
 
@@ -426,7 +432,7 @@ Suggested implementation sequence by ID:
 3. Validate M07/M08/M11 through M13 camera-only shadow on Ubuntu.
 4. Validate M03-M06 motion incrementally; run M12 separately.
 5. Accept the complete M09 flow with M13's 20 episodes and M01's clean-station deployment.
-6. Keep M14/M15 limited to interfaces until separately planned and aligned.
+6. Develop M14 through its separately aligned native follower plan; M15 remains an interface.
 
 Acceptance targets: `M13-A01` shadow requires no joint actions; `M13-A02` camera/codec/time/cost report; `M13-A03` 20 complete 40-second episodes; `M13-A04` separate software/hardware results with unrun cases marked honestly.
 
@@ -436,7 +442,19 @@ Reserve `TrajectorySink` events for episode start/end, timestamped sent commands
 
 Retain joint names/order/units, UR base/tool frames, gripper semantics, calibration version, real times, and episode identity. Keep target-command trajectories separate from executed-feedback trajectories.
 
-Simulation uses a bounded asynchronous read-only channel. It cannot acquire robot control or block control/recording. UR10e appearance is only a potential placeholder, not evidence that a UR12e twin is calibrated. Actual Isaac Sim scene, model, and runtime integration are future scope.
+Passive observation uses a bounded asynchronous read-only channel. The aligned
+[native Isaac follower](docs/m14-digital-twin/native-teleop.md) adds PC-local
+leader teleoperation with shared mapping, conditioning and control ownership.
+Isaac can be the required primary follower; loss of its executed feedback stops
+that session. Optional command twins use independent bounded dispatch and cannot
+block the primary. External scene paths are configured. Mac leader acquisition
+and the URSim intermediary are retired. The follower is kinematic. The user accepted manual leader-to-Isaac arm
+teleoperation on 2026-09-12. The [relative gripper extension](docs/m14-digital-twin/gripper-teleop.md)
+passed user trend verification on 2026-09-12, with full opening at each
+start, 45-degree relative closing travel and stop/fault aperture hold. Physics and
+real-plus-sim hardware execution remain pending. USB sampling and the installed
+native lifecycle smoke pass on Ubuntu; this does not establish camera/MCAP or
+physical motion acceptance.
 
 Acceptance targets: `M14-A01` traceable commanded/measured trajectory distinction; `M14-A02` absent or stalled sinks cannot affect real control or recording.
 

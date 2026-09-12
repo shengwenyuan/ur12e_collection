@@ -110,6 +110,33 @@ class State:
         ):
             raise ControlError("invalid controller timestamp")
 
+    @property
+    def motion_allowed(self) -> bool:
+        """Decode UR-specific modes at the feedback boundary."""
+        return (self.robot_mode, self.safety_mode, self.runtime_state) == (
+            7,
+            1,
+            2,
+        )
+
+    @property
+    def holding_allowed(self) -> bool:
+        """A released UR program must hold with normal robot safety state."""
+        return (self.robot_mode, self.safety_mode, self.runtime_state) == (
+            7,
+            1,
+            1,
+        )
+
+    @property
+    def motion_error(self) -> str:
+        """Retain the original UR diagnostic without coupling its caller."""
+        return (
+            "controller modes are not normal: "
+            f"robot={self.robot_mode}, safety={self.safety_mode}, "
+            f"runtime={self.runtime_state}"
+        )
+
 
 @dataclasses.dataclass(frozen=True)
 class Target:
@@ -133,10 +160,31 @@ class Target:
             )
 
 
+class Feedback(Protocol):
+    """Backend-neutral executed joints and explicit operational health."""
+
+    q: Joints
+    qd: Joints
+    timestamp: float
+    received_ns: int
+
+    @property
+    def motion_allowed(self) -> bool:
+        """Whether the current exclusive owner may execute commands."""
+
+    @property
+    def holding_allowed(self) -> bool:
+        """Whether released execution is healthy and stationary."""
+
+    @property
+    def motion_error(self) -> str:
+        """Backend-specific diagnostic, without backend-specific branching."""
+
+
 class Transport(Protocol):
     """Only the exclusive owner calls the authorized device transport."""
 
-    def read(self) -> State:
+    def read(self) -> Feedback:
         """Return measured state or raise on a failed read."""
 
     def move(self, q: Joints, speed: float, acceleration: float) -> None:
