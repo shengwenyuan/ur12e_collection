@@ -90,6 +90,7 @@ class Group:
 
     def stop(self, servo):
         """Revoke primary motion before notifying optional twins."""
+        self.gripper_position = None
         try:
             self.primary.stop(servo)
         finally:

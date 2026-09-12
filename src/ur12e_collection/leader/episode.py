@@ -114,7 +114,7 @@ class EpisodeMapper:
                 check_advance(samples[index - 1], sample, self._age_ns)
         if samples[-1].start_ns - samples[0].start_ns < 40_000_000:
             raise ValueError("startup reference must span at least 40 ms")
-        if any(max(v) - min(v) > 2 for v in zip(*(s.raw for s in samples))):
+        if any(max(v) - min(v) > 10 for v in zip(*(s.raw for s in samples))):
             raise ValueError("leader startup reference is moving")
 
     def context(self) -> dict:

@@ -6,6 +6,8 @@ from ur12e_collection.control import conditioning, model
 from ur12e_collection.leader import episode
 
 
+# One immutable mapping interval retains raw and conditioned state separately.
+# pylint: disable=too-many-instance-attributes
 class Input:
     """Consume source views; freshness uses original acquisition time."""
 
@@ -20,7 +22,9 @@ class Input:
         now_ns,
         *,
         freshness_ns=100_000_000,
+        guards=None,
     ):
+        self.guards = guards
         self.source = source
         self.calibration = calibration
         self.limits = limits
@@ -61,16 +65,26 @@ class Input:
 
     def _sample(self, now_ns):
         readings = self.source.samples(now_ns)
+        if not readings:
+            raise model.ControlError("leader input is unavailable")
         sample = readings[-1]
         if sample == self.reading:
             if now_ns - sample.start_ns > self.freshness_ns:
                 raise model.ControlError("leader input is stale")
         else:
+            if self.guards is not None:
+                previous = self.reading
+                for reading in readings:
+                    if reading.sequence > previous.sequence:
+                        self.guards.input(previous, reading)
+                        previous = reading
             self.desired = self.mapper.target(sample, now_ns)
             self.reading = sample
         if self.initial:
             self.initial = False
             return self.conditioner.target
+        if self.guards is not None:
+            self.guards.intent(self.desired.q, self.conditioner.target.q)
         return self.conditioner.step(self.desired.q, now_ns)
 
     def evidence(self):

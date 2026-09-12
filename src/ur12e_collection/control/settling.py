@@ -5,6 +5,7 @@ import math
 STOP_TIMEOUT_NS = 2_000_000_000
 STABLE_NS = 200_000_000
 STOP_SPEED = math.radians(0.01)
+HOLD_SPEED = math.radians(0.05)
 HOLD_DRIFT = math.radians(0.05)
 FRESHNESS_NS = 250_000_000
 

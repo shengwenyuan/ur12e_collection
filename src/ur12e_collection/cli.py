@@ -85,10 +85,7 @@ def parser() -> argparse.ArgumentParser:
     session.add_argument("--output", type=pathlib.Path)
     session.add_argument("--revision")
     session.add_argument("--ros-observe", action="store_true")
-    teleop = commands.add_parser(
-        "teleop", help="native configured teleoperation"
-    )
-    teleop.add_argument("--config", type=pathlib.Path, required=True)
+    _teleop_arguments(commands)
     follower = commands.add_parser(
         "follower", help="native Isaac follower service"
     )
@@ -103,6 +100,15 @@ def parser() -> argparse.ArgumentParser:
         )
     )
     return root
+
+
+def _teleop_arguments(commands):
+    teleop = commands.add_parser(
+        "teleop", help="native configured teleoperation"
+    )
+    teleop.add_argument("--config", type=pathlib.Path, required=True)
+    teleop.add_argument("--preflight", action="store_true")
+    teleop.add_argument("--operator-approved", action="store_true")
 
 
 def _leader_arguments(devices):
@@ -300,7 +306,12 @@ def _teleop(args):
     # pylint: disable-next=import-outside-toplevel
     from ur12e_collection.control import teleop
 
-    return teleop.run(args.config, sys.stdin)
+    return teleop.run(
+        args.config,
+        sys.stdin,
+        operator_approved=args.operator_approved,
+        preflight_only=args.preflight,
+    )
 
 
 def _follower(args):

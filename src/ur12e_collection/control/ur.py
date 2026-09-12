@@ -15,7 +15,9 @@ class URTransport:
         period: float = 1 / COMMAND_HZ,
         *,
         owns_receiver: bool = True,
+        stop_deceleration: float = 5.0,
     ):
+        self.stop_deceleration = stop_deceleration
         self.control = control
         self.receiver = receiver
         self.period = period
@@ -41,10 +43,10 @@ class URTransport:
     def stop(self, servo: bool) -> None:
         """Use the native stop corresponding to the active motion mode."""
         if servo:
-            if not self.control.servoStop(5.0):
+            if not self.control.servoStop(self.stop_deceleration):
                 raise ControlError("UR did not acknowledge servoStop")
         else:
-            self.control.stopJ(5.0, True)
+            self.control.stopJ(self.stop_deceleration, True)
 
     def heartbeat(self) -> None:
         """Only active ownership can feed the controller's watchdog."""

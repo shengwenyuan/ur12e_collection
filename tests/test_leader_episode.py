@@ -117,12 +117,22 @@ def test_limits_remain_absolute_follower_limits():
         mapper.target(sample(3, 2300), 61_000_000)
 
 
-def test_unstable_baseline_is_not_captured():
-    with pytest.raises(ValueError, match="moving"):
-        episode.EpisodeMapper(
+@pytest.mark.parametrize("axis", range(7))
+def test_startup_reference_accepts_ten_counts_but_not_eleven(axis):
+    def reference(delta):
+        last = sample(2)
+        raw = list(last.raw)
+        raw[axis] += delta
+        return episode.EpisodeMapper(
             calibration(),
             model.Limits((-6.0,) * 6, (6.0,) * 6, HOME),
-            [sample(0), sample(1), sample(2, 2204)],
+            [sample(0), sample(1), dataclasses.replace(last, raw=tuple(raw))],
             model.State(HOME, (0.0,) * 6, 1.0, 40_000_000),
             41_000_000,
         )
+
+    mapper = reference(10)
+    assert mapper.first().q == HOME
+    assert mapper.context()["baseline"]["raw"][axis] == sample(2).raw[axis] + 10
+    with pytest.raises(ValueError, match="moving"):
+        reference(11)

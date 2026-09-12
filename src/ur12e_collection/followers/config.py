@@ -6,6 +6,7 @@ import pathlib
 
 from ur12e_collection.control import model
 from ur12e_collection.followers import physics
+from ur12e_collection.physical import config as physical_config
 
 BACKENDS = ("isaac_kinematic", "isaac_physics")
 
@@ -21,15 +22,22 @@ def load(path: pathlib.Path) -> dict:
     value = json.loads(path.read_text(encoding="utf-8"))
     if value.get("schema_version") != 1 or value.get("recording") is not False:
         raise ValueError("native teleop requires schema 1 and recording=false")
-    if value["follower"]["backend"] not in BACKENDS:
-        raise model.ControlError("physical follower control is disabled")
+    if value["follower"]["backend"] not in (*BACKENDS, "ur"):
+        raise model.ControlError("unsupported follower backend")
+    if (
+        value["follower"]["backend"] == "ur"
+        and value.get("physical_profile") != "commissioning-v1"
+    ):
+        raise model.ControlError(
+            "explicit physical commissioning profile required"
+        )
     limits = dict(value["limits"])
     for key in ("lower", "upper", "ready"):
         limits[key] = tuple(limits[key])
     value["limits"] = model.Limits(**limits)
     gripper = value["gripper"]
     sign = gripper["closing_sign"]
-    speed = gripper["aperture_speed_m_s"]
+    speed = gripper.get("aperture_speed_m_s", 0.05)
     if isinstance(sign, bool) or sign not in (-1, 1):
         raise ValueError("gripper closing_sign must be -1 or 1")
     if (
@@ -44,6 +52,10 @@ def load(path: pathlib.Path) -> dict:
     )
     if value["leader"]["manual_support"] is not True:
         raise ValueError("leader manual support must be explicit")
+    if value["follower"]["backend"] == "ur":
+        value["evidence"] = resolve(path.parent, value["evidence"])
+        physical_config.validate(value)
+        return value
     endpoints = set()
     for follower in [value["follower"], *value.get("twins", [])]:
         if follower["backend"] not in BACKENDS:

@@ -42,6 +42,7 @@ def _arguments():
         "mode",
         choices=(
             "motion",
+            "commissioning",
             "calibration",
             "watchdog",
             "native-home",
