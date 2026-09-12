@@ -231,3 +231,61 @@ layers; no dependency version changes or Isaac installation inside the collector
 image are needed. Synchronize the resulting image identity across Mac and PC
 when performing the next image delivery. This commit does not itself rebuild or
 replace those images, nor does it establish dynamics/contact acceptance.
+
+## Runtime startup: 2026-09-13
+
+The user requests starting Isaac and receiving the PC teleoperation command for
+manual trend testing. This authorizes simulated follower startup and motion;
+the operator starts the read-only physical leader client. No physical UR or
+Hand-E control and no leader motor writes are authorized. Prepare a matching
+protocol-3 client image from cached dependencies before handing off the command.
+Check actual startup, executed feedback and idle gravity holding first. This
+session does not itself claim full contact/dynamics acceptance.
+
+Runtime startup results (2026-09-13):
+
+- Initial TGS execution started successfully, but reported persistent joint
+  velocity while positions were stationary. Disabling self-collision in a
+  disposable probe did not improve it; the probe was removed. PGS lowered the
+  residual velocity below the unchanged 0.01 rad/s gate, with self-collision
+  retained. `physics.solver_type` now explicitly selects PGS in this profile.
+- The initial HOME request did not settle because gravity deflection at the
+  elbow was about 0.0121 rad, above the unchanged 0.01 rad arrival gate. The
+  simulation-only elbow stiffness/damping are now 8000 N m/rad and 600 N m s/rad.
+  A subsequent actual solver HOME request passed, with maximum error about
+  0.00836 rad, maximum speed 0.00212 rad/s and fingers open. This is a limited
+  startup/HOME result, not full tracking or contact acceptance.
+- Rendering previously consumed every iteration when drawing exceeded its
+  period. Schedule the next display interval after rendering completes, and
+  use a 10 Hz display cap. A deterministic regression covers this starvation
+  case. The GUI run achieved approximately 0.50 real-time factor, versus about
+  0.98 in the headless idle probe. Physics remains configured at 240 Hz; the GUI
+  observation is roughly half speed and is not a 240 Hz wall-time claim.
+- Both native backends now select the configured workcell camera on startup.
+  The final Isaac GUI is running from `~/ur12e-physics-dev`, with no active
+  leader owner at handoff. The user confirmed FTDI latency was restored to 1 ms;
+  readback confirmed it. No leader acquisition or motor writes were started by
+  the assistant. No physical UR or Hand-E connection was opened.
+- PC client image `ur12e-collection:physics-teleop` is
+  `sha256:586dc9cfb77ac422ea9f5820645d7b8aab38e97e742ac2d27e1a027da607ac74`,
+  labeled `a37d75c-runtime-working`. It reuses the existing dependency image
+  and installs the local wheel without downloading dependencies. Its installed
+  native/physics/gripper subset passed **59 tests**, and the restricted container
+  completed a protocol-3 handshake with the actual Isaac endpoint. Mainline
+  `current` aliases remain on the earlier release; this candidate is on PC only.
+- Evidence is under `artifacts/physics-runtime-a37d75c/` locally and
+  `~/ur12e-physics-dev/artifacts/native/` on PC. Full contact, braking under load,
+  combined recording and operator directional acceptance remain pending.
+
+Operator launch on PC (Isaac is already running):
+
+```bash
+cd ~/ur12e-physics-dev
+~/venv/isaacsim-6.0.1/bin/python scripts/teleop.py \
+  --config config/teleop.isaac-physics.json \
+  --image ur12e-collection:physics-teleop
+```
+
+Support the torque-off leader. First Space requests simulated HOME; wait for
+`ready`, then Space begins following. Space stops and holds; Ctrl+C exits.
+The client reads the physical leader and controls only the simulated follower.

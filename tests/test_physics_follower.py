@@ -142,6 +142,7 @@ def test_open_readiness_checks_both_actual_fingers_and_velocities(engine):
 @pytest.mark.parametrize(
     "field,value",
     [
+        ("solver_type", "unknown"),
         ("step_hz", True),
         ("step_hz", 60),
         ("arm_effort", [1] * 5),
@@ -282,3 +283,31 @@ def test_missing_or_invalid_physical_jaw_readback_is_rejected(positions):
             finger_positions_m=positions,
             finger_velocities_m_s=(0, 0),
         )
+
+
+def test_render_time_does_not_starve_fixed_solver_steps(monkeypatch):
+    from types import SimpleNamespace
+    from ur12e_collection.followers import physical_application
+
+    clock = [0.0]
+    monkeypatch.setattr(
+        physical_application.time, "monotonic", lambda: clock[0]
+    )
+    monkeypatch.setattr(
+        physical_application.time,
+        "sleep",
+        lambda dt: clock.__setitem__(0, clock[0] + dt),
+    )
+    app = mock.Mock()
+    app.is_running.side_effect = [True] * 40 + [False]
+    driver = mock.Mock()
+    driver.render.side_effect = lambda: clock.__setitem__(0, clock[0] + 0.1)
+    service = mock.Mock()
+    config_value = {
+        "physics": SimpleNamespace(step_hz=240),
+        "scene": {"display_hz": 30},
+    }
+    args = SimpleNamespace(duration=0, headless=False, report=None)
+    physical_application.loop(app, driver, service, config_value, args)
+    assert service.engine.update.call_count == 40
+    assert 1 <= driver.render.call_count <= 5

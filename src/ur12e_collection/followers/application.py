@@ -43,6 +43,11 @@ def run(args):
     try:
         import omni.timeline
         import omni.usd
+        from omni.kit.viewport import utility
+
+        viewport = utility.get_active_viewport()
+        if viewport:
+            viewport.camera_path = "/World/Camera"
 
         if config["follower"]["backend"] == "isaac_physics":
             physical_application.run(
@@ -50,7 +55,6 @@ def run(args):
             )
             return 0
         from omni import ui
-        from omni.kit.viewport import utility
 
         # pylint: enable=import-outside-toplevel,import-error
 
@@ -61,9 +65,6 @@ def run(args):
             omni.usd.get_context().get_stage(),
             config["scene"]["root"],
         )
-        viewport = utility.get_active_viewport()
-        if viewport:
-            viewport.camera_path = "/World/Camera"
         window = ui.Window("Native Isaac follower", width=420, height=120)
         with window.frame:
             label = ui.Label("Waiting for owner", word_wrap=True)

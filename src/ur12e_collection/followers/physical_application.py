@@ -54,7 +54,7 @@ def loop(app, driver, service, config, args):
             and now - rendered >= 1 / config["scene"]["display_hz"]
         ):
             driver.render()
-            rendered = now
+            rendered = time.monotonic()
         if now - reported >= 1:
             result = {
                 **service.engine.snapshot(now),

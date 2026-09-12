@@ -27,8 +27,11 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     restitution: float
     open_tolerance_m: float
     finger_stopped_speed_m_s: float
+    solver_type: str = "TGS"
 
     def __post_init__(self):
+        if self.solver_type not in ("TGS", "PGS"):
+            raise ValueError("physics solver_type must be TGS or PGS")
         if type(self.step_hz) is not int or not 120 <= self.step_hz <= 1000:
             raise ValueError(
                 "physics step_hz must be an integer in [120, 1000]"

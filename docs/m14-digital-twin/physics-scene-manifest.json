@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "verified_date": "2026-09-12",
+  "verified_date": "2026-09-13",
   "isaac_sim": "6.0.1.0",
   "openusd": "0.26.8",
   "scene_root": "configuration.scene.root",
   "scope": "External physical adapter, static tests and baseline asset entrypoints. Asset manifest records upstream mesh provenance. Dynamics acceptance pending.",
   "files": {
-    "runtime/physical.py": "f175f8ee939d2c1912d498a57da914acd248d05c2656058050573e4251797e58",
+    "runtime/physical.py": "7571949774295aa2d8d4b720117cbbd43144c9f7b3eb9e8954144f1f3d030e35",
     "tests/test_physical.py": "614793207d9a827fd23c3c926af55dcf38d0f51ee7a85c981b268eebc724b216",
     "scenes/tabletop_home/scene.usda": "101c845ce57a6eabd98d775c64fa01c074514dafef758c61bb7ed056b9c9ace7",
     "assets/manifest.json": "bc8a8eec53765f0703b753e8d1c06cc1a6d7e277cd2c9b03af3ce43578d98f5e",
