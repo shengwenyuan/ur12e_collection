@@ -2,32 +2,20 @@
 
 import contextlib
 import dataclasses
-import json
-import os
 import pathlib
 import time
 from typing import Any
 
+from ur12e_collection import filesystem
 from ur12e_collection.control import lifecycle, model, owner, records
 
 
 def write_outcome(destination: pathlib.Path, disposition: str) -> None:
     """Preserve verified data; atomically replace only the review decision."""
-    path = destination / "outcome.json"
-    temporary = path.with_suffix(".json.tmp")
-    with temporary.open("w", encoding="utf-8") as stream:
-        json.dump(
-            {
-                "schema_version": 1,
-                "disposition": disposition,
-                "task_success": None,
-            },
-            stream,
-        )
-        stream.write("\n")
-        stream.flush()
-        os.fsync(stream.fileno())
-    temporary.replace(path)
+    filesystem.write_json(
+        destination / "outcome.json",
+        {"schema_version": 1, "disposition": disposition, "task_success": None},
+    )
 
 
 @dataclasses.dataclass

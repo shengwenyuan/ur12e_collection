@@ -289,26 +289,36 @@ Acceptance targets: `M08-A01` true nearest-frame selection and threshold rejecti
 
 ## M09. Session, Episode and Keyboard Lifecycle
 
-Space starts leading and recording together; another Space ends both. Each episode starts with both arms at READY. A separate leading-without-recording preview is not in v0.1 scope.
+Space starts leading and recording together; another Space ends both. In the
+current native physical path, UR starts at HOME and GELLO uses a fresh relative
+reference while manually supported. No leader motor writes are implemented.
+The separately accepted control-only commissioning entry remains available;
+full recording is explicitly selected with station, output and task arguments.
 
 ```text
-INITIALIZE -> UR ZERO -> dual-arm GO_READY -> READY_HOLD
-READY_HOLD --Space + engagement checks--> LEADING_RECORDING
-LEADING_RECORDING --Space--> STOPPING -> FINALIZING -> HOLD
-HOLD --Space--> RETURNING -> READY_HOLD
-READY_HOLD --next distinct Space--> LEADING_RECORDING
-control fault -> BLOCKED, following revoked and applicable stop executed
+NEEDS_HOME --Space--> HOMING -> READY
+READY --Space--> PREPARING -> ENGAGING / WAITING_LEADER -> RECORDING
+RECORDING --Space--> STOPPING -> FINALIZING -> HELD
+HELD --Space--> HOMING -> READY
+READY --next distinct Space--> PREPARING
+q -> stop active recording, verify/save, end session
+Ctrl+C / fault -> revoke following, preserve incomplete partial
 ```
 
-Confirmed controls: **Space** is state-dependent (start at READY, stop during leading, return both arms to READY while holding); **a** discards an episode; **Ctrl+C** exits the collection task. Returning to READY does not automatically start the next episode. Ignore Space while stopping, finalizing, or returning, and require a fresh press after the transition.
-
-Proposed discard scope for M09 alignment: during recording, `a` stops/holds through the same control path and marks the current episode discarded; in HOLD, it discards only the just-finished episode. It never moves either arm or selects an arbitrary older recording. Whether discarded files are quarantined or removed, and the exact review-window boundary, remain M09 decisions. Ctrl+C must revoke control and initiate a bounded controlled shutdown; interrupted recordings must not appear as normally completed demonstrations. Exiting never requests READY or releases the gripper implicitly.
+Space during recording stops; while HELD it requests HOME. A fresh Space at READY
+starts the next episode. Ignore Space while stopping/finalizing. The native
+control path also permits stopping HOME with Space. `a` stops/discards the active
+episode or marks the last completed episode while idle; verified files remain
+with an explicit disposition and unknown task success. `q` is the normal-exit
+implementation default; Ctrl+C interrupts. Exit never requests HOME or releases
+Hand-E. See the [physical recording plan](docs/m09-session/physical-recording.md)
+for current software and operator acceptance boundaries.
 
 Prepare the writer and a common start boundary before opening leader control. A partial start must not leave unrecorded following active.
 
 The ending Space event closes the demonstration sampling boundary and revokes following, discarding queued goals. Record deceleration/stopping feedback in session diagnostics, not the demonstration interval. File finalization can complete later. Preserve both the Space timestamp and verified stop-completion time.
 
-Holding means the actual posture after controlled deceleration, not an instantaneous freeze while moving. Verify stop latency/displacement and drift. GELLO seeds a hold at its current position; the operator supports it until handover completes. Subsequent leader movement cannot move the UR. Normal completion does not put UR into freedrive, disable it, return it automatically to READY, or implicitly release Hand-E.
+Holding means the actual posture after controlled deceleration, not an instantaneous freeze while moving. Verify stop latency/displacement and drift. Current GELLO operation requires manual support; powered motor hold remains unimplemented. Subsequent leader movement cannot move the UR. Normal completion does not put UR into freedrive, disable it, return it automatically to READY, or implicitly release Hand-E.
 
 Keep device connections across episodes. Do not resume following merely because writing completed. Debounce keyboard events so a held key cannot cross lifecycle boundaries. Keep operator discard, system failure, and task success distinct; whether a normal Space completion implies task success remains open. Writer success alone does not establish task success.
 

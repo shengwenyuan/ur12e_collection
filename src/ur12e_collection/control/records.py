@@ -1,6 +1,7 @@
 """Translate measured control events without changing their clock domains."""
 
 import collections
+import dataclasses
 
 from ur12e_collection import contracts
 from ur12e_collection.control.model import State, Target
@@ -101,4 +102,35 @@ class Records:
                 )
             )
         self.last_feedback_stamp = state.timestamp
+        return tuple(result)
+
+    def observed(self, sample):
+        """Preserve independent readback clocks with episode-local sequences."""
+        key = "arm_id" if sample.kind == "ur_feedback" else "hande_id"
+        if sample.provenance.source_id != self.context[key]:
+            raise ValueError(
+                "recording feedback differs from configured source"
+            )
+        kinds = (
+            ("follower_state", "ur_feedback")
+            if key == "arm_id"
+            else ("hande_feedback",)
+        )
+        result = []
+        for kind in kinds:
+            source = sample.provenance.time
+            provenance = self._provenance(
+                kind,
+                key,
+                source.source_ns,
+                source.received_monotonic_ns,
+                source.source_clock,
+            )
+            result.append(
+                contracts.FollowerState(
+                    provenance, sample.joint_positions_rad, None
+                )
+                if kind == "follower_state"
+                else dataclasses.replace(sample, provenance=provenance)
+            )
         return tuple(result)

@@ -109,6 +109,9 @@ def _teleop_arguments(commands):
     teleop.add_argument("--config", type=pathlib.Path, required=True)
     teleop.add_argument("--preflight", action="store_true")
     teleop.add_argument("--operator-approved", action="store_true")
+    teleop.add_argument("--record-station", type=pathlib.Path)
+    teleop.add_argument("--record-output", type=pathlib.Path)
+    teleop.add_argument("--task")
 
 
 def _leader_arguments(devices):
@@ -306,11 +309,21 @@ def _teleop(args):
     # pylint: disable-next=import-outside-toplevel
     from ur12e_collection.control import teleop
 
+    # pylint: disable-next=import-outside-toplevel
+    from ur12e_collection.physical.recording import Options
+
+    values = (args.record_station, args.record_output, args.task)
+    if any(values) and not all(values):
+        raise ValueError(
+            "recording requires --record-station, --record-output and --task"
+        )
+
     return teleop.run(
         args.config,
         sys.stdin,
         operator_approved=args.operator_approved,
         preflight_only=args.preflight,
+        recording_options=Options(*values) if all(values) else None,
     )
 
 

@@ -186,3 +186,83 @@ def test_camera_exit_after_cancel_cleans_partial_without_false_fault(
     else:
         assert "recorder worker failed" in output
         assert replies.get_nowait() == ("error", "camera worker exited: wrist")
+
+
+def test_three_controlled_episodes_reuse_capture_and_verify_gripper_stream(
+    tmp_path, controlled, group_factory, frame_factory
+):
+    """Exercise real codecs, writer, verifier and record clocks across rotation."""
+    from ur12e_collection import snapshots
+    from ur12e_collection.control import model
+    from test_collection import hande
+
+    controlled["control"].update(
+        hande="urcap", hande_id="test-hande", writer_feedback_capacity=128
+    )
+    controlled = snapshots.copy(controlled)
+    owner = session.Session.from_snapshot(controlled)
+    source = Source()
+    capture = recording._Capture(source, owner)
+    try:
+        for index in range(3):
+            start = index * 1_000_000_000
+            path = tmp_path / f"episode-{index}"
+            factory = Records(controlled["control"], simulated=True)
+            capture.message("prepare", str(path))
+            capture.message(
+                "begin", (start, factory.authority("acquired", "space", start))
+            )
+            original = group_factory(index)
+            source.frames = [
+                dataclasses.replace(
+                    frame_factory(f.role, start + 1_000_000, index),
+                    payload=f.payload,
+                )
+                for f in original.members
+            ]
+            data = []
+            # 120-Hz commands, independent 125-Hz UR and 10-Hz raw Hand-E.
+            for seq in range(24):
+                stamp = start + 2_000_000 + seq * 8_333_333
+                target = model.Target((0.0,) * 6, seq, stamp, "simulation-wave")
+                data.extend(
+                    (factory.intent(target), factory.sent(target, stamp + 1))
+                )
+            for seq in range(25):
+                stamp = start + 3_000_000 + seq * 8_000_000
+                state = model.State(
+                    (0.0,) * 6,
+                    (0.0,) * 6,
+                    stamp / 1e9,
+                    stamp,
+                    currents=(0.0,) * 6,
+                    tcp=(0.0,) * 6,
+                )
+                data.extend(factory.feedback(state))
+            for seq in range(2):
+                data.extend(
+                    factory.observed(
+                        hande(start + 4_000_000 + seq * 100_000_000, seq)
+                    )
+                )
+            capture.message("samples", (start + 199_000_000, tuple(data)))
+            capture.step(start + 5_000_000)
+            cutoff = start + 200_000_000
+            capture.message(
+                "stop", (cutoff, factory.authority("released", "space", cutoff))
+            )
+            capture.message("settled", None)
+            report = capture.step(cutoff + 100_000_000)
+            deadline = time.monotonic() + 5
+            while report is None and time.monotonic() < deadline:
+                report = owner.poll()
+                time.sleep(0.005)
+            assert report is not None
+            counts = storage.verify_episode(path)["counts"]
+            assert counts["leader/state"] == 24
+            assert counts["follower/state"] == 52
+            assert counts["camera/frame_set"] == 1
+            assert counts["control/command"] == 24
+            assert capture.source is source
+    finally:
+        owner.close()

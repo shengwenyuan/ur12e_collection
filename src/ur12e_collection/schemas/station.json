@@ -55,7 +55,10 @@
       "type": "object",
       "properties": {
         "backend": {
-          "const": "unavailable"
+          "enum": [
+            "unavailable",
+            "dynamixel_readonly"
+          ]
         },
         "ready_q_rad": {
           "anyOf": [

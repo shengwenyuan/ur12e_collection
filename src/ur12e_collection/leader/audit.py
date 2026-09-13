@@ -35,6 +35,11 @@ class Audit:
         self.command = model.Target(self.limits.ready, 0, started_ns)
         self.velocity = (0.0,) * 6
         self.intent_ns = None
+        self.gripper = (
+            mapping.GripperReference(**context["gripper_reference"])
+            if "gripper_reference" in context
+            else None
+        )
 
     @staticmethod
     def _sample(value):
@@ -69,6 +74,14 @@ class Audit:
                 "recorded intent differs from raw relative mapping"
             )
         self.limits.check(expected)
+        if (
+            self.gripper
+            and record.gripper_request_raw
+            != self.gripper.position(sample.raw[6])
+        ):
+            raise ValueError(
+                "recorded gripper intent differs from relative mapping"
+            )
         self.previous, self.intent_ns = sample, now
 
     def sent(self, record):

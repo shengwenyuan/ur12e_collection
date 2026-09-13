@@ -102,8 +102,8 @@ class Session:
                 receipt = sample.provenance.time.received_monotonic_ns
                 if self._recordable(receipt):
                     records.append((sample, receipt + offset))
-            if records:
-                self.writer.submit_records(tuple(records))
+            for offset in range(0, len(records), 64):
+                self.writer.submit_records(tuple(records[offset : offset + 64]))
         except Exception:
             self.abort()
             raise

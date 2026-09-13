@@ -7,6 +7,7 @@ class Validator:
     def __init__(self, snapshot: dict):
         self.context = snapshot.get("control")
         self.previous = {}
+        self.counts = {}
         self.first = {}
         self.maximum_gap = (self.context or {}).get(
             "max_control_gap_ns", 250_000_000
@@ -43,6 +44,8 @@ class Validator:
             "ur_feedback": "arm_id",
             "authority_event": "owner_id",
         }
+        if self.context.get("hande") == "urcap":
+            sources["hande_feedback"] = "hande_id"
         source = sources.get(record.kind)
         if source is None:
             raise ValueError("undeclared controlled-episode record")
@@ -53,23 +56,16 @@ class Validator:
             p.time.received_monotonic_ns + self.context["monotonic_to_unix_ns"]
         ):
             raise ValueError("control timestamp must preserve mapped receipt")
-        expected_clock = (
-            "ur_controller_uptime"
-            if record.kind in ("follower_state", "ur_feedback")
-            else "host_monotonic"
-        )
-        if p.time.source_clock != expected_clock or p.time.source_ns is None:
-            raise ValueError("control source clock differs")
-        if expected_clock == "host_monotonic" and (
-            p.time.source_ns != p.time.received_monotonic_ns
-        ):
-            raise ValueError("host control timestamps must preserve event time")
+        self._clock(record)
         previous = self.previous.get(record.kind)
         if previous is not None and (
             p.sequence != previous.sequence + 1
             or p.time.received_monotonic_ns
             <= previous.time.received_monotonic_ns
-            or p.time.source_ns <= previous.time.source_ns
+            or (
+                p.time.source_ns is not None
+                and p.time.source_ns <= previous.time.source_ns
+            )
         ):
             raise ValueError("control stream sequence or time did not advance")
         if (
@@ -82,10 +78,30 @@ class Validator:
             raise ValueError("control stream has an excessive receipt gap")
         self.first.setdefault(record.kind, p.time.received_monotonic_ns)
         self.previous[record.kind] = p
+        self.counts[record.kind] = self.counts.get(record.kind, 0) + 1
         if record.kind == "authority_event":
             self._authority(record)
         else:
             self._sample(record)
+
+    @staticmethod
+    def _clock(record):
+        p = record.provenance
+        expected_clock = (
+            "ur_controller_uptime"
+            if record.kind in ("follower_state", "ur_feedback")
+            else "host_monotonic"
+        )
+        if record.kind == "hande_feedback":
+            expected_clock = "unavailable"
+        if p.time.source_clock != expected_clock or (
+            (p.time.source_ns is None) != (expected_clock == "unavailable")
+        ):
+            raise ValueError("control source clock differs")
+        if expected_clock == "host_monotonic" and (
+            p.time.source_ns != p.time.received_monotonic_ns
+        ):
+            raise ValueError("host control timestamps must preserve event time")
 
     def _authority(self, record):
         expected = "acquired" if not self.boundaries else "released"
@@ -106,13 +122,24 @@ class Validator:
             and self.leader_audit is None
         ):
             raise ValueError("relative leader baseline is missing")
+        if (
+            record.action == "acquired"
+            and self.context.get("leader_mapping")
+            and self.context["hande"] == "urcap"
+            and self.leader_audit.gripper is None
+        ):
+            raise ValueError("relative gripper baseline is missing")
         self.boundaries[record.action] = (
             record.provenance.time.received_monotonic_ns
         )
 
     def _sample(self, record):
-        if getattr(record, "gripper_request_raw", None) is not None or (
-            getattr(record, "gripper_position_raw", None) is not None
+        if record.kind == "hande_feedback":
+            self._receipt(record.provenance.time.received_monotonic_ns)
+            return
+        if self.context["hande"] == "bypassed" and (
+            getattr(record, "gripper_request_raw", None) is not None
+            or (getattr(record, "gripper_position_raw", None) is not None)
         ):
             raise ValueError("bypassed Hand-E must not produce values")
         if record.joint_positions_rad is None:
@@ -158,19 +185,30 @@ class Validator:
             return
         if (
             set(self.previous)
-            != {
-                "authority_event",
-                "leader_intent",
-                "sent_command",
-                "follower_state",
-                "ur_feedback",
-            }
+            != (
+                {
+                    "authority_event",
+                    "leader_intent",
+                    "sent_command",
+                    "follower_state",
+                    "ur_feedback",
+                }
+                | (
+                    {"hande_feedback"}
+                    if self.context["hande"] == "urcap"
+                    else set()
+                )
+            )
             or self.pending_intent is not None
             or self.pending_state is not None
         ):
             raise ValueError("controlled episode is missing required records")
         if set(self.boundaries) != {"acquired", "released"}:
             raise ValueError("control authority interval is incomplete")
+        duration = self.boundaries["released"] - self.boundaries["acquired"]
+        minimum = self.context.get("minimum_command_hz", 0)
+        if self.counts["sent_command"] * 1e9 <= minimum * duration:
+            raise ValueError("recorded command rate is not above minimum")
         for kind, last in self.previous.items():
             if kind == "authority_event":
                 continue

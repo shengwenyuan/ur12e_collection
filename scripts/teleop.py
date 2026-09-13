@@ -14,19 +14,35 @@ from ur12e_collection.followers import config
 from ur12e_collection.physical import network
 
 
-def main():
-    """Keep scene, IPC and configuration paths identical across namespaces."""
+def arguments():
+    """Parse the explicit station and recording launch options."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=pathlib.Path, required=True)
     parser.add_argument("--image", default="ur12e-collection:native-isaac")
     parser.add_argument("--preflight", action="store_true")
     parser.add_argument("--operator-approved", action="store_true")
+    parser.add_argument("--record-station", type=pathlib.Path)
+    parser.add_argument("--record-output", type=pathlib.Path)
+    parser.add_argument("--task")
     args = parser.parse_args()
+    if any((args.record_station, args.record_output, args.task)) and not all(
+        (args.record_station, args.record_output, args.task)
+    ):
+        parser.error("recording requires station, output and task")
+    return args, parser
+
+
+def main():
+    """Keep scene, IPC and configuration paths identical across namespaces."""
+    args, parser = arguments()
     if sys.platform != "linux":
         parser.error("teleoperation runs on the Ubuntu PC")
     path = args.config.expanduser().resolve()
     value = config.load(path)
     physical = value["follower"]["backend"] == "ur"
+    recording = bool(args.record_station)
+    if recording and (not physical or args.preflight):
+        parser.error("recording requires physical teleoperation")
     if physical:
         if not (args.preflight or args.operator_approved):
             parser.error("use --preflight or explicit --operator-approved")
@@ -39,31 +55,7 @@ def main():
     device = pathlib.Path(value["leader"]["device"]).resolve(
         strict=not args.preflight
     )
-    mounts = {
-        ROOT: "ro",
-        path.parent: "ro",
-        value["leader"]["calibration"].parent: "ro",
-    }
-    if physical:
-        value["evidence"].mkdir(parents=True, exist_ok=True)
-        mounts[value["evidence"]] = "rw"
-        lease = (
-            pathlib.Path("/tmp")
-            / f"ur12e-controller-{value['follower']['serial']}.lock"
-        )
-        descriptor = os.open(
-            lease, os.O_CREAT | os.O_WRONLY | os.O_NOFOLLOW, 0o600
-        )
-        os.close(descriptor)
-        mounts[lease] = "rw"
-    else:
-        mounts[value["scene"]["root"]] = "ro"
-    for follower in (
-        [] if physical else [value["follower"], *value.get("twins", [])]
-    ):
-        parent = follower["endpoint"].parent
-        parent.mkdir(parents=True, exist_ok=True)
-        mounts[parent] = "rw"
+    mounts, lease = mount_paths(args, value, path, physical)
     image_id = subprocess.run(
         ["docker", "image", "inspect", "--format", "{{.Id}}", args.image],
         check=True,
@@ -86,7 +78,7 @@ def main():
         "--security-opt",
         "no-new-privileges",
         "--memory",
-        "1g",
+        "8g" if recording else "1g",
         "--user",
         f"{os.getuid()}:{os.getgid()}",
         "--tmpfs",
@@ -98,6 +90,15 @@ def main():
     ]
     if physical:
         command += ["-e", f"UR12E_LEASE={lease}"]
+    if recording:
+        command += camera_devices() + [
+            "--shm-size",
+            "512m",
+            "-e",
+            "OPENBLAS_NUM_THREADS=1",
+            "-e",
+            "OMP_NUM_THREADS=1",
+        ]
     if not args.preflight:
         command += [
             "--group-add",
@@ -121,11 +122,70 @@ def main():
         command.append("--preflight")
     elif args.operator_approved:
         command.append("--operator-approved")
+    if recording:
+        command += [
+            "--record-station",
+            str(args.record_station),
+            "--record-output",
+            str(args.record_output),
+            "--task",
+            args.task,
+        ]
     raise SystemExit(
         subprocess.run(
             command, check=False, timeout=20 if args.preflight else None
         ).returncode
     )
+
+
+def camera_devices(root=pathlib.Path("/sys/class/video4linux")):
+    """Expose RealSense V4L2 nodes as required by the existing camera runner."""
+    devices = ["--device", "/dev/bus/usb"]
+    for entry in sorted(root.glob("video*")):
+        name = entry / "name"
+        if name.is_file() and "RealSense" in name.read_text(encoding="utf-8"):
+            devices += ["--device", f"/dev/{entry.name}"]
+    return devices
+
+
+def mount_paths(args, value, path, physical):
+    """Expose only selected configuration, devices and persistent outputs."""
+    recording = bool(args.record_station)
+    lease = None
+    mounts = {
+        ROOT: "ro",
+        path.parent: "ro",
+        value["leader"]["calibration"].parent: "ro",
+    }
+    if recording:
+        args.record_station = args.record_station.expanduser().resolve(
+            strict=True
+        )
+        args.record_output = args.record_output.expanduser().resolve()
+        args.record_output.mkdir(parents=True, exist_ok=True)
+        mounts[args.record_station.parent] = "ro"
+        mounts[args.record_output] = "rw"
+    if physical:
+        value["evidence"].mkdir(parents=True, exist_ok=True)
+        mounts[value["evidence"]] = "rw"
+        lease = (
+            pathlib.Path("/tmp")
+            / f"ur12e-controller-{value['follower']['serial']}.lock"
+        )
+        descriptor = os.open(
+            lease, os.O_CREAT | os.O_WRONLY | os.O_NOFOLLOW, 0o600
+        )
+        os.close(descriptor)
+        mounts[lease] = "rw"
+    else:
+        mounts[value["scene"]["root"]] = "ro"
+    for follower in (
+        [] if physical else [value["follower"], *value.get("twins", [])]
+    ):
+        parent = follower["endpoint"].parent
+        parent.mkdir(parents=True, exist_ok=True)
+        mounts[parent] = "rw"
+    return mounts, lease
 
 
 if __name__ == "__main__":

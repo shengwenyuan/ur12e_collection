@@ -1,5 +1,6 @@
 """Durability primitives for local recording and offline delivery."""
 
+import json
 import os
 import pathlib
 
@@ -28,3 +29,15 @@ def publish(partial: pathlib.Path, destination: pathlib.Path) -> None:
     except OSError:
         destination.rename(partial)
         raise
+
+
+def write_json(path: pathlib.Path, value: dict) -> None:
+    """Atomically replace a JSON report and flush its directory entry."""
+    temporary = path.with_suffix(".json.tmp")
+    with temporary.open("w", encoding="utf-8") as stream:
+        json.dump(value, stream, indent=2, allow_nan=False)
+        stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    temporary.replace(path)
+    sync(path.parent)

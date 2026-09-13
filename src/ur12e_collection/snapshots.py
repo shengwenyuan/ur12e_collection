@@ -48,6 +48,7 @@ def copy(snapshot: dict) -> dict:
         and leader_setup["simulated"] != result["simulated"]
     ):
         raise ValueError("leader setup provenance differs from episode")
+    _control(result)
     _calibration(result)
     if "capture" in result and result["capture"] != capture.resolve(
         result["station"]
@@ -68,6 +69,19 @@ def copy(snapshot: dict) -> dict:
             if devices["hande"]["source_id"] != endpoint:
                 raise ValueError("Hand-E source differs from station")
     return result
+
+
+def _control(result):
+    context = result.get("control", {})
+    if context.get("backend") != "ur":
+        return
+    config = result["station"]
+    expected = f"hande@{config['hande']['host']}:{config['hande']['port']}"
+    if (
+        context["arm_id"] != config["ur"]["serial"]
+        or context["hande_id"] != expected
+    ):
+        raise ValueError("controlled devices differ from station")
 
 
 def _calibration(result):

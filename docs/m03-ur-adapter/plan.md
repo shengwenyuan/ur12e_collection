@@ -109,3 +109,12 @@ motion readback, slow outward movement and observed post-pause stability are
 recorded separately from full control acceptance. Fast return motion remains
 measured and its source unverified; the originally proposed round-trip low-speed
 criterion did not pass. See the operator acceptance clarification in M06.
+
+
+### Operator-declared TCP geometry, 2026-09-13
+
+The operator supplies translation (0, 0, 0.127 m). Confirmation of the local frame,
+relative orientation and whether this is the active UR installation setting is
+pending. Retain it as a declared geometry value, not verified controller readback.
+Joint-space teleoperation/recording can proceed independently; current MCAP still
+records base-to-active-TCP only and must not claim a derived flange pose.

@@ -66,10 +66,14 @@ class Teleoperation:
         elif self.state in ("engaging", "waiting_leader"):
             self.state = "ready"
         elif self.state in ("following", "homing"):
-            if self.input is not None:
-                self.input.close()
-            self.controller.halt(now_ns)
-            self.state = "stopping"
+            self.stop(now_ns)
+
+    def stop(self, now_ns):
+        """Revoke motion immediately, independently of keyboard debounce."""
+        if self.input is not None:
+            self.input.close()
+        self.controller.halt(now_ns)
+        self.state = "stopping"
 
     def _engage(self, now_ns):
         """Wait for fresh feedback before capturing the start reference."""
@@ -154,7 +158,14 @@ class Teleoperation:
         self.state = "closed"
 
 
-def run(path, stream, *, operator_approved=False, preflight_only=False):
+def run(
+    path,
+    stream,
+    *,
+    operator_approved=False,
+    preflight_only=False,
+    recording_options=None,
+):
     """Select a configured adapter without duplicating the control loop."""
     return runtime.launch(
         path,
@@ -163,34 +174,42 @@ def run(path, stream, *, operator_approved=False, preflight_only=False):
         drive,
         operator_approved=operator_approved,
         preflight_only=preflight_only,
+        recording_options=recording_options,
     )
 
 
 def drive(session, read_keys, log=None):
     """Run one owner; stale input and I/O errors propagate into stop cleanup."""
     print("Space HOME/start/stop; Ctrl+C stop and exit.")
-    print("Support the leader. No leader motor writes. Recording is disabled.")
+    recording = hasattr(session, "motion")
+    motion = session.motion if recording else session
+    print("Support the leader. No leader motor writes.")
+    print(
+        "Recording enabled: a discards, q ends normally."
+        if recording
+        else "Recording is disabled."
+    )
     previous = None
     deadline = time.monotonic_ns()
-    while True:
+    while not getattr(session, "done", False):
         session.step(time.monotonic_ns())
         if session.state != previous:
             print(f"teleop: {session.state}", flush=True)
             if log:
                 log.emit("state", state=session.state)
-                if session.state == "following":
+                if session.state in ("following", "recording"):
                     log.emit(
                         "engaged",
-                        context=session.input.context(),
-                        gripper_reference=session.gripper_reference,
+                        context=motion.input.context(),
+                        gripper_reference=motion.gripper_reference,
                     )
             previous = session.state
         if log:
-            active = session.input
+            active = motion.input
             log.emit(
                 "sample",
-                feedback=session.controller.progress.feedback,
-                target=session.controller.progress.target,
+                feedback=motion.controller.progress.feedback,
+                target=motion.controller.progress.target,
                 leader=active.evidence() if active else None,
                 desired=active.desired if active else None,
             )
@@ -202,3 +221,4 @@ def drive(session, read_keys, log=None):
             deadline, time.monotonic_ns(), round(1e9 / 120)
         )
         time.sleep(max(0, (deadline - time.monotonic_ns()) / 1e9))
+    return 0

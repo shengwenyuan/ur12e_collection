@@ -9,11 +9,12 @@ import signal
 import sys
 import time
 
-from ur12e_collection.control import console, model, trace
+from ur12e_collection.control import collection, console, model, trace
 from ur12e_collection.followers import config as configuration
 from ur12e_collection.followers import dispatch
 from ur12e_collection.leader import mapping, native
 from ur12e_collection.physical import preflight, transport as hardware
+from ur12e_collection.physical import recording as physical_recording
 
 
 # Resource order is intentionally visible in one lifecycle scope.
@@ -26,25 +27,20 @@ def launch(
     *,
     operator_approved=False,
     preflight_only=False,
+    recording_options=None,
 ):
     """Share input/lifecycle across explicitly configured follower adapters."""
     if sys.platform != "linux":
         raise ValueError("native teleoperation runs on the Ubuntu station")
     config = configuration.load(path)
     physical = config["follower"]["backend"] == "ur"
-    if physical:
-        if preflight_only:
-            print(json.dumps(preflight.check(config), indent=2))
-            return 0
-        authorize(config, operator_approved)
-    elif preflight_only:
-        raise ValueError("preflight is a physical read-only operation")
+    if _preflight(config, recording_options, operator_approved, preflight_only):
+        return 0
     calibration = mapping.load(config["leader"]["calibration"])
     with contextlib.ExitStack() as stack:
         log = None
         if physical:
-            root = config["evidence"]
-            root.mkdir(parents=True, exist_ok=True)
+            config["evidence"].mkdir(parents=True, exist_ok=True)
             lease_path = os.environ.get("UR12E_LEASE")
             if not lease_path:
                 raise model.ControlError(
@@ -54,7 +50,7 @@ def launch(
                 pathlib.Path(lease_path).open("a", encoding="utf-8")
             )
             fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            log = trace.Trace(root / str(time.time_ns()))
+            log = trace.Trace(config["evidence"] / str(time.time_ns()))
             stack.callback(log.close)
             log.emit(
                 "configuration",
@@ -67,6 +63,15 @@ def launch(
             )
             print(f"Evidence: {log.path}", flush=True)
         with console.keyboard(stream) as read_keys:
+            capture = None
+            if recording_options:
+                capture = physical_recording.Resources(
+                    config,
+                    recording_options,
+                    os.environ.get("UR12E_IMAGE_ID", "unavailable"),
+                )
+                stack.callback(capture.close)
+                capture.start()
             leader = native.Leader(
                 config["leader"]["device"], config["leader"]["baudrate"]
             )
@@ -79,6 +84,8 @@ def launch(
                 else dispatch.open_group(config)
             )
             stack.callback(device.close)
+            if capture:
+                capture.readers.start(capture.recorder.poll)
             leader.start()
             if physical:
                 device.primary.enable_watchdog()
@@ -91,6 +98,14 @@ def launch(
                 guards=config.get("guards"),
                 home_open_gripper=config.get("home_open_gripper", True),
             )
+            if capture:
+                session = collection.Session(
+                    session,
+                    capture.recorder,
+                    capture.readers,
+                    capture.snapshot,
+                    capture.output,
+                )
             # The session owns cleanup before the lower-level resources close.
             stack.callback(session.close)
             previous = signal.signal(signal.SIGTERM, _interrupt)
@@ -119,3 +134,19 @@ def authorize(config, operator_approved):
         raise model.ControlError(
             "servo stop parameter needs operator alignment"
         )
+
+
+def _preflight(config, recording_options, operator_approved, preflight_only):
+    physical = config["follower"]["backend"] == "ur"
+    if recording_options and (not physical or preflight_only):
+        raise ValueError(
+            "recording requires an explicit physical control session"
+        )
+    if physical:
+        if preflight_only:
+            print(json.dumps(preflight.check(config), indent=2))
+            return True
+        authorize(config, operator_approved)
+    elif preflight_only:
+        raise ValueError("preflight is a physical read-only operation")
+    return False

@@ -149,3 +149,15 @@ URSim smoke PASS: one 8-second episode using the completed operator trace at
 file verification passed. Native focused tests cover reuse/staleness, epoch reset,
 1,200 jittered/reversing conditioner steps and forged archive values. Simulation
 signs/ranges and accelerated replay do not accept physical calibration.
+
+
+### Native physical recording increment, 2026-09-13
+
+See [M09 physical recording](../m09-session/physical-recording.md). Snapshots now
+explicitly accept real UR/URCap with station-bound identities. The acquired event
+includes the relative gripper baseline; independent validation reconstructs raw
+arm and gripper intent. Preserve separate 120-Hz command, 125-Hz UR and roughly
+10-Hz raw Hand-E streams. SentCommand does not fabricate asynchronous gripper
+acknowledgment. Snapshot inputs include transport, limits, guards and raw tool
+speed/force configuration. Numeric flange reconstruction remains NOT RUN pending
+active TCP-transform confirmation; base-to-active-TCP observations are unchanged.

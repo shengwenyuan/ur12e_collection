@@ -30,7 +30,7 @@ def _read(descriptor):
     data = os.read(descriptor, 64)
     if not data:
         raise EOFError("session terminal closed")
-    return [chr(value) for value in data if value in (32, 97)]
+    return [chr(value) for value in data if value in (32, 97, 113)]
 
 
 def drive(owner, read_keys) -> dict:

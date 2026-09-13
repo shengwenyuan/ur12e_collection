@@ -229,3 +229,68 @@ def test_control_stream_cannot_end_with_missing_feedback(controlled, missing):
                 item, item.provenance.time.received_monotonic_ns + OFFSET
             )
         validator.finish()
+
+
+def test_real_control_snapshot_binds_station_identities(controlled):
+    controlled["simulated"] = False
+    controlled["clock_basis"] = "realsense_global_time"
+    controlled["station"]["ur"].update(host="192.0.2.1", serial="fixture-ur")
+    controlled["station"]["hande"].update(host="192.0.2.1", port=63352)
+    controlled["control"].update(
+        backend="ur",
+        hande="urcap",
+        arm_id="fixture-ur",
+        hande_id="hande@192.0.2.1:63352",
+    )
+    assert snapshots.copy(controlled)["simulated"] is False
+    controlled["control"]["arm_id"] = "different-robot"
+    with pytest.raises(ValueError, match="controlled devices"):
+        snapshots.copy(controlled)
+
+
+def test_relative_hande_requires_baseline_and_audits_mapping(controlled):
+    from test_leader_input import make
+    from ur12e_collection.leader import mapping
+
+    source, active = make()
+    controlled["control"].update(
+        hande="urcap",
+        hande_id="test-hande",
+        leader_id="gello",
+        leader_mapping="episode_relative_conditioned_v1",
+    )
+    factory = records.Records(controlled["control"], simulated=True)
+    begin = factory.authority("acquired", "space", 41_000_000, active.context())
+    with pytest.raises(ValueError, match="gripper baseline"):
+        control_records.Validator(controlled).check(begin, 41_000_000 + OFFSET)
+    context = active.context() | {
+        "gripper_reference": dataclasses.asdict(
+            mapping.GripperReference(3200, 1)
+        )
+    }
+    checker = control_records.Validator(controlled)
+    checker.check(
+        dataclasses.replace(begin, context=context), 41_000_000 + OFFSET
+    )
+    active.sample(41_000_000)
+    target = active.sample(61_000_000)
+    intent = dataclasses.replace(
+        factory.intent(target, active), gripper_request_raw=0
+    )
+    checker.check(intent, 61_000_000 + OFFSET)
+    # A forged raw gripper target must not survive the independent archive audit.
+    with pytest.raises(ValueError, match="gripper intent"):
+        checker.leader_audit.intent(
+            dataclasses.replace(intent, gripper_request_raw=123)
+        )
+    assert source.rows[-1].raw[6] == 3200
+
+
+def test_low_actual_command_rate_cannot_pass_nominal_120_hz(controlled):
+    controlled["control"].update(control_hz=120, minimum_command_hz=30)
+    checker = control_records.Validator(controlled)
+    for item in samples(controlled):
+        checker.check(item, item.provenance.time.received_monotonic_ns + OFFSET)
+    # One actual command in 40 ms is 25 Hz, despite the configured 120 Hz.
+    with pytest.raises(ValueError, match="command rate"):
+        checker.finish()
