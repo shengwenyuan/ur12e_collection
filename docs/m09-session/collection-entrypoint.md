@@ -78,3 +78,25 @@ are unchanged. Advanced launch options remain in `scripts/teleop.py`.
   its current station/configuration files as before.
 - Hardware launch via the new shorthand: NOT RUN. No robot/Hand-E/leader controls,
   camera capture or physical preflight were started during implementation.
+
+## Operator-run physical acceptance
+
+The subsequent operator session `1789264560560572282` used the default
+`~/ur12e-data` output and completed normally. M09-A01 and the physical shorthand
+entrypoint acceptance PASS for this run: five episodes, explicit HOME/start/stop
+transitions, three retained outcomes (0000, 0003, 0004), and two intentionally
+discarded outcomes (0001, 0002). All five MCAP files remain present; discard is an
+explicit dataset disposition, not evidence of a corrupted file.
+
+Independent read-only verification in the PC `current` image passed all RGB
+decodes and depth hashes for all five episodes, including discarded ones. Their
+durations are 31.425, 3.567, 31.517, 49.550 and 45.551 seconds. Trace
+`artifacts/physical-teleop/1789264560559014861/trace.jsonl` contains five stop
+requests/acknowledgements and a completed final 30-second hold observation;
+the session has no rejection or protective-stop event. This does not resolve the
+separately recorded stop-timeout/watchdog edge case from an earlier session.
+
+Verification output is retained locally at
+`artifacts/entrypoint-acceptance-20260913/verification.jsonl`. The implementation
+was already committed as `6f390e6`; this acceptance update adds the real-run
+conclusion without duplicating its implementation commit or starting hardware.
