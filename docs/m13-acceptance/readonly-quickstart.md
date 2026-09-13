@@ -45,8 +45,12 @@ Do not interpret this short integration smoke as a new 20-episode acceptance.
 
 `follower/state` carries separate `ur_feedback` and `hande_feedback` record kinds.
 UR provides controller-reported q/qd/current/TCP and robot/safety modes. TCP is
-base-to-active-TCP, not flange; the active TCP offset is not yet independently
-read back. Getter reads are bracketed by controller timestamps, not claimed to
+base-to-active-TCP; the active offset is not independently read back. For the
+operator-confirmed zero Installation TCP in the 2026-09-13 lab recordings, this
+pose coincides with flange. The physical tool extends 127 mm along flange-local z,
+which is not applied by that installation. Numeric offset metadata is not yet
+persisted. See [M10](../m10-data-contract/plan.md#tcp-installation-and-hand-e-timing-clarification-2026-09-13)
+before downstream coordinate conversion. Getter reads are bracketed by controller timestamps, not claimed to
 be an atomic RTDE packet. Power-off zero joint values are not a physical HOME
 measurement. Hand-E preserves POS/PRE/STA/OBJ/FLT/COU raw integers and its query
 interval; PRE is the bridge's request echo, never GELLO intent or a sent command

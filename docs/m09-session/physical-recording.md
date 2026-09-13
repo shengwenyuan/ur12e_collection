@@ -79,10 +79,14 @@ contains mapped raw gripper request; SentCommand contains only the acknowledged
 arm target, because asynchronous/coalesced gripper delivery has no arm-synchronous
 acknowledgment. Training normalization and LeRobot export are out of scope.
 
-The operator declared a 127-mm TCP extension. Local-axis/orientation and whether
-it is active in the UR installation remain unconfirmed. Current recordings retain
-base-to-active-TCP readback; do not fabricate flange pose or verified TCP offset.
-This does not block joint-space recording, but flange-pose acceptance stays open.
+The operator confirms UR Installation TCP is all zero for these lab recordings;
+the physical tool reference extends 127 mm along flange-local z. Raw
+base-to-active-TCP readback therefore coincides with flange under that declared
+installation, and does not include the physical tool extension. Keep collection
+interface-based: raw TCP plus static offset/reference metadata, with transforms
+left to cleaning. Numeric offset persistence is still unimplemented; historical
+files have not been modified. See the [M10 clarification](../m10-data-contract/plan.md#tcp-installation-and-hand-e-timing-clarification-2026-09-13)
+for provenance, frame direction and Hand-E training-time distinctions.
 
 ## Software and physical acceptance
 

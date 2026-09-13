@@ -508,11 +508,13 @@ Status: **TODO / not implemented**. The user requested explicit tracking on
 2026-09-12. Include this item whenever summarizing unfinished work until its
 implementation and acceptance are recorded in the
 [M03 plan](docs/m03-ur-adapter/plan.md#todo-active-tcp-offset-and-flange-pose).
-Obtain the active flange-to-TCP transform through a verified read-only path and
-persist it with enough timing/provenance to derive base-to-flange pose from the
-recorded active TCP pose. Current MCAP stores neither the numeric offset nor an
-explicit flange pose. Do not infer zero offset from earlier operator reports.
-Tracking this TODO does not authorize implementation or a hardware test.
+Updated 2026-09-13: the operator confirms zero UR Installation TCP for the
+discussed recordings and a physical tool extension of 127 mm along flange-local z.
+Retain raw interface TCP and persist static offset/reference metadata with units
+and provenance; leave transforms to cleaning. The zero active offset and physical
+extension must be distinct. Current MCAP still stores neither numeric offset nor
+explicit flange pose; this documentation update does not implement fields or
+rewrite data. See the [M10 clarification](docs/m10-data-contract/plan.md#tcp-installation-and-hand-e-timing-clarification-2026-09-13).
 
 | Modules | Next decision |
 | --- | --- |

@@ -33,12 +33,15 @@ summaries on 2026-09-12. Primary scope: M03-A01; related: M10-A03 and M12 pose
 semantics. Current recordings contain base-to-active-TCP pose, but the adapter
 reports `controller_active_value_not_read_back` for the offset.
 
-Future work: verify a read-only acquisition path for the controller's active
-`tcp_offset`, persist the numeric flange-to-TCP transform with its applicable
-timestamp/configuration provenance, and define explicit derived flange-pose
-semantics. Use `T_base_flange = T_base_tcp * inverse(T_flange_tcp)`; do not
-subtract six-vector coordinates or assume the historical zero offset still
-applies. Do not instantiate a control interface just to obtain a readback.
+Updated alignment, 2026-09-13: the operator confirms zero Installation TCP for
+the discussed recordings and a separate physical tool extension of 127 mm along
+flange-local z. Preserve the interface TCP unchanged and persist static offset
+metadata with explicit frames/units/operator provenance; leave flange conversion
+to downstream cleaning. Controller readback is not a prerequisite for accepting
+an explicitly operator-declared installation. Do not conflate the zero active
+offset with the physical extension, or assume either is verified for future runs.
+No numeric offset field has been implemented yet. See the
+[M10 coordinate/timing clarification](../m10-data-contract/plan.md#tcp-installation-and-hand-e-timing-clarification-2026-09-13).
 
 Before implementation, align the field/schema and offset-change handling.
 Acceptance must cover zero/nonzero translation and rotation, unavailable offset,

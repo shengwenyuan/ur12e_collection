@@ -159,5 +159,39 @@ includes the relative gripper baseline; independent validation reconstructs raw
 arm and gripper intent. Preserve separate 120-Hz command, 125-Hz UR and roughly
 10-Hz raw Hand-E streams. SentCommand does not fabricate asynchronous gripper
 acknowledgment. Snapshot inputs include transport, limits, guards and raw tool
-speed/force configuration. Numeric flange reconstruction remains NOT RUN pending
-active TCP-transform confirmation; base-to-active-TCP observations are unchanged.
+speed/force configuration. The coordinate clarification below supersedes the
+earlier pending operator confirmation; numeric offset persistence is still absent.
+
+### TCP installation and Hand-E timing clarification, 2026-09-13
+
+The operator confirms that UR Installation TCP is all zero for the discussed lab
+recordings. The physical tool reference is displaced by `[0, 0, 0.127]` metres
+along flange-local z. These are separate facts: the interface returns
+base-to-active-TCP, which coincides with base-to-flange under the confirmed zero
+installation. The 127-mm physical extension is not already applied to that pose.
+This is operator-declared configuration, not an independent controller readback
+or a verified full tool-orientation calibration; do not assume future sessions
+retain the same installation.
+
+Aligned collection boundary: retain the raw `tcp_pose_m_rotvec_rad` and record
+static offset/reference metadata once per episode; coordinate conversion belongs
+to downstream cleaning. Distinguish the active installation offset from the
+physical flange-to-tool translation, including frame direction, units and source.
+For these zero-installation recordings, flange equals the returned pose; deriving
+the physical tool point applies the rotated local-z translation, not a base-z
+addition or inverse subtraction of 127 mm. Numeric offset metadata is NOT YET
+IMPLEMENTED or present in historical MCAP. This documentation change neither
+rewrites data nor changes the controller installation or collector schema.
+
+Hand-E polls preserve host start and completion/receipt times, not device sampling
+or motion-onset timestamps. Six sequential GETs are non-atomic and the roughly
+10-Hz poll interval also limits transition timing. For causal training observations,
+use completion/receipt time as availability, retaining start time for uncertainty;
+do not use an uncompleted future poll at an earlier observation time. Host polling
+duration does not bound unknown device/URCap cache age. Do not feed absolute host
+clock values as a physical gripper target. `POS` is measured position; `PRE` is
+request echo. Neither is a timestamped record of this collector's issued SET.
+Using measured POS as an action label can add actuator lag and erase intended
+closure at contact. Existing leader intent contains `gripper_request_raw`; actual
+asynchronous gripper send/ack timestamps remain absent. Training action semantics
+and any latency compensation require separate downstream validation.
