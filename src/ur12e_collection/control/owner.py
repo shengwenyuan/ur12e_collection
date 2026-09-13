@@ -82,6 +82,9 @@ class Controller:
         p = self.progress
         try:
             feedback = self.transport.read()
+            previous = p.feedback
+            # Retain the packet even when its mode rejects motion.
+            p.feedback = feedback
             self.limits.check(feedback.q)
             if not feedback.motion_allowed:
                 raise ControlError(feedback.motion_error)
@@ -89,13 +92,12 @@ class Controller:
             age = now_ns - feedback.received_ns
             if age < -100_000_000 or age > self.limits.freshness_ns:
                 raise ControlError("feedback receipt is stale or future")
-            if p.feedback is None or feedback.timestamp > p.feedback.timestamp:
+            if previous is None or feedback.timestamp > previous.timestamp:
                 p.progress_ns = now_ns
-            elif feedback.timestamp < p.feedback.timestamp:
+            elif feedback.timestamp < previous.timestamp:
                 raise ControlError("controller timestamp moved backward")
             if now_ns - p.progress_ns > self.limits.freshness_ns:
                 raise ControlError("controller feedback stopped progressing")
-            p.feedback = feedback
             if (
                 p.state == "following"
                 and now_ns - p.target.created_ns > self.limits.freshness_ns

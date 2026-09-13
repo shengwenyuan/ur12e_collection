@@ -4,8 +4,8 @@ import dataclasses
 import pathlib
 import time
 
-from ur12e_collection import filesystem
-from ur12e_collection.control import model, records
+from ur12e_collection import contracts, filesystem
+from ur12e_collection.control import model, records, settling
 from ur12e_collection.control.session import write_outcome
 
 
@@ -32,6 +32,39 @@ class Rejection:
     reason: str
     unavailable: set = dataclasses.field(default_factory=set)
     choice: str | None = None
+    since: int = 0
+    observed: contracts.URFeedback | None = None
+    stopped_ns: int = 0
+    standstill: settling.Standstill = dataclasses.field(
+        default_factory=settling.Standstill
+    )
+
+    def observe(self, samples, now):
+        """Confirm standstill using only independent, advancing UR receipts."""
+        for sample in samples:
+            if sample.kind != "ur_feedback":
+                continue
+            stamp = sample.provenance.time
+            self.observed = sample
+            if (
+                not 0
+                <= now - stamp.received_monotonic_ns
+                <= settling.FRESHNESS_NS
+            ):
+                self.stopped_ns = 0
+                continue
+            stopped = self.standstill.update(
+                sample.joint_velocities_rad_s,
+                stamp.source_ns / 1e9,
+                stamp.received_monotonic_ns,
+            )
+            self.stopped_ns = (self.stopped_ns or now) if stopped else 0
+        if (
+            self.observed is None
+            or now - self.observed.provenance.time.received_monotonic_ns
+            > settling.FRESHNESS_NS
+        ):
+            self.stopped_ns = 0
 
 
 class Session:
@@ -50,6 +83,7 @@ class Session:
         self.receipts = {}
         self.closed = False
         self.rejection = None
+        self.fault_feedback = []
         self._report("active")
 
     @property
@@ -283,37 +317,50 @@ class Session:
             if component == "motion":
                 self.motion.controller.fail(str(error))
         else:
-            choice = "save" if self.quit else None
-            if self.active and self.active.discard:
-                choice = "abort"
-            self.rejection = Rejection(str(error), choice=choice)
-            if component not in ("motion", "session"):
-                self.rejection.unavailable.add(component)
-            if self.active:
-                if self.active.start and not self.active.cutoff:
-                    self.active.cutoff = now
-                self.active.reason = f"rejected: {error}"
-            # Revoke motion before touching storage or waiting for user input.
-            try:
-                self.motion.reject(str(error), now)
-            # Stop failures must not remove the operator disposition entry.
-            # pylint: disable-next=broad-exception-caught
-            except Exception as error_stop:
-                self.rejection.unavailable.add("motion")
-                print(f"Stop unconfirmed: {error_stop}", flush=True)
-            if self.motion.state == "blocked":
-                self.rejection.unavailable.add("motion")
-            if self.phase != "finalizing":
-                self.phase = "review"
-            print(
-                "Collection paused: Space saves valid data; "
-                "a abandons this episode; q finishes the session.",
-                flush=True,
-            )
+            self._begin_rejection(component, error, now)
         if component == "recorder":
             self.recorder.abort.set()
             self.phase = "review"
         self._report("rejected")
+
+    def _begin_rejection(self, component, error, now):
+        choice = "save" if self.quit else None
+        if self.active and self.active.discard:
+            choice = "abort"
+        self.rejection = Rejection(str(error), choice=choice, since=now)
+        if component not in ("motion", "session"):
+            self.rejection.unavailable.add(component)
+        if self.active:
+            if self.active.start and not self.active.cutoff:
+                self.active.cutoff = now
+            self.active.reason = f"rejected: {error}"
+        # Revoke motion before touching storage or waiting for user input.
+        try:
+            self.motion.reject(str(error), now)
+        # Stop failures must not remove the operator disposition entry.
+        # pylint: disable-next=broad-exception-caught
+        except Exception as error_stop:
+            self.rejection.unavailable.add("motion")
+            print(f"Stop unconfirmed: {error_stop}", flush=True)
+        if self.motion.state == "blocked":
+            self.rejection.unavailable.add("motion")
+        if self.phase != "finalizing":
+            self.phase = "review"
+        print(
+            "Collection paused: Space saves valid data; "
+            "a abandons this episode; q finishes the session.",
+            flush=True,
+        )
+        if (
+            self.active
+            and self.active.start
+            and not self.active.stop_sent
+            and self.phase != "finalizing"
+        ):
+            self._guarded(
+                "recorder",
+                lambda: self.recorder.send("freeze", self.active.cutoff),
+            )
 
     def step(self, now):
         """Keep motion supervision, healthy sources and keyboard independent."""
@@ -324,24 +371,45 @@ class Session:
                 sample.provenance.time.received_monotonic_ns
             )
         self._guarded("motion", lambda: self.motion.step(now))
+        self.fault_feedback = []
+        if self.rejection and "motion" in self.rejection.unavailable:
+            self.fault_feedback = [
+                s for s in measured if s.kind == "ur_feedback"
+            ]
+            self.rejection.observe(self.fault_feedback, time.monotonic_ns())
         if self.phase == "engaging" and self.motion.state == "following":
             self._guarded("recorder", self._begin)
         if self.phase == "recording":
             self._guarded("recorder", lambda: self._samples(measured))
         elif self.phase in ("stopping", "review"):
-            if self.active and self.active.start:
-                if self.motion.state == "held" and not self.active.settled_ns:
-                    self.active.settled_ns = now
-                if not self.rejection or not self.rejection.unavailable:
-                    self._guarded("recorder", lambda: self._tail(measured))
-            if self.phase == "stopping" and self.motion.state == "held":
-                if self.active.stop_sent:
-                    self._guarded("recorder", self._finalize)
-            elif self.phase == "review":
-                # Disposition must remain callable even with a failed recorder.
-                self._guarded("session", self._review)
+            self._stopping(measured, now)
         elif self.phase == "resolving":
             self._resolved()
+
+    def _stopping(self, measured, now):
+        if self.active and self.active.start:
+            if (
+                self.motion.state == "held"
+                and not self.active.settled_ns
+                and (
+                    not self.rejection
+                    or "motion" not in self.rejection.unavailable
+                )
+            ):
+                self.active.settled_ns = now
+            if self.rejection and self.rejection.stopped_ns:
+                self.active.settled_ns = self.rejection.stopped_ns
+            if (
+                not self.rejection
+                or "readers" not in self.rejection.unavailable
+            ):
+                self._guarded("recorder", lambda: self._tail(measured))
+        if self.phase == "stopping" and self.motion.state == "held":
+            if self.active.stop_sent:
+                self._guarded("recorder", self._finalize)
+        elif self.phase == "review":
+            # Disposition must remain callable even with a failed recorder.
+            self._guarded("session", self._review)
 
     def _tail(self, measured):
         active = self.active
@@ -380,7 +448,7 @@ class Session:
             self._resolved()
         elif choice == "abort" or not self.active.start:
             self._cancel()
-        elif self.rejection.unavailable:
+        elif self.rejection.unavailable - {"motion"}:
             print(
                 "Cannot verify this episode; partial data remains available.",
                 flush=True,
@@ -388,8 +456,27 @@ class Session:
             self.rejection.choice = None
             if self.quit:
                 self._cancel()
-        elif self.motion.state == "held" and self.active.stop_sent:
+        elif self.active.stop_sent and (
+            (
+                self.motion.state == "held"
+                and "motion" not in self.rejection.unavailable
+            )
+            or self.rejection.stopped_ns
+        ):
             self._guarded("recorder", self._finalize)
+        elif (
+            "motion" in self.rejection.unavailable
+            and time.monotonic_ns() - self.rejection.since
+            > settling.STOP_TIMEOUT_NS
+        ):
+            print(
+                "Stop unconfirmed; preserving partial data. "
+                "a discards; q exits.",
+                flush=True,
+            )
+            self.rejection.choice = None
+            if self.quit:
+                self._cancel()
 
     def _cancel(self):
         if "recorder" in self.rejection.unavailable:

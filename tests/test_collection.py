@@ -337,7 +337,8 @@ def test_failed_stop_still_allows_quit_without_certifying_episode(
     owner.step(3_000_000_000)
     owner.motion.controller.fail.assert_called_once_with("stop timed out")
     owner.key("q", 3_100_000_000)
-    owner.step(3_200_000_000)
+    monkeypatch.setattr(collection.time, "monotonic_ns", lambda: 4_100_000_000)
+    owner.step(4_100_000_000)
     assert owner.phase == "cancelling"
     owner.recorder.poll.return_value = [("cancelled", {})]
     owner.step(3_300_000_000)

@@ -29,6 +29,7 @@ class _Capture:
         self.pending = collections.deque()
         self.watermark = 0
         self.cutoff = None
+        self.boundary = None
         self.release = None
         self.settled = False
         self.prepared_ack = False
@@ -45,29 +46,20 @@ class _Capture:
             self.owner.submit_feedback([event])
             self.watermark, self.cutoff, self.release = boundary, None, None
             self.pending.clear()
+            self.boundary = None
             self.settled = False
+        elif operation == "freeze":
+            if self.owner.state != "recording" or value < self.watermark:
+                raise RuntimeError("freeze precedes admitted control watermark")
+            self.boundary = value
         elif operation == "samples":
-            watermark, records = value
-            if self.owner.state != "recording" or self.cutoff is not None:
-                raise RuntimeError("samples require active recording")
-            if watermark <= self.watermark:
-                raise RuntimeError("control watermark did not advance")
-            if any(
-                r.provenance.time.received_monotonic_ns >= watermark
-                for r in records
-            ):
-                raise RuntimeError("sample exceeds control watermark")
-            self.owner.submit_feedback(records)
-            self.watermark = watermark
+            self._samples(value)
         elif operation == "stop":
-            cutoff, event = value
-            if self.owner.state != "recording" or cutoff < self.watermark:
-                raise RuntimeError("stop precedes admitted control watermark")
-            self.watermark, self.cutoff, self.release = cutoff, cutoff, event
+            self._stop(value)
         elif operation == "cancel":
             self.owner.cancel()
             self.pending.clear()
-            self.cutoff = self.release = None
+            self.boundary = self.cutoff = self.release = None
             self.settled = False
         elif operation == "settled":
             if self.cutoff is None:
@@ -75,6 +67,31 @@ class _Capture:
             self.settled = True
         else:
             raise ValueError("unknown recording operation")
+
+    def _samples(self, value):
+        watermark, records = value
+        if self.owner.state != "recording" or self.cutoff is not None:
+            raise RuntimeError("samples require active recording")
+        if self.boundary is not None and watermark > self.boundary:
+            raise RuntimeError("samples exceed frozen capture boundary")
+        if watermark <= self.watermark:
+            raise RuntimeError("control watermark did not advance")
+        if any(
+            r.provenance.time.received_monotonic_ns >= watermark
+            for r in records
+        ):
+            raise RuntimeError("sample exceeds control watermark")
+        self.owner.submit_feedback(records)
+        self.watermark = watermark
+
+    def _stop(self, value):
+        cutoff, event = value
+        if self.owner.state != "recording" or cutoff < self.watermark:
+            raise RuntimeError("stop precedes admitted control watermark")
+        if self.boundary is not None and cutoff != self.boundary:
+            raise RuntimeError("stop differs from frozen capture boundary")
+        self.watermark, self.cutoff, self.release = cutoff, cutoff, event
+        self.boundary = cutoff
 
     def step(self, now_ns=None):
         """Drain sources continuously, including idle and codec finalization."""
@@ -88,7 +105,7 @@ class _Capture:
         for frame in frames:
             receipt = frame.color.time.received_monotonic_ns
             if self.owner.state == "recording":
-                if self.cutoff is None or receipt < self.cutoff:
+                if self.boundary is None or receipt < self.boundary:
                     self.pending.append(frame)
             elif self.owner.state == "finalizing":
                 self.owner.submit(frame, now_ns)
@@ -98,7 +115,7 @@ class _Capture:
             receipt = frame.color.time.received_monotonic_ns
             if receipt < self.watermark:
                 self.owner.submit(frame, now_ns)
-            elif self.cutoff is None:
+            elif self.boundary is None or receipt < self.boundary:
                 waiting.append(frame)
         self.pending = waiting
         if len(waiting) > CAPACITY:

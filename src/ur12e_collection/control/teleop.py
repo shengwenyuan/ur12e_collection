@@ -218,7 +218,16 @@ def drive(session, read_keys, log=None):
             active = motion.input
             log.emit(
                 "sample",
-                feedback=motion.controller.progress.feedback,
+                feedback=(
+                    None
+                    if recording
+                    and session.rejection
+                    and "motion" in session.rejection.unavailable
+                    else motion.controller.progress.feedback
+                ),
+                independent_feedback=(
+                    session.fault_feedback if recording else []
+                ),
                 target=motion.controller.progress.target,
                 leader=active.evidence() if active else None,
                 desired=active.desired if active else None,

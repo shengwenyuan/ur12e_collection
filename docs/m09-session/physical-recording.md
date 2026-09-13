@@ -250,3 +250,160 @@ The installed package and PC host package each match all 108 local source/schema
 hashes. Focused installed-image regression: 173 PASS on Mac Docker and 173 PASS
 on Ubuntu, with networking disabled and no hardware device mounts. The existing
 recording launch command above is unchanged. No hardware acceptance was run.
+
+## Physical recording and protective stop review, 2026-09-13
+
+> **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
+
+Evidence: PC session `session-1789259405389591010`, control trace
+`physical-teleop/1789259405388595286/trace.jsonl`, image revision `a8b78e0`
+and image digest recorded above. This review reads archived files only. The
+operator ran the hardware session and confirmed that the second episode hit the
+table. The operator subsequently supplied pendant codes C153A1 and C162A0.
+
+- `M09-A01/A04`, single-episode physical recording: PASS for `episode-0000`.
+  Duration 49.13346 s; 5,896 commands (120.00 Hz); 1,471 complete three-camera
+  RGB-D groups (29.94 Hz). Two anchors were rejected (one reuse, one skew), giving
+  99.864% accepted anchors. The MCAP is 538,963,522 bytes. Observed maximum joint
+  speed was 7.698 degrees/s; the coordinator confirmed standstill 1.0165 s after
+  the stop boundary. All six joints show real position changes in the trace.
+- Independent `storage.verify_episode` rerun: PASS in an isolated PC container
+  with networking disabled and the archived session mounted read-only. All RGB
+  images decoded, every lossless depth hash matched, and the recomputed MCAP
+  verification matched metadata. Disposition is retained, interruption is null.
+  Local review output is in ignored `artifacts/physical-recording-review/`.
+- `M09-A03`, resource reuse: the first episode finalized and the same session
+  returned HOME and started `episode-0001`. Full multi-episode acceptance remains
+  pending because the second episode did not complete.
+- `M09-A04`, protective-stop lifecycle: FAIL. The reported mode tuple was
+  robot=7, safety=3, runtime=3 (protective stop / program pausing). The operator
+  confirmed table contact. The second interval lasted about 17.55 s and remains
+  `episode-0001.partial`, marked discarded and unverified. The session's final
+  failed status does not invalidate the independently verified first episode.
+
+Identified lifecycle defects:
+
+1. A latched control fault marks motion unavailable. The coordinator then skips
+   `_tail`, so no capture cutoff reaches the recorder. Camera receipt continues
+   beyond the last control watermark and fills the 32-frame pending buffer.
+   This is a missing fault boundary, not evidence of insufficient camera/codec
+   throughput: all three sources report approximately 30 Hz and zero source gaps;
+   the writer reports no queued groups/feedback at the failure.
+2. Physical cleanup still refreshes the SDK watchdog as though the control
+   program were running. The already stopped program therefore causes a secondary
+   `UR control program is not running` failure during exit.
+3. The rejected controller sample is not retained in `progress.feedback`; the
+   later trace repeatedly emits the last normal sample with its unchanged receipt
+   timestamp. Those repeated values cannot prove post-collision standstill.
+
+### Protective-stop repair scope (aligned 2026-09-13; implementing)
+
+Separate safety-state handling, recording boundaries and operator disposition:
+
+1. Latch an explicit protective-stop reason and retain the triggering feedback
+   before validity checks. Revoke arm targets and pending gripper commands; do not
+   restart the SDK program, unlock protection, release the tool or request HOME.
+   Continue independent output-only status/velocity observations while available.
+   Record stale/unavailable feedback honestly rather than presenting cached
+   normal-state samples as continuing observation.
+2. Freeze camera admission at the fault receipt boundary immediately, independently
+   of control availability and stop confirmation. Keep draining healthy cameras
+   and discard post-boundary images. Use a bounded feedback tail to establish a
+   verifiable prefix; a missing tail leaves incomplete output rather than growing
+   the pending frame buffer. Do not increase queue capacity to mask the defect.
+3. Keep Space/save, a/discard and q/quit usable. Save only independently verifiable
+   pre-fault data with an interruption label and fresh standstill evidence;
+   otherwise preserve partial output. Cancel only the current writer on discard.
+   Protected-stop cleanup uses fresh read-only state, without requiring an active
+   SDK program or treating missing program state as normal-motion failure.
+4. First recovery policy proposal: the operator inspects/removes the cause and
+   acknowledges the UR alarm manually; finish the interrupted collection session,
+   then explicitly launch a new session and re-establish HOME/leader reference.
+   In-place control reconnection is outside this minimal repair. Never replay an
+   old leader reference or automatically acknowledge/restart after a safety stop.
+
+Required offline regression: inject protective-stop feedback with an absent SDK
+program while synthetic camera input and the real recording worker continue for longer than 30 s; assert bounded
+capture buffers, fresh fault-state evidence, responsive save/discard/quit,
+unchanged completed episodes and no control restart. Exercise missing readback,
+missing stop acknowledgement and writer failure separately. All tests must run
+without physical hardware access. Hardware confirmation remains pending.
+
+UR references: [RTDE field definitions](https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html),
+[stop recovery](https://docs.universal-robots.com/tutorials/controlling-robot-externally/stop-recovery.html),
+and [protective stop service note](https://www.universal-robots.com/download/manuals-e-seriesur-series/installation-guides/protective-stop-service-note/protective-stop-service-note-english/).
+
+
+Pendant-code clarification, supplied by the operator:
+
+- `C153A1`: path deviation detected by the shoulder joint (J2). This identifies
+  the detecting joint, not the physical point of contact. UR lists collision and
+  incorrect installation/motion settings as possible causes.
+- `C162A0`: the C162 diagnostic family reports that incorrect payload mass and/or
+  center of gravity may have contributed. It is a diagnostic hypothesis, not
+  proof that the configured payload is wrong or that table contact was absent.
+- Working assessment: operator-confirmed table contact is consistent with the
+  path-deviation protective stop. Payload/CoG remain unverified contributors.
+  Check the actual combined end-effector assembly mass and CoG against the active
+  installation; the previously retained 5 kg value has not been independently
+  validated here. A 127 mm TCP offset does not specify the payload CoG.
+- The repair proposal remains unchanged: preserve the UR protective stop,
+  independently supervise fresh feedback and finish recording cleanly. Do not
+  widen safety limits or automatically acknowledge protection to suppress these
+  codes. No physical setting or control command was changed in this review.
+
+Official code definitions: [C153](https://www.universal-robots.com/manuals/EN/HTML/SW5_25_1/Content/prod-err-codes/topics/CODE_153.html),
+[C162](https://www.universal-robots.com/manuals/EN/HTML/SW5_25_1/Content/prod-err-codes/topics/CODE_162.html),
+and [C153 preventive checks](https://www.universal-robots.com/articles/ur/robot-care-maintenance/preventive-actions-for-error-code-c153-protective-stop-joint-positions-deviates-from-path/).
+
+
+The operator approved the four recovery steps above on 2026-09-13 and attributes
+this event to table contact, excluding payload investigation from this repair.
+The earlier C162 interpretation remains diagnostic history, not an active work item.
+Implementation separates an immediate camera `freeze` boundary from subsequent
+feedback-tail `stop` and verified-standstill `settled` messages. Required independent
+UR feedback remains available to the collection owner after motion ownership is
+latched unavailable. A protected UR transport cancels pending tool work and uses
+output-only stop confirmation/cleanup without assuming an SDK program is running.
+
+TODO (deferred, not authorized for implementation): evaluate narrowing the scope
+of SDK/application protective handling if future collection requirements justify
+it. Specify which application checks or SDK actions are under consideration,
+distinguish them from controller-enforced UR safety functions, and align objective
+acceptance criteria before changing behavior. This TODO enables no bypass,
+automatic protective-stop acknowledgement, threshold change or motion restart.
+
+
+Follow-up scope, 2026-09-13: the operator requests a further increase in follower
+rates and immediate PC delivery for operator-run collection testing. Selected
+increment: 12 degrees/s and 15 degrees/s squared; actual-speed guard 14.4 degrees/s
+retains the 20% monitoring margin. The per-command position-step guard changes
+from 0.2 to 0.3 degrees to preserve its prior time allowance at the higher rate.
+HOME stays 3 degrees/s and 6 degrees/s squared. Stop parameters and UR safety
+settings stay unchanged. The existing conditioner retains its 90% numerical
+headroom. Reduced lag does not establish reduced collision probability; collision
+energy/stopping travel can increase. Physical acceptance of these rates is pending.
+
+### Repair implementation and offline acceptance
+
+Status: implemented / physical revalidation pending. `M09-A01/A03/A04` software
+regression PASS: 621 tests passed, 5 environment-dependent skips; Black checked
+193 files and Pylint passed at 10/10. The new protective-stop cases cover runtime
+pausing/paused/stopped states, absent SDK program/control connection, retained
+trigger feedback, independent advancing stop observations, stale/moving outputs,
+and operator save/discard/quit followed by a blocked owner requiring a new session.
+
+The capture/codec tests advance 35 seconds of virtual three-camera 30-Hz receipts
+through the actual capture logic and writer, both with a completed feedback tail
+and with a missing tail. Post-boundary frames are discarded without buffer growth;
+a valid prefix verifies as MCAP, and a missing tail can be cancelled as partial
+without closing the camera source. These are offline fault regressions, not a new
+physical collision or camera-throughput acceptance. No hardware control was sent.
+
+The physical adapter records protective-stop feedback before control validation,
+cancels pending tool requests, and confirms standstill using only RTDE outputs.
+It does not require Hand-E feedback or a running SDK script to retain the UR
+protection state. Protected exit disconnects without watchdog refresh, motion
+commands or script restart. Normal stop/hold policy remains separate. In-flight
+Hand-E work retains the existing semantics: cancelling pending commands does not
+promise to reverse an already issued grasp.

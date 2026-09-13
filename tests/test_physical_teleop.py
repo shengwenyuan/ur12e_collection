@@ -26,11 +26,11 @@ def sample(raw, sequence=0, stamp=1_000_000_000):
 
 def test_physical_profile_has_separate_units_and_conservative_bounds():
     value = configuration()
-    assert value["limits"].speed == math.radians(8)
+    assert value["limits"].speed == math.radians(12)
     assert value["limits"].ready_speed == math.radians(3)
-    assert value["limits"].acceleration == math.radians(10)
+    assert value["limits"].acceleration == math.radians(15)
     assert value["limits"].ready_acceleration == math.radians(6)
-    assert value["guards"].measured_speed == math.radians(9.6)
+    assert value["guards"].measured_speed == math.radians(14.4)
     assert value["home_open_gripper"] is False
     assert value["gripper"]["speed"] == value["gripper"]["force"] == 32
 

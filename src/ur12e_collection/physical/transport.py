@@ -36,6 +36,7 @@ class Transport(URTransport):
         self.watchdog_enabled = False
         self.stopping = None
         self.halted = False
+        self.protected = False
 
     def event(self, name, **values):
         """Evidence failure must never prevent a stop request."""
@@ -49,10 +50,23 @@ class Transport(URTransport):
             raise model.ControlError("controller watchdog setup failed")
         self.watchdog_enabled = True
 
+    def _observe(self):
+        """Retain protective state even after the SDK program disappears."""
+        state = read_state(self.receiver)
+        if state.safety_mode == 3 and not self.protected:
+            self.protected = True
+            self.tool.hold()
+            self.event("protective_stop", feedback=state)
+        return state
+
     def read(self):
+        state = self._observe()
+        if self.protected:
+            return state
         if self.stopping is not None:
             self.stopping.check()
-        state = super().read()
+        if not self.control.isConnected():
+            raise model.ControlError("UR connection lost")
         reading = self.tool.view()
         values = dict(reading.registers)
         opened = (
@@ -88,9 +102,14 @@ class Transport(URTransport):
         if gripper_position is not None:
             self.tool.offer(gripper_position)
 
+    # Deferred SDK/application protection-scope review lives in the M09 plan.
+    # Controller safety thresholds remain separate and unchanged.
     def stop(self, servo):
         """Drop pending tool work and dispatch ordinary arm deceleration."""
         self.tool.hold()
+        if self.protected:
+            self.halted = True
+            return  # UR owns this stop; no SDK program restart or stop retry.
         if not self.halted:
             self.event("stop_request", servo=servo)
             deceleration = self.config["follower"][
@@ -107,25 +126,13 @@ class Transport(URTransport):
         if self.closed:
             return
         try:
+            self._observe()
             if not self.halted:
                 self.stop(False)
-            stable = settling.Standstill()
-            deadline = time.monotonic() + 2
-            while time.monotonic() < deadline:
-                state = super().read()
-                if self.watchdog_enabled:
-                    self.heartbeat()
-                if stable.update(
-                    state.qd, state.timestamp, time.monotonic_ns()
-                ):
-                    self.event("standstill_confirmed", feedback=state)
-                    break
-                self.event("stop_feedback", feedback=state)
-                time.sleep(0.008)
-            else:
-                raise model.ControlError(
-                    "stop unconfirmed; operator intervention required"
-                )
+            state = self._confirm_standstill()
+            if self.protected:
+                self.event("protective_stop_confirmed", feedback=state)
+                return
             if self.stopping is not None:
                 self.stopping.join()
             self.control.stopScript()
@@ -137,13 +144,35 @@ class Transport(URTransport):
                     and not self.stopping.done.is_set()
                 ):
                     self.stopping.join()
-                super().close()
+                if self.protected:
+                    self.control.disconnect()
+                else:
+                    super().close()
             finally:
                 try:
                     self.receiver.disconnect()
                 finally:
                     self.closed = True
                     self.tool.close()
+
+    def _confirm_standstill(self):
+        """Confirm from outputs without requiring a running SDK program."""
+        stable = settling.Standstill()
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            state = self._observe()
+            if self.watchdog_enabled and not self.protected:
+                self.heartbeat()
+            if stable.update(state.qd, state.timestamp, time.monotonic_ns()):
+                self.event("standstill_confirmed", feedback=state)
+                break
+            self.event("stop_feedback", feedback=state)
+            time.sleep(0.008)
+        else:
+            raise model.ControlError(
+                "stop unconfirmed; operator intervention required"
+            )
+        return state
 
     def observe_hold(self, anchor):
         """Output-only observation outlives the stopped control script."""
