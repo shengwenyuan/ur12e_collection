@@ -241,3 +241,12 @@ Software acceptance for this increment:
 - Physical rejection/recovery acceptance: NOT RUN. No robot, gripper or leader
   control was sent. The existing final session shutdown still performs its
   stop/hold cleanup after quit or Ctrl+C; rejection alone no longer enters it.
+
+Delivery for this increment: implementation commit `a8b78e0`, built offline from
+cached `ur12e-collection:5185ee5` dependencies. Mac and PC
+`ur12e-collection:physical-teleop` resolve to the same Linux/amd64 image:
+`sha256:262712532724c7160fd8803f775e064ab9c3c4ce5ef1ff6c73c7dbf6253747f8`.
+The installed package and PC host package each match all 108 local source/schema
+hashes. Focused installed-image regression: 173 PASS on Mac Docker and 173 PASS
+on Ubuntu, with networking disabled and no hardware device mounts. The existing
+recording launch command above is unchanged. No hardware acceptance was run.
