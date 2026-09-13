@@ -407,3 +407,12 @@ protection state. Protected exit disconnects without watchdog refresh, motion
 commands or script restart. Normal stop/hold policy remains separate. In-flight
 Hand-E work retains the existing semantics: cancelling pending commands does not
 promise to reverse an already issued grasp.
+
+Release delivery: implementation `26a7cc5`; cached Linux/amd64 image build without
+new dependency downloads. Mac and PC `ur12e-collection:physical-teleop` now match:
+`sha256:946e03baf8c13e36adbbb08267282865f63dc62dbd1eb98c36badf076323c509`.
+Installed-image regression: 184 PASS on Mac Docker and 184 PASS on the Ubuntu PC,
+with networking disabled and no device mounts. All 108 package source/schema
+hashes and the physical teleop configuration match local and PC host files.
+The original operator launch command is unchanged. New rates and protective-stop
+hardware revalidation remain pending; delivery did not start robot control.
