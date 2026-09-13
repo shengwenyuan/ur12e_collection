@@ -135,3 +135,47 @@ non-root container user. D405 reports USB 3.2; both D435IF devices report USB 2.
 USB-only exposure initially found no devices; adding the existing RealSense V4L2
 exposure policy resolved discovery. This is discovery evidence, not RGB-D
 streaming, camera-role placement or combined physical recording acceptance.
+
+## Image delivery and PC checks, 2026-09-13
+
+Implementation revision: `a4ac32d`. Cached Linux/amd64 build from the existing
+`5185ee5` base installed only the new local wheel; no dependency download.
+Mac Docker Desktop and Ubuntu `ur12e-collection` now resolve
+`ur12e-collection:physical-teleop` to the identical image:
+`sha256:0ae98368bd66731833f36373cb9d252fd48e2bc68747f102e2bd578e3bc86074`.
+All 108 installed package source/schema hashes match the local tree; the deployed
+PC host package also matches. The independent Isaac environment was not changed.
+
+Linux image focused regression: 158 PASS on Mac Docker and 158 PASS on Ubuntu,
+with networking disabled and no physical device mounts. Coverage includes
+collection lifecycle, physical configuration/launcher, MCAP/control contracts,
+leader audit, snapshots and storage. This tests the installed image package.
+
+PC camera-only check: PASS for startup and ten seconds of continued recorder
+health with all three live sources. Executed non-root, network disabled, no
+leader serial connection, no UR/Hand-E reader startup and no control interface.
+The check did not begin an episode or establish grouped-image/teleop throughput.
+Two D435IFs remain on USB 2.1; D405 is on USB 3.2. Physical left/right placement
+and the active TCP transform remain operator confirmations. Combined real
+recording and the revised motion rates remain NOT RUN.
+
+Staged station file:
+`~/ur12e-real-teleop/config/local/recording.station.json`. It preserves the prior
+explicitly unconfirmed third-view assignment rather than claiming new geometry.
+After confirming those roles, the operator starts:
+
+```bash
+cd ~/ur12e-real-teleop
+python3 scripts/teleop.py \
+  --config config/teleop.ur.json \
+  --image ur12e-collection:physical-teleop \
+  --operator-approved \
+  --record-station config/local/recording.station.json \
+  --record-output artifacts/recordings \
+  --task teleop_lab_acceptance
+```
+
+For a single episode: Space HOME, Space record, Space stop, wait for verified
+`Saved`, then `q`. For the following 2–3 episode session, repeat Space HOME and
+Space record only after each verified save; `q` ends the session normally.
+Ctrl+C interrupts active output instead of certifying a complete episode.

@@ -604,3 +604,9 @@ Teleop adjustment software results: 124 focused tests PASS, Black PASS, Pylint
 10/10. Tests retain unchanged stopping deceleration, enforce the revised profile,
 verify one retry message for repeated unstable windows and preserve fatal stale
 input behavior. This increment has not yet been deployed or physically tested.
+
+The `8e34182` adjustment and prior handover diagnostics are now included in the
+`a4ac32d` physical recording image on Mac and Ubuntu. See the
+[M09 delivery record](../m09-session/physical-recording.md#image-delivery-and-pc-checks-2026-09-13).
+New-rate physical movement acceptance remains NOT RUN; deployment is software
+and camera-only verified. The operator will initiate the next combined run.
