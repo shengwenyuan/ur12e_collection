@@ -15,11 +15,13 @@ aligns shadow UR observation retention to 125 Hz while preserving 120 Hz
 actions and 30 fps images. Raw MCAP retains independent high-rate streams;
 training projection and dataloader cadence belong to the external consumer.
 
-Current delivery: the [unified 5185ee5 release](docs/m01-runtime-deployment/consolidation-5185ee5.md)
-is promoted on Mac Docker and the collection PC. `current`, `native-isaac` and
-`5185ee5` select the same immutable image; both installed suites pass 487 tests
-with two skips. Isaac and its scene remain external. Deployment adds no physical
-control authorization or new hardware acceptance.
+Current delivery: the [2026-09-13 consolidated release](docs/m01-runtime-deployment/current-20260913.md)
+uses source `8b2ebff` on Mac Docker and the collection PC. `current`, `native-isaac`
+and `physical-teleop` select one immutable image; both installed suites pass 621
+tests with five skips. Old collector images were removed and superseded PC
+deployments archived. Isaac remains external. Physical recording successes and
+the unresolved stop-timeout/watchdog issue are recorded in
+[M09](docs/m09-session/physical-recording.md); deployment adds no motion authority.
 
 ## M00. Scope and Module Registry
 
