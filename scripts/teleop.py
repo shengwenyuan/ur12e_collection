@@ -14,7 +14,7 @@ from ur12e_collection.followers import config
 from ur12e_collection.physical import network
 
 
-def arguments():
+def arguments(argv=None):
     """Parse the explicit station and recording launch options."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=pathlib.Path, required=True)
@@ -24,7 +24,7 @@ def arguments():
     parser.add_argument("--record-station", type=pathlib.Path)
     parser.add_argument("--record-output", type=pathlib.Path)
     parser.add_argument("--task")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if any((args.record_station, args.record_output, args.task)) and not all(
         (args.record_station, args.record_output, args.task)
     ):
@@ -32,9 +32,9 @@ def arguments():
     return args, parser
 
 
-def main():
+def main(argv=None):
     """Keep scene, IPC and configuration paths identical across namespaces."""
-    args, parser = arguments()
+    args, parser = arguments(argv)
     if sys.platform != "linux":
         parser.error("teleoperation runs on the Ubuntu PC")
     path = args.config.expanduser().resolve()

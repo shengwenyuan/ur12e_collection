@@ -2,7 +2,23 @@
 
 A local single-arm collection tool for UR12e, Robotiq Hand-E, a custom GELLO leader, and three RealSense RGB-D views.
 
-The application provides persistent three-camera acquisition, verified MCAP recording, explicit URSim control/session testing, read-only ROS observation and offline calibration. The collection artifact is MCAP plus JSON; LeRobot conversion belongs to a separate repository. Physical follower control remains disabled; native read-only GELLO can drive the configured Isaac kinematic follower. Leader motor and Hand-E actuation are pending. See the module matrix for software, simulation and physical acceptance boundaries.
+The application provides persistent three-camera acquisition, verified MCAP recording, physical GELLO teleoperation, simulator testing, read-only ROS observation and offline calibration. The collection artifact is MCAP plus JSON; LeRobot conversion belongs to a separate repository. Physical UR and Hand-E control require an operator-started session. Leader motor writes remain disabled. See the module plans for software, simulation and physical acceptance boundaries.
+
+## Daily collection on the provisioned PC
+
+```sh
+ur12e gello
+ur12e gello --output ~/another-dataset
+```
+
+The default output is `~/ur12e-data`. Launch from any working directory; the
+installed deployment supplies the existing station configuration and `current`
+image. Space requests HOME, starts recording, then stops/saves the episode;
+`a` discards and `q` finishes the session. Ctrl+C uses the existing stop/exit path.
+Starting this command is the operator's explicit session launch, including SDK
+initialization; motion remains subject to the existing keyboard/state gates.
+`dagger` is reserved for future implementation and is currently rejected.
+See the [entrypoint and installation guide](docs/m09-session/collection-entrypoint.md).
 
 - [Requirements and stable module IDs](meta_plan.md)
 - [Current module acceptance matrix](docs/m13-acceptance/simulator-matrix.md)
