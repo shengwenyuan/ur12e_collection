@@ -416,3 +416,88 @@ with networking disabled and no device mounts. All 108 package source/schema
 hashes and the physical teleop configuration match local and PC host files.
 The original operator launch command is unchanged. New rates and protective-stop
 hardware revalidation remain pending; delivery did not start robot control.
+
+### Physical tracking-rejection review, 2026-09-13
+
+Read-only review of session `1789260975188717812`, trace
+`artifacts/physical-teleop/1789260975186986983/trace.jsonl`, using the release above.
+`M09-A01/A03/A04`: PASS for recoverable tracking rejection, operator discard/save,
+explicit HOME between episodes, and normal session completion. Episodes 0000 and
+0001 were discarded as partial; episode 0002 retained an explicitly interrupted
+19.900-second prefix. It contains 2,387 commands/leader states (119.95 Hz) and 596
+three-camera RGB-D groups (29.95 Hz), occupying 229,536,099 MCAP bytes. Independent
+`verify_episode` in the installed PC image, with networking disabled and the
+session mounted read-only, decoded all RGB frames and verified all depth hashes.
+Stop was confirmed 1.216 seconds after the recording cutoff. The final 30-second
+hold observation completed, with maximum joint drift 0.0049 degrees.
+
+All three following intervals ended at the application tracking guard: error
+greater than 1 degree for at least 0.25 seconds. J4 (wrist1) dominated, with terminal
+errors 1.253, 1.033 and 1.241 degrees respectively; each terminal excess lasted
+0.256 seconds on the controller clock. Reconstruction compares the previous sent
+target against current feedback, matching the guard's execution order. Robot,
+safety and runtime modes remained 7/1/2. No protective-stop or camera-buffer
+overflow was recorded. Error divided by instantaneous J4 velocity corresponds to
+approximately 114–119 ms of apparent lag; this suggests the unchanged fixed
+tracking threshold is too tight at the increased following rate, but is not an
+independent latency measurement or proof of the physical cause.
+
+Continuous teleoperation acceptance at the new rates remains FAIL due to these
+tracking rejections. Physical protective-stop recovery revalidation is NOT RUN
+in this session. No parameters or control code were changed during review, and no
+hardware commands were sent. Local analysis and independent verification are in
+`artifacts/physical-recording-review/1789260975188717812-{analysis,verification}.json`.
+
+Follow-up aligned scope: increase only the physical tracking-error threshold to
+2 degrees, retaining the 0.25-second host/controller-clock persistence requirement.
+This accommodates the observed 1.03–1.25-degree tracking differences without
+changing speed, acceleration, stopping or UR safety settings. Validate sustained
+in-bound lag, timeout reset and sustained out-of-bound rejection offline, then
+deliver the mounted configuration to the PC for operator-run physical acceptance.
+The installed package does not change; an image rebuild is unnecessary.
+
+Validation and delivery: 77 targeted tests PASS; Black PASS; repository production
+Pylint scope PASS (10/10). An initial direct Pylint invocation on the test module
+reported existing test conventions outside the repository lint scope; no lint
+rules were changed. PC installed-image guard checks PASS with networking disabled:
+sustained 1.25-degree lag is accepted, and sustained 2.1-degree error is rejected.
+Local and PC mounted configuration SHA-256 both equal
+`1b32175b5209fc251c65439ac3ba7ac48ac3242492af1f8d198e0c13bf12a67a`.
+The existing `physical-teleop` image is unchanged. Real motion acceptance is
+pending the operator's next run; deployment started no hardware control.
+
+### Follow-up physical session 1789261421547845602
+
+Read-only review: episodes 0000 and 0001 completed normally, with no interruption,
+at 38.384 and 40.951 seconds respectively. Independent PC installed-image
+verification (network disabled, read-only recording mount) passed all RGB decode
+and depth hash checks: 4,606 commands / 1,149 groups / 421,853,561 bytes and
+4,914 commands / 1,226 groups / 450,224,591 bytes. These establish two consecutive
+saved physical episodes; later failure did not alter them.
+
+Episode 0002 was discarded as partial. At 17.917 seconds its J6 desired position
+was 30.202 degrees ahead of the last sent target, exceeding the separate 30-degree
+intent guard. This was not the newly adjusted 2-degree tracking guard. Stop was
+dispatched about 16 ms after request and acknowledged after 1.871 seconds.
+At the 2-second stop deadline, measured maximum speed was still 0.094 degrees/s;
+the required <=0.01 degrees/s for 200 ms had not been established. The owner
+therefore latched unavailable rather than accepting SDK acknowledgement as proof
+of standstill. Independent low-speed feedback appeared at +2.042 seconds.
+
+Independent feedback first recorded UR safety mode 3 at +2.267 seconds, after the
+application timeout. Its physical/controller cause is unresolved pending pendant
+alarm details; do not infer collision from timing alone. Shutdown subsequently
+confirmed standstill with protection active. Review/discard/quit remained usable,
+the session completed with its rejection retained, and no camera-buffer overflow
+was observed. Stop-timeout adequacy at the increased motion rates remains an open
+acceptance issue. No code, thresholds or hardware controls changed in this review.
+
+Operator subsequently reported C207A0. UR defines C207 as fieldbus input
+disconnected and explicitly identifies RTDE watchdogs among diagnostic checks
+([official definition](https://www.universal-robots.com/manuals/EN/HTML/SW10_7/Content/prod-err-codes/topics/CODE_207.html)).
+The owner stops refreshing its watchdog after the stop timeout latches a fault;
+safety mode 3 follows approximately 0.25 seconds later. Application timeout followed
+by watchdog expiry is therefore the leading explanation, not evidence of collision
+or a physical Ethernet disconnection. Exact controller-side attribution remains
+unverified. Review the stop-confirmation budget and fault/watchdog handover together
+before changing thresholds; do not suppress the controller watchdog to hide it.

@@ -18,7 +18,7 @@ def arguments():
     """Parse the explicit station and recording launch options."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=pathlib.Path, required=True)
-    parser.add_argument("--image", default="ur12e-collection:native-isaac")
+    parser.add_argument("--image", default="ur12e-collection:current")
     parser.add_argument("--preflight", action="store_true")
     parser.add_argument("--operator-approved", action="store_true")
     parser.add_argument("--record-station", type=pathlib.Path)

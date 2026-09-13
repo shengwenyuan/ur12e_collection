@@ -61,7 +61,7 @@
   "guards": {
     "input_rate": 3.141592653589793,
     "intent_error": 0.5235987755982988,
-    "tracking_error": 0.017453292519943295,
+    "tracking_error": 0.03490658503988659,
     "tracking_seconds": 0.25,
     "measured_speed": 0.25132741228718347,
     "gripper_input_rate": 12.566370614359172

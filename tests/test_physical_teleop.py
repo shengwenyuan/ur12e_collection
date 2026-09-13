@@ -150,7 +150,12 @@ def test_tracking_grace_resets_and_requires_advancing_feedback():
     feedback = model.State((0.0,) * 6, (0.0,) * 6, 1, 1)
     monitor.check((0.05,) * 6, feedback, 1_000_000_000)
     monitor.check((0.05,) * 6, feedback, 2_000_000_000)
-    monitor.check((0.0,) * 6, feedback, 2_000_000_000)
+    monitor.check((math.radians(1.25),) * 6, feedback, 2_000_000_000)
+    monitor.check(
+        (math.radians(2),) * 6,
+        dataclasses.replace(feedback, timestamp=1.5),
+        2_500_000_000,
+    )
     monitor.check((0.05,) * 6, feedback, 3_000_000_000)
     with pytest.raises(model.ControlError, match="tracking"):
         monitor.check(
