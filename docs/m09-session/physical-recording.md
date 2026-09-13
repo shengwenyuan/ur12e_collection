@@ -179,3 +179,65 @@ For a single episode: Space HOME, Space record, Space stop, wait for verified
 `Saved`, then `q`. For the following 2–3 episode session, repeat Space HOME and
 Space record only after each verified save; `q` ends the session normally.
 Ctrl+C interrupts active output instead of certifying a complete episode.
+
+## Teleop rejection recovery increment, 2026-09-13
+
+> **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
+
+Status: implemented / physical acceptance pending. The operator requests independent arm/gripper input guards and
+an interactive collection process after teleoperation rejection. Do not route a
+rejection directly into blocking process cleanup. Keep actual motion revoked
+while the collection loop accepts save, discard and quit.
+
+Guard configuration selected for this fix: retain 180 degrees/s for the six arm input encoders and
+use an independent 720 degrees/s gripper-lever input bound. Both retain two counts
+of quantization allowance. Hand-E SPE/FOR and follower motion/stop limits do not
+change. Report the offending axis, counts, elapsed time and applicable bound.
+
+Recovery design: one fault boundary ends the demonstration interval; supervised
+stop/hold progresses without blocking keyboard processing. Input-only rejection
+may proceed to a new HOME/reference after confirmed stop and episode disposition.
+Failed robot transport/state or required recorder/readback resources remain
+unavailable for renewed motion; retaining an interactive process does not grant
+permission to resume a failed control connection. Never recreate a control
+interface automatically. Ctrl+C remains an interrupt.
+
+The implementation default for the requested save/discard/quit choices is:
+Space saves only a verifiable pre-fault interval,
+with its interruption reason; a discards; q saves verifiable output and exits.
+Invalid or incomplete data remains partial. Failed dependencies cannot be turned
+into a successful demonstration by an operator save request. Preserve persistent
+healthy camera resources between episodes.
+
+Acceptance: separate arm/gripper rate and encoder-wrap/jump cases; detailed
+rejection evidence; responsive operator choices during stop/hold; save/discard/
+quit after rejection; no resumed servo before an explicit HOME/new reference;
+unhealthy feedback/recorder paths retain partials and prevent unsafe restart.
+No physical motion is authorized by this implementation request.
+
+
+Software acceptance for this increment:
+
+- `M04-A03`: PASS. Six-joint input retains 180 degrees/s; the gripper lever has
+  its own 720 degrees/s limit. A 60-count change over 8.33 ms passes only for the
+  gripper; larger jumps remain rejected with raw before/after and timing details.
+  Follower rates, gripper output limits and startup reference checks are unchanged.
+- `M09-A01/A03`: PASS. Rejection revokes following before storage handling, keeps
+  stop supervision and operator input running, preserves existing discard/quit
+  intent, and never starts HOME or a new reference automatically. Cancellation
+  closes the per-episode writer asynchronously and leaves camera resources alive.
+- `M09-A04`: PASS. Tests cover save, discard and quit during stop, preparation,
+  finalization and resource failure. An interrupted valid prefix retains its
+  reason in authority/outcome metadata. Failed feedback, recorder or stop
+  confirmation cannot be certified by pressing save; incomplete output stays
+  partial and the session permits orderly exit without reconnecting control.
+- Real-codec regression: PASS. Cancelling prepared and recording writers leaves
+  partials, then the same capture object writes and independently verifies a new
+  interrupted MCAP interval. Cancellation polling is nonblocking with a five-second
+  cleanup deadline. Existing three-episode recording tests also pass.
+- Local checks: `scripts/check`, 610 PASS / 5 environment-dependent SKIPs; Black
+  checked 192 files, Pylint 10/10. An initial sandbox run failed five POSIX shared
+  memory/child-interrupt cases; rerunning with OS shared-memory permission passed.
+- Physical rejection/recovery acceptance: NOT RUN. No robot, gripper or leader
+  control was sent. The existing final session shutdown still performs its
+  stop/hold cleanup after quit or Ctrl+C; rejection alone no longer enters it.

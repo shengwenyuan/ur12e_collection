@@ -266,3 +266,73 @@ def test_three_controlled_episodes_reuse_capture_and_verify_gripper_stream(
             assert capture.source is source
     finally:
         owner.close()
+
+
+@pytest.mark.parametrize("started", [False, True])
+def test_cancel_retires_only_episode_and_allows_new_verified_recording(
+    tmp_path, controlled, group_factory, started
+):
+    owner = session.Session.from_snapshot(controlled)
+    source = Source()
+    capture = recording._Capture(source, owner)
+    data = samples(controlled)
+    try:
+        capture.message("prepare", str(tmp_path / "abandoned"))
+        if started:
+            capture.message("begin", (0, data[0]))
+            source.frames = list(group_factory().members)
+            capture.message("samples", (4_000_000, data[1:-1]))
+            capture.step(5_000_000)
+        writer = owner.writer
+        capture.message("cancel", None)
+        deadline = time.monotonic() + 5
+        report = None
+        while report is None and time.monotonic() < deadline:
+            report = capture.step()
+            time.sleep(0.005)
+        assert report["cancelled"] is True
+        assert writer.wait_closed(timeout=0)
+        assert owner.state == "idle"
+        assert not (tmp_path / "abandoned").exists()
+        assert (tmp_path / "abandoned.partial").is_dir()
+        # Same source and capture, new writer; real interrupted MCAP verification.
+        capture.message("prepare", str(tmp_path / "retained"))
+        capture.message("begin", (0, data[0]))
+        source.frames = list(group_factory().members)
+        capture.message("samples", (4_000_000, data[1:-1]))
+        capture.step(5_000_000)
+        release = dataclasses.replace(data[-1], reason="rejected: input jump")
+        cutoff = release.provenance.time.received_monotonic_ns
+        capture.message("stop", (cutoff, release))
+        capture.message("settled", None)
+        report = capture.step(cutoff + 100_000_000)
+        deadline = time.monotonic() + 5
+        while report is None and time.monotonic() < deadline:
+            report = capture.step(cutoff + 100_000_001)
+            time.sleep(0.005)
+        assert report["episode"] == "retained"
+        assert (
+            storage.verify_episode(tmp_path / "retained")["counts"][
+                "camera/frame_set"
+            ]
+            == 1
+        )
+        assert capture.source is source
+    finally:
+        owner.close()
+
+
+def test_cancellation_wait_is_nonblocking_and_has_a_deadline(
+    controlled, monkeypatch
+):
+    owner = session.Session.from_snapshot(controlled)
+    owner.state = "prepared"
+    owner.writer = mock.Mock()
+    owner.writer.wait_closed.return_value = False
+    monkeypatch.setattr(session.time, "monotonic_ns", lambda: 1_000_000_000)
+    owner.cancel()
+    assert owner.poll() is None
+    owner.writer.wait_closed.assert_called_once_with(timeout=0)
+    monkeypatch.setattr(session.time, "monotonic_ns", lambda: 6_000_000_001)
+    with pytest.raises(TimeoutError, match="cancellation"):
+        owner.poll()

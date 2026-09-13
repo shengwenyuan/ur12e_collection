@@ -15,6 +15,7 @@ class Policy:
     tracking_error: float
     tracking_seconds: float
     measured_speed: float
+    gripper_input_rate: float = math.radians(720)
 
     def __post_init__(self):
         for field in dataclasses.fields(self):
@@ -29,10 +30,23 @@ class Policy:
     def input(self, previous, current):
         """Reject raw jumps before smoothing, including the gripper encoder."""
         dt = (current.start_ns - previous.start_ns) / 1e9
-        allowance = self.input_rate * dt + 2 * 2 * math.pi / 4096
-        delta = max(abs(a - b) for a, b in zip(current.raw, previous.raw))
-        if dt <= 0 or delta * 2 * math.pi / 4096 > allowance:
-            raise model.ControlError("leader acquisition jumped; reinitialize")
+        if dt <= 0:
+            raise model.ControlError("leader acquisition time did not advance")
+        radians_per_count = 2 * math.pi / 4096
+        rates = (self.input_rate,) * 6 + (self.gripper_input_rate,)
+        for axis, (before, after, rate) in enumerate(
+            zip(previous.raw, current.raw, rates)
+        ):
+            allowance = rate * dt / radians_per_count + 2
+            delta = abs(after - before)
+            if delta > allowance:
+                name = "gripper" if axis == 6 else f"j{axis + 1}"
+                raise model.ControlError(
+                    f"leader acquisition jumped: axis={name}, "
+                    f"previous={before}, current={after}, "
+                    f"delta_counts={delta}, allowed_counts={allowance:.2f}, "
+                    f"dt_ms={dt * 1000:.3f}; reinitialize"
+                )
 
     def intent(self, desired, sent):
         """Bound delayed motion without changing the immutable input origin."""

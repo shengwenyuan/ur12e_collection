@@ -75,6 +75,16 @@ class Teleoperation:
         self.controller.halt(now_ns)
         self.state = "stopping"
 
+    def reject(self, reason, now_ns):
+        """End input ownership without closing the interactive session."""
+        if self.controller.state == "fault":
+            if self.input is not None:
+                self.input.close()
+            self.state = "blocked"
+        elif self.state not in ("stopping", "held"):
+            self.stop(now_ns)
+        print(f"Teleop rejected: {reason}", flush=True)
+
     def _engage(self, now_ns):
         """Wait for fresh feedback before capturing the start reference."""
         age = now_ns - self.controller.progress.feedback.received_ns
@@ -106,8 +116,8 @@ class Teleoperation:
 
     def step(self, now_ns):
         """Pump native input continuously and keep primary feedback required."""
-        self.source.samples(now_ns)
         self.controller.tick(now_ns)
+        self.source.samples(now_ns)
         if (
             self.guards is not None
             and max(map(abs, self.controller.progress.feedback.qd))

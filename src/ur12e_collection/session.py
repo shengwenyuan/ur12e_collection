@@ -3,6 +3,7 @@
 import concurrent.futures
 import pathlib
 import threading
+import time
 
 from ur12e_collection import matching, snapshots, storage
 
@@ -147,6 +148,8 @@ class Session:
 
     def poll(self) -> dict | None:
         """Surface writer failures or return one completed report."""
+        if self.state == "cancelling":
+            return self._cancelled()
         if self.state not in ("prepared", "recording", "finalizing"):
             return None
         if self.writer.health()["state"] in ("aborted", "failed"):
@@ -166,6 +169,27 @@ class Session:
             "matching": dict(self.matcher.counters),
             "recording": report,
         }
+        self.writer = self.matcher = self._completion = None
+        self.state = "idle"
+        return result
+
+    def cancel(self) -> None:
+        """Retire only this writer; keep persistent capture resources alive."""
+        if self.state not in ("prepared", "recording"):
+            raise RuntimeError("cancellation requires an unfinished episode")
+        self.writer.abort()
+        self.boundaries["cancel_requested_ns"] = time.monotonic_ns()
+        self.state = "cancelling"
+
+    def _cancelled(self):
+        if not self.writer.wait_closed(timeout=0):
+            if (
+                time.monotonic_ns() - self.boundaries["cancel_requested_ns"]
+                > 5_000_000_000
+            ):
+                raise TimeoutError("episode cancellation did not finish")
+            return None
+        result = {"episode": self.writer.destination.name, "cancelled": True}
         self.writer = self.matcher = self._completion = None
         self.state = "idle"
         return result

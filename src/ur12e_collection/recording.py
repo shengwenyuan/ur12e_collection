@@ -64,6 +64,11 @@ class _Capture:
             if self.owner.state != "recording" or cutoff < self.watermark:
                 raise RuntimeError("stop precedes admitted control watermark")
             self.watermark, self.cutoff, self.release = cutoff, cutoff, event
+        elif operation == "cancel":
+            self.owner.cancel()
+            self.pending.clear()
+            self.cutoff = self.release = None
+            self.settled = False
         elif operation == "settled":
             if self.cutoff is None:
                 raise RuntimeError("stop confirmation has no cutoff")
@@ -211,7 +216,8 @@ def _run(capture_owner, channels):
             replies.put_nowait(("prepare", None))
             capture_owner.prepared_ack = True
         if report is not None:
-            replies.put_nowait(("complete", report))
+            operation = "cancelled" if report.get("cancelled") else "complete"
+            replies.put_nowait((operation, report))
         if now - sent >= 100_000_000:
             pulse.value = now
             sent = now

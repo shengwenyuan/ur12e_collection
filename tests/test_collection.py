@@ -36,6 +36,7 @@ def owner(tmp_path, controlled):
     controlled["control"].update(hande="urcap", hande_id="test-hande")
     motion, recorder, readers = mock.Mock(), mock.Mock(), mock.Mock()
     motion.state = "ready"
+    motion.reject.side_effect = lambda *_: setattr(motion, "state", "stopping")
     motion.last_key_ns = 1_000_000_000
     recorder.poll.return_value = []
     readers.read.return_value = []
@@ -130,6 +131,8 @@ def test_completed_episode_allows_new_home_without_restarting_resources(owner):
 def test_normal_quit_waits_only_for_started_episode(owner, phase):
     prepare(owner)
     owner.phase = phase
+    if phase == "idle":
+        owner.active = None
     owner.motion.state = "ready"
     owner.key("q", 1_101_000_000)
     assert owner.done == (phase != "finalizing")
@@ -155,22 +158,39 @@ def test_quit_bypasses_debounce_and_drains_active_episode(owner):
 
 
 @pytest.mark.parametrize("fault", ["recorder", "readers"])
-def test_required_io_failure_propagates_and_cleanup_revokes_motion(
+def test_required_io_failure_keeps_operator_choices_and_blocks_restart(
     owner, fault
 ):
     recording(owner)
-    getattr(owner, fault).poll.side_effect = RuntimeError("lost")
+    operation = (
+        owner.recorder.poll if fault == "recorder" else owner.readers.read
+    )
+    operation.reset_mock()
+    operation.side_effect = RuntimeError("lost")
+    owner.step(2_000_000_000)
+    assert owner.phase == "review"
+    assert fault in owner.rejection.unavailable
+    owner.motion.reject.assert_called_once()
+    owner.motion.close.assert_not_called()
+    owner.key(" ", 3_000_000_000)
+    owner.step(3_000_000_000)
+    assert owner.phase == "review"  # A save cannot certify broken data.
+    owner.key("q", 3_000_000_001)
+    owner.step(3_010_000_000)
     if fault == "readers":
-        owner.readers.read.side_effect = RuntimeError("lost")
-    with pytest.raises(RuntimeError, match="lost"):
-        owner.step(2_000_000_000)
+        assert owner.phase == "cancelling"
+        owner.recorder.poll.return_value = [("cancelled", {})]
+        owner.step(3_020_000_000)
+        owner.recorder.poll.return_value = []
+    owner.motion.state = "held"
+    owner.step(3_100_000_000)
+    assert owner.phase == "blocked" and owner.done
+    assert owner.completed[0]["verified"] is False
+    assert owner.completed[0]["disposition"] == "incomplete"
+    operation.assert_called_once()
+    owner.motion.close.assert_not_called()
     owner.close()
     owner.motion.close.assert_called_once()
-    owner.recorder.abort.set.assert_called_once()
-    assert (
-        json.loads((owner.output / "session.json").read_text())["state"]
-        == "interrupted"
-    )
 
 
 def test_real_raw_mapping_and_separate_sent_arm_command(owner, monkeypatch):
@@ -229,8 +249,135 @@ def test_failed_writer_preparation_never_engages_motion(owner):
     owner.recorder.send.side_effect = RuntimeError(
         "recording command queue overflow"
     )
-    with pytest.raises(RuntimeError, match="queue overflow"):
-        owner.key(" ", 1_000_000_000)
+    owner.key(" ", 1_000_000_000)
+    assert owner.phase == "review"
     owner.motion.key.assert_not_called()
-    owner.close()
-    owner.motion.close.assert_called_once()
+    owner.motion.close.assert_not_called()
+    owner.key("q", 1_100_000_000)
+    owner.step(1_200_000_000)  # Cancellation discovers the broken IPC channel.
+    owner.motion.state = "held"
+    owner.step(1_300_000_000)
+    owner.step(1_400_000_000)
+    assert owner.done
+    assert owner.completed[0]["verified"] is False
+
+
+def reject_input(owner, monkeypatch):
+    recording(owner)
+    monkeypatch.setattr(collection.time, "monotonic_ns", lambda: 2_000_000_000)
+    owner.motion.step.side_effect = ValueError("input jump")
+    owner.step(2_000_000_000)
+    owner.motion.step.side_effect = None
+    assert owner.phase == "review"
+    assert owner.active.cutoff == 2_000_000_000
+    assert not owner.rejection.unavailable
+
+
+@pytest.mark.parametrize("choice", [" ", "a", "q"])
+def test_rejection_choices_wait_for_stop_and_writer_without_early_cleanup(
+    owner, monkeypatch, choice
+):
+    reject_input(owner, monkeypatch)
+    owner.key(choice, 3_000_000_000)
+    owner.step(3_000_000_000)
+    owner.motion.close.assert_not_called()
+    owner.motion.key.reset_mock()
+    if choice == "a":
+        assert owner.phase == "cancelling"
+        owner.recorder.poll.return_value = [("cancelled", {})]
+        owner.step(3_010_000_000)
+        owner.recorder.poll.return_value = []
+        assert owner.phase == "resolving"  # Writer closed; arm still stopping.
+    else:
+        assert owner.phase == "review"
+        assert not any(
+            c.args[0] == "settled" for c in owner.recorder.send.call_args_list
+        )
+    owner.motion.state = "held"
+    owner.receipts.update(
+        ur_feedback=3_100_000_000, hande_feedback=3_100_000_000
+    )
+    owner.step(3_100_000_000)
+    if choice != "a":
+        assert owner.phase == "finalizing"
+        owner.active.path.mkdir()
+        owner.recorder.poll.return_value = [
+            ("complete", {"episode": "episode-0000"})
+        ]
+        owner.step(3_200_000_000)
+        owner.recorder.poll.return_value = []
+        outcome = json.loads(
+            (owner.output / "episode-0000/outcome.json").read_text()
+        )
+        assert outcome["interruption"] == "input jump"
+        assert (
+            owner.completed[0]["stop_confirmed_monotonic_ns"] == 3_100_000_000
+        )
+    else:
+        assert owner.completed[0]["disposition"] == "discarded"
+        assert owner.completed[0]["verified"] is False
+    assert owner.phase == "idle" and owner.rejection is None
+    assert owner.done == (choice == "q")
+    owner.motion.key.assert_not_called()
+    owner.recorder.start.assert_not_called()
+    owner.readers.start.assert_not_called()
+    if choice != "q":
+        owner.key(" ", 4_000_000_000)
+        owner.motion.key.assert_called_once_with(" ", 4_000_000_000)
+        owner.motion.state = "ready"
+        owner.key(" ", 5_000_000_000)
+        assert owner.active.path.name == "episode-0001"
+
+
+def test_failed_stop_still_allows_quit_without_certifying_episode(
+    owner, monkeypatch
+):
+    reject_input(owner, monkeypatch)
+    owner.motion.step.side_effect = ValueError("stop timed out")
+    owner.step(3_000_000_000)
+    owner.motion.controller.fail.assert_called_once_with("stop timed out")
+    owner.key("q", 3_100_000_000)
+    owner.step(3_200_000_000)
+    assert owner.phase == "cancelling"
+    owner.recorder.poll.return_value = [("cancelled", {})]
+    owner.step(3_300_000_000)
+    assert owner.done and owner.phase == "blocked"
+    assert owner.completed[0]["verified"] is False
+    owner.motion.close.assert_not_called()
+
+
+def test_fault_during_finalization_allows_disposition_and_quit(owner):
+    recording(owner)
+    owner.active.path.mkdir()
+    owner.phase = "finalizing"
+    owner.motion.state = "held"
+    owner.motion.step.side_effect = ValueError("leader disconnected")
+    owner.step(2_000_000_000)
+    owner.motion.step.side_effect = None
+    owner.motion.state = "held"
+    owner.key("a", 3_000_000_000)
+    owner.key("q", 3_100_000_000)
+    owner.recorder.poll.return_value = [
+        ("complete", {"episode": "episode-0000"})
+    ]
+    owner.step(3_200_000_000)
+    assert owner.done
+    assert owner.completed[0]["disposition"] == "discarded"
+
+
+@pytest.mark.parametrize("choice", ["a", "q"])
+def test_existing_exit_or_discard_intent_survives_late_rejection(owner, choice):
+    recording(owner)
+    owner.motion.stop.side_effect = lambda _: setattr(
+        owner.motion, "state", "stopping"
+    )
+    owner.key(choice, 2_000_000_000)
+    owner.readers.read.side_effect = ValueError("readback lost while stopping")
+    owner.step(2_100_000_000)
+    assert owner.phase == "cancelling"
+    assert owner.rejection.choice == ("abort" if choice == "a" else None)
+    owner.recorder.poll.return_value = [("cancelled", {})]
+    owner.motion.state = "held"
+    owner.step(2_200_000_000)
+    assert owner.phase == "blocked"
+    assert owner.done == (choice == "q")

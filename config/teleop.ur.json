@@ -63,7 +63,8 @@
     "intent_error": 0.5235987755982988,
     "tracking_error": 0.017453292519943295,
     "tracking_seconds": 0.25,
-    "measured_speed": 0.16755160819145562
+    "measured_speed": 0.16755160819145562,
+    "gripper_input_rate": 12.566370614359172
   },
   "evidence": "../artifacts/physical-teleop",
   "physical_profile": "commissioning-v1"

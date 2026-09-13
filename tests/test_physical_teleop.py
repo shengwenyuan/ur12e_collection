@@ -550,3 +550,54 @@ def test_nontransient_leader_failure_is_not_retried():
     ):
         with pytest.raises(ValueError, match="stale"):
             instance._engage(1_000_000_000)
+
+
+def test_gripper_input_rate_is_independent_and_rejection_names_axis():
+    policy = configuration()["guards"]
+    assert policy.gripper_input_rate == math.radians(720)
+    before = sample(3000)
+    later = dataclasses.replace(
+        sample(3000, 1, 1_008_333_333), raw=(3000,) * 6 + (3060,)
+    )
+    policy.input(before, later)
+    arm_jump = dataclasses.replace(later, raw=(3060,) + (3000,) * 6)
+    with pytest.raises(model.ControlError, match="axis=j1.*delta_counts=60"):
+        policy.input(before, arm_jump)
+    gripper_jump = dataclasses.replace(later, raw=(3000,) * 6 + (3100,))
+    with pytest.raises(model.ControlError, match="axis=gripper.*previous=3000"):
+        policy.input(before, gripper_jump)
+
+
+def test_rejection_stops_without_closing_control_or_releasing_tool():
+    instance, device = session()
+    instance.state = "following"
+    instance.controller.progress.state = "following"
+    instance.input = mock.Mock()
+    instance.reject("input rejected", 2_000_000_000)
+    assert instance.state == "stopping"
+    instance.input.close.assert_called_once()
+    device.stop.assert_called_once_with(True)
+    device.close.assert_not_called()
+    device.gripper.assert_not_called()
+
+
+def test_failed_controller_stays_blocked_without_another_stop_or_reconnect():
+    instance, device = session()
+    instance.controller.progress.state = "fault"
+    instance.reject("transport failed", 2_000_000_000)
+    assert instance.state == "blocked"
+    device.stop.assert_not_called()
+    device.close.assert_not_called()
+
+
+@pytest.mark.parametrize("state", ["stopping", "held"])
+def test_rejection_does_not_restart_stop_supervision(state):
+    instance, device = session()
+    instance.state = state
+    instance.controller.progress.state = (
+        "stopping" if state == "stopping" else "hold"
+    )
+    instance.reject("late recording error", 2_000_000_000)
+    assert instance.state == state
+    device.stop.assert_not_called()
+    device.close.assert_not_called()

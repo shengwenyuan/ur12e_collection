@@ -10,11 +10,14 @@ from ur12e_collection import filesystem
 from ur12e_collection.control import lifecycle, model, owner, records
 
 
-def write_outcome(destination: pathlib.Path, disposition: str) -> None:
+def write_outcome(
+    destination: pathlib.Path, disposition: str, *, interruption=None
+) -> None:
     """Preserve verified data; atomically replace only the review decision."""
     filesystem.write_json(
         destination / "outcome.json",
-        {"schema_version": 1, "disposition": disposition, "task_success": None},
+        {"schema_version": 1, "disposition": disposition, "task_success": None}
+        | ({"interruption": interruption} if interruption else {}),
     )
 
 

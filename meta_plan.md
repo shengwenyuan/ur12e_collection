@@ -302,7 +302,8 @@ RECORDING --Space--> STOPPING -> FINALIZING -> HELD
 HELD --Space--> HOMING -> READY
 READY --next distinct Space--> PREPARING
 q -> stop active recording, verify/save, end session
-Ctrl+C / fault -> revoke following, preserve incomplete partial
+fault -> revoke following, REVIEW (Space save / a discard / q quit)
+Ctrl+C -> interrupt, preserve incomplete partial
 ```
 
 Space during recording stops; while HELD it requests HOME. A fresh Space at READY
@@ -313,6 +314,14 @@ with an explicit disposition and unknown task success. `q` is the normal-exit
 implementation default; Ctrl+C interrupts. Exit never requests HOME or releases
 Hand-E. See the [physical recording plan](docs/m09-session/physical-recording.md)
 for current software and operator acceptance boundaries.
+
+A teleop rejection keeps the collection input loop alive while stop supervision
+continues. Space saves a verifiable pre-fault interval with its interruption
+reason; `a` abandons the interval; `q` saves valid output or preserves an incomplete
+partial before exiting. Only healthy resources may proceed to an explicit new
+HOME/reference after disposition. Failed control, feedback or recorder resources
+block further motion; there is no automatic reconnection. See the physical
+recording plan for software acceptance and pending hardware verification.
 
 Prepare the writer and a common start boundary before opening leader control. A partial start must not leave unrecorded following active.
 
