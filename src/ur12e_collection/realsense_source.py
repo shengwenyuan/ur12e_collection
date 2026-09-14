@@ -45,7 +45,7 @@ def frame_from_sample(
     )
 
 
-def _device(rs, camera):
+def device_for_camera(rs, camera):
     """Check observed identity/model and request SDK global time."""
     devices = {
         d.get_info(rs.camera_info.serial_number): d
@@ -72,7 +72,7 @@ def stream(config: dict, role: str, clock_id: str, stop):
     import pyrealsense2 as rs  # pylint: disable=import-outside-toplevel,import-error
 
     serial = config["cameras"][role]["serial"]
-    device = _device(rs, config["cameras"][role])
+    device = device_for_camera(rs, config["cameras"][role])
     settings = rs.config()
     settings.enable_device(serial)
     settings.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)

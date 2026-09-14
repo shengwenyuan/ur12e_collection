@@ -468,3 +468,17 @@ New calibration ID:
 The operator's reversal finding is retained; corrected physical-following
 revalidation, lab synchronization and station activation are **NOT RUN**.
 No motor or robot command was sent. Generic mapping/control code is unchanged.
+
+
+## Keyboard / AprilGrid alignment update (2026-09-15)
+
+The user now selects keyboard teaching, >=20 camera-specific capture checkpoints,
+AprilGrid, and one acquisition rollout followed by intrinsic then extrinsic
+solving. This supersedes GELLO teaching and the old aggregate pose-count budget
+for the new visual workflow. The authorized replay/calculation increment is implemented; see the
+[detailed plan and acceptance](keyboard-aprilgrid.md) and [JSON/CLI contract](replay-usage.md).
+It uses the actual PDF corner orientation, one RGB rollout, fresh TCP-offset and
+actual-pose evidence, and training-only intrinsic fitting followed by validated
+extrinsics. Translation consistency is gated at <=2 mm. Teaching remains separate;
+physical execution, high-resolution stream validation, absolute accuracy and
+production activation are not accepted by the software tests.

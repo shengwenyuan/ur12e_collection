@@ -5,6 +5,9 @@ import argparse
 import pathlib
 
 import teleop
+import cali
+
+from ur12e_collection.calibration import commands
 
 
 def main(argv=None):
@@ -20,7 +23,15 @@ def main(argv=None):
         default=pathlib.Path.home() / "ur12e-data",
         help="recording directory (default: ~/ur12e-data)",
     )
+    commands.configure(
+        modes.add_parser("cali", help="camera calibration replay/solve")
+    )
     args = parser.parse_args(argv)
+    if args.mode == "cali":
+        try:
+            return cali.launch(args)
+        except (ValueError, OSError) as error:
+            parser.error(str(error))
     configuration = teleop.ROOT / "config/teleop.ur.json"
     station = teleop.ROOT / "config/local/recording.station.json"
     for path in (configuration, station):
@@ -42,6 +53,8 @@ def main(argv=None):
         ]
     )
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

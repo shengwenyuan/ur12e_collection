@@ -13,6 +13,7 @@ from ur12e_collection import diagnostics
 from ur12e_collection import station
 from ur12e_collection import ur
 from ur12e_collection.calibration import cli as calibration_cli
+from ur12e_collection.calibration import commands as calibration_commands
 
 
 def parser() -> argparse.ArgumentParser:
@@ -98,6 +99,9 @@ def parser() -> argparse.ArgumentParser:
         commands.add_parser(
             "calibrate", help="offline camera and leader calibration"
         )
+    )
+    calibration_commands.configure(
+        commands.add_parser("cali", help="camera replay and two-stage solve")
     )
     return root
 
@@ -211,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
             "teleop": _teleop,
             "follower": _follower,
             "calibrate": calibration_cli.run,
+            "cali": calibration_commands.run,
         }.get(args.command)
         if handler is not None:
             return handler(args)

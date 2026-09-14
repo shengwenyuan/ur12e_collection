@@ -116,7 +116,7 @@ def detect(
         raise ValueError("calibration image is blurred")
     matrix, distortion = optics(intrinsics)
     matched = _corners(gray, board.create(), limits)
-    camera_board, residual = _pose(
+    camera_board, residual = estimate_pose(
         matched["objects"], matched["images"], matrix, distortion, limits
     )
     return {
@@ -152,7 +152,8 @@ def _corners(gray, native, limits):
     }
 
 
-def _pose(objects, images, matrix, distortion, limits):
+def estimate_pose(objects, images, matrix, distortion, limits):
+    """Estimate a planar pose with positive-depth and ambiguity gates."""
     success, rotations, translations, _ = cv2.solvePnPGeneric(
         objects,
         images,

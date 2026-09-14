@@ -422,6 +422,23 @@ Acceptance targets: `M11-A01` pixel-exact depth round trip; `M11-A02` independen
 
 ## M12. Independent Visual Calibration
 
+Latest alignment, 2026-09-15: keyboard-based teaching with camera-specific JSON
+routes containing at least 20 capture checkpoints (normally 20-30 per camera),
+and `ur12e cali --left|--right|--wrist`. Use the supplied 4x6 tag36h11 AprilGrid
+with nominal 28 mm tags / 8.4 mm gaps. One fresh rollout feeds intrinsic fitting
+then extrinsic solving; stored route targets are never measured solver poses.
+Replay and two-stage calculation are implemented with software acceptance; the
+colleague supplies waypoint files and the user supervises first real execution.
+Fixed cameras are about 1 m away and wrist views are within 20 cm. Explicit
+high-resolution RGB modes are independent of production 480p; actual mode support
+requires a camera check. Numerical translation consistency is <=2 mm without
+automatic relaxation; absolute physical accuracy remains unverified. See
+[M12 plan and acceptance](docs/m12-calibration/keyboard-aprilgrid.md) and
+[JSON/CLI usage](docs/m12-calibration/replay-usage.md). Keyboard teaching/IK,
+production-mode activation and lab acceptance remain separate follow-up work.
+This supersedes earlier visual teaching/count/board defaults below; the existing
+ChArUco solver and simulated traversal remain implementation history.
+
 The [M12 development plan](docs/m12-calibration/plan.md) records the two-round workflow aligned on 2026-09-09. The immediate goal is a common world reference and traceable camera extrinsics across episodes. Providing extrinsics to a future VLM prompt is a possible consumer, not a first-release prompt feature or a claim that calibration removes viewpoint changes. Numerical accuracy targets remain open.
 
 Implemented offline entrypoint: `ur-collect calibrate solve|verify|setup|activate`, separate from production episodes. See [offline usage](docs/m12-calibration/offline-usage.md). Scripted physical capture remains pending. The user first teaches key poses and verifies routes, then converts them into a fixed motion script. Both rounds, including the first held-board round, execute by script. M12 consumes capture checkpoints, actual robot pose feedback and images; it does not generate exploratory motion. Script execution must respect M06 exclusive ownership and limits. The script/checkpoint transport remains to be chosen with the lab controller. Keep the existing 20-40-pose overall budget; the split between rounds and held-out validation is not yet agreed. Store pose IDs, joint targets, required waypoints and expected visible cameras; `dwell_s=2.0`.
@@ -524,7 +541,7 @@ rewrite data. See the [M10 clarification](docs/m10-data-contract/plan.md#tcp-ins
 | M06, M09 | Define READY targets/routes, success labels, discard review/retention semantics, and shutdown details. Space / a / Ctrl+C controls are confirmed |
 | M08 | Skew 16.7 ms, default wait 75 ms, eight-frame buffers and non-reuse confirmed; validate live clock mapping and startup behavior |
 | M11 | H.264/PNG MCAP and independent verification are software-tested; training export belongs to another repository |
-| M12 | Two rounds and taught/scripted motion confirmed; resolve board geometry, controller/checkpoint interface, actual pose reference/TCP offset, pose allocation and validation thresholds in the lab |
+| M12 | AprilGrid replay/two-stage solve implemented in software; validate colleague routes, actual camera modes, supervised replay, print scale, <=2 mm physical accuracy and production activation in the lab |
 | M13 | Agree numerical acceptance tolerances without expanding the 40-second x 20-episode requirement |
 
 ## Existing Project References

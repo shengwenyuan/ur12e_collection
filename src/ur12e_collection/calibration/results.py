@@ -16,7 +16,8 @@ def _file_digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def _image(root, name):
+def image_path(root, name):
+    """Resolve a lossless PNG inside its evidence tree."""
     path = pathlib.Path(name)
     if (
         path.is_absolute()
@@ -45,7 +46,7 @@ def evaluate(document: dict, root: pathlib.Path) -> dict:
         common = ("pose_id", "split", "T_base_flange")
         if "image" in item:
             manifest.keys(item, (*common, "image"))
-            path = _image(root, item["image"])
+            path = image_path(root, item["image"])
             evidence[item["image"]] = _file_digest(path)
             image = cv2.imread(str(path), cv2.IMREAD_COLOR)
             if image is None:
@@ -111,7 +112,7 @@ def solve(input_path: pathlib.Path, destination: pathlib.Path) -> dict:
             continue
         target = partial / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(_image(input_path.parent, name), target)
+        shutil.copyfile(image_path(input_path.parent, name), target)
     observed = evaluate(document, partial)
     if observed != expected:
         raise ValueError("calibration evidence changed during copy")

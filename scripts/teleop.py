@@ -56,38 +56,12 @@ def main(argv=None):
         strict=not args.preflight
     )
     mounts, lease = mount_paths(args, value, path, physical)
-    image_id = subprocess.run(
-        ["docker", "image", "inspect", "--format", "{{.Id}}", args.image],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    command = [
-        "docker",
-        "run",
-        "--rm",
-        "--init",
-        "-i" if args.preflight else "-it",
-        "--pull",
-        "never",
-        "--network",
-        "host" if physical else "none",
-        "--read-only",
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
-        "--memory",
+    command, image_id = container_command(
+        args.image,
         "8g" if recording else "1g",
-        "--user",
-        f"{os.getuid()}:{os.getgid()}",
-        "--tmpfs",
-        "/tmp:rw,nosuid,size=64m",
-        "-e",
-        "PYTHONDONTWRITEBYTECODE=1",
-        "-e",
-        f"UR12E_IMAGE_ID={image_id}",
-    ]
+        physical=physical,
+        interactive=not args.preflight,
+    )
     if physical:
         command += ["-e", f"UR12E_LEASE={lease}"]
     if recording:
@@ -136,6 +110,43 @@ def main(argv=None):
             command, check=False, timeout=20 if args.preflight else None
         ).returncode
     )
+
+
+def container_command(image_name, memory, *, physical, interactive=True):
+    """Share image selection and container restrictions across owners."""
+    image_id = subprocess.run(
+        ["docker", "image", "inspect", "--format", "{{.Id}}", image_name],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "--init",
+        "-it" if interactive else "-i",
+        "--pull",
+        "never",
+        "--network",
+        "host" if physical else "none",
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "--memory",
+        memory,
+        "--user",
+        f"{os.getuid()}:{os.getgid()}",
+        "--tmpfs",
+        "/tmp:rw,nosuid,size=64m",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "-e",
+        f"UR12E_IMAGE_ID={image_id}",
+    ]
+    return command, image_id
 
 
 def camera_devices(root=pathlib.Path("/sys/class/video4linux")):

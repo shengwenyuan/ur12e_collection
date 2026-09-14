@@ -60,3 +60,8 @@ For an independent read-only 3D view of actual URSim joint angles, run
 `.venv/bin/python scripts/sim_viewer.py` and open http://127.0.0.1:8787.
 It reuses the installed image without changing the control console. See the
 [viewer guide](docs/m13-acceptance/readonly-viewer.md).
+
+Camera-specific AprilGrid calibration now has `ur12e cali --left|--right|--wrist`
+replay/solve entries. See the [waypoint JSON and usage contract](docs/m12-calibration/replay-usage.md)
+and [software versus physical acceptance](docs/m12-calibration/keyboard-aprilgrid.md).
+This increment is not yet deployed or physically calibrated.
