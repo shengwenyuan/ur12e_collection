@@ -28,7 +28,9 @@ related commands. This supersedes the earlier host-entrypoint design below.
   explicit `--operator-approved` requirement.
 - Preserve wired-route and bounded packet-loss checks when `gello` starts;
   install `iputils-ping` in the image because these checks previously ran on the
-  host. Terminal entry/help/menu cancellation does not perform this check.
+  host. Remove its file capability so the executable works with the retained
+  empty capability bounding set; Linux ping sockets use the station's existing
+  permitted GID range. Terminal entry/help/menu cancellation does not probe it.
 - Translate station-local file paths to the container namespace; preserve the
   original configuration, recordings and old image. Retire the rejected host
   launcher by moving the exact previously installed file into the backup.

@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-jazzy-foxglove-msgs ros-jazzy-ros2bag \
       ros-jazzy-rosbag2-storage-mcap ros-jazzy-rosbag2-transport \
     && rm -rf /var/lib/apt/lists/* \
+    && setcap -r /usr/bin/ping \
     && python3 -m venv --system-site-packages /opt/venv
 COPY requirements/runtime.txt /opt/requirements/runtime.txt
 RUN pip install --no-cache-dir --require-hashes -r /opt/requirements/runtime.txt
