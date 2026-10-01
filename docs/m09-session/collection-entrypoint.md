@@ -2,114 +2,72 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: accepted for offline container delivery / physical acceptance pending,
-2026-10-02.
-The operator explicitly rejected the host user-local launcher and selected an
-interactive container terminal with direct `ur12e gello`, `ur12e cali`, and
-related commands. This supersedes the earlier host-entrypoint design below.
+Status: implemented / offline deployment accepted. The operator requested `ur12e gello` as the daily
+collection command, an optional output directory, and future room for
+`ur12e dagger`. No new configuration format is required.
 
-## Current scope and interface
+## Scope and interface
 
-- Install `ur12e` as a package console command in the runtime/development images.
-  Invoke the existing teleoperation and calibration implementations in-process.
-  No Docker executable/socket, host Python environment or source checkout is
-  needed inside the container. Keep `ur-collect` and advanced host tools usable.
-- An explicit host `scripts/enter.py` command opens the selected local image's
-  Bash terminal. It prepares configuration/data mounts, the existing shared
-  per-controller lease, image provenance and only required device access. Shell
-  entry alone does not initialize SDKs, acquire cameras or start collection.
-- The container reads `/config/teleop.ur.json`,
-  `/config/recording.station.json` and `/config/task-routes.json`. A missing task
-  override uses the image's identity-free task example. Configuration and task
-  table overrides remain explicit CLI options. Defaults save under `/data`.
-- `ur12e gello` selects a task before hardware initialization, then invokes the
-  existing recording owner with operator-started-session semantics. Space HOME /
-  start / stop, Hand-E opening, save/discard/quit, watchdogs and timing remain
-  unchanged. `dagger` remains unavailable. Calibration motion keeps its existing
-  explicit `--operator-approved` requirement.
-- Preserve wired-route and bounded packet-loss checks when `gello` starts;
-  install `iputils-ping` in the image because these checks previously ran on the
-  host. Remove its file capability so the executable works with the retained
-  empty capability bounding set; Linux ping sockets use the station's existing
-  permitted GID range. Terminal entry/help/menu cancellation does not probe it.
-- Translate station-local file paths to the container namespace; preserve the
-  original configuration, recordings and old image. Retire the rejected host
-  launcher by moving the exact previously installed file into the backup.
+- `ur12e gello` starts the existing physical GELLO recording session using
+  `config/teleop.ur.json`, `config/local/recording.station.json`, image
+  `ur12e-collection:current`, and an operator-selected task from `config/task-routes.json`.
+  The JSON maps full English descriptions to unique directory names; selection
+  precedes hardware access. See [task routing and HOME](task-routing-and-home.md).
+- Output defaults to `~/ur12e-data`; `--output DIRECTORY` overrides it. The
+  existing recorder allocates unique session directories beneath the selected
+  task name (`<output>/<route>/session-*`); older data is preserved.
+- Configuration resolves from the installed deployment, independent of the
+  operator's working directory. Reuse the existing host Docker launcher and its
+  network, USB, lease, image pinning, recording and error handling. Do not create
+  a second control/session implementation or a shell-command string.
+- A station may supply `config/local/teleop.ur.json` for its Ethernet interface,
+  leader device and file paths. The daily command prefers that ignored local
+  profile when present, otherwise retaining `config/teleop.ur.json`. An invalid
+  local profile is reported rather than silently replaced with another station's
+  defaults. The recording station remains `config/local/recording.station.json`.
+- Typing `ur12e gello` is the explicit operator launch action, equivalent to the
+  existing `--operator-approved` launch. It can initialize SDK/tool connections;
+  HOME and following remain gated by the existing Space transitions. No extra
+  approval prompt is introduced. Help/invalid commands perform no hardware I/O.
+- The CLI uses subcommands. `dagger` remains unavailable until its mainline
+  implementation is accepted; never alias it to GELLO or run a placeholder.
+- Install a user-local executable symlink on the PC, using its current deployment
+  pointer. Keep the advanced `scripts/teleop.py` invocation compatible.
 
-## Implementation and acceptance
+## Acceptance
 
-1. Add the installed console command and direct session/calibration delegation;
-   keep help, invalid inputs and menu cancellation free of hardware actions.
-2. Share existing Docker restrictions between the advanced host launcher and
-   shell entry. Permit explicit Bash through the ROS entrypoint; retain non-root
-   execution, required groups, read-only root, bounded memory and shared lease.
-3. Update image packaging, station-local path bindings and operator instructions.
-   Commit, build from cached dependencies, verify installed files and deploy the
-   tested image to the already authorized replacement station.
-4. M09-A01: test default/overridden paths, task validation, in-process launch,
-   return codes, calibration dispatch, and no nested Docker launch.
-5. M01-A01/A03: verify the installed `ur12e` command inside an actual image shell,
-   non-root data writes, image provenance, shared lease across containers, no
-   Docker socket, unchanged configuration/data and source-free operation.
-6. M01-A02: installed offline regression with no network or hardware devices.
-   UR/Hand-E/GELLO movement and camera acquisition are NOT RUN in this delivery.
+M09-A01: offline launcher tests prove default and overridden output, complete
+recording arguments, current image selection, working-directory independence and
+unchanged existing launcher behavior. Reject missing station configuration and
+unknown modes before invoking the launcher. Preserve interruption/exit behavior by
+calling the existing launcher directly, without an extra supervising subprocess.
 
-Alignment: the operator's explicit 2026-10-02 correction authorizes this exact
-container-terminal interface and replacement of the rejected host launcher.
-Technical mount/packaging choices implement that requested interface; no new
-control behavior, automatic collection or physical test is authorized.
+M01-A03: installed PC entrypoint resolves through `~/ur12e-current` and displays
+help from another working directory. Validate parser/command composition with
+mocked launch execution only. No physical connection, preflight, camera capture
+or robot/leader/gripper control may be started by this delivery.
 
-## Current usage
+Task routing is now provided by a repository JSON file; `--task-routes PATH`
+selects an external file when needed. This increment changes no MCAP semantics, protection policy,
+TCP offset fields or DAgger implementation.
+
+## Installation
+
+On a provisioned PC with `~/ur12e-current` pointing to the deployment:
 
 ```sh
-# On the station, open the current collector image terminal:
-cd ~/ur12e_collection
-python3 scripts/enter.py
-# Inside the container:
-ur12e gello
-ur12e gello --output /data/another-dataset
-ur12e cali --help
+mkdir -p ~/.local/bin
+ln -s "$HOME/ur12e-current/scripts/ur12e.py" "$HOME/.local/bin/ur12e"
+export PATH="$HOME/.local/bin:$PATH"
+ur12e --help
 ```
 
-The host directory `~/ur12e-data` is mounted as `/data`; station-local files are
-mounted read-only as `/config`. Connect the intended leader before entering for
-collection. The shell remains available for help when the leader is absent;
-re-enter after connecting/re-enumerating devices. Hardware checks remain pending.
-
-## Current results
-
-- M09-A01 PASS on the native Mac: 703 tests passed, five skipped; Black checked
-  211 files; production/launcher Pylint passed at 10/10. New checks cover direct
-  in-process dispatch, mounted defaults/overrides, calibration/help, wired-route
-  failure, cancellation before hardware, terminal mounts and shared lease path.
-- M01-A01 PASS: code `d4aabe2` is installed as `ur12e-collection:current`, image
-  `afe9aacbb394`, linux/amd64. All 119 installed package/schema files and bundled
-  scripts match committed source. Actual image Bash resolves `/opt/venv/bin/ur12e`
-  and passes help/menu cancellation without a source checkout, Docker binary or
-  Docker socket. Loopback ping passes as UID 1000 with all capabilities dropped;
-  the initial candidate's file-capability execution failure was fixed before
-  promotion. No robot packet-loss or connectivity test was run.
-- M01-A02 PASS for this station's software delivery: installed-image regression
-  passed 703 tests with five skips, network disabled, no device mounts, non-root
-  execution and read-only root. The final image archive is mirrored to Mac and
-  transfer integrity is verified. Logs and receipts are retained in
-  `artifacts/container-entrypoint-20261002/`.
-- M01-A03 / M09-A01 PASS: the actual host Python 3.10 helper opened an interactive
-  current-image terminal and `ur12e` help worked directly. Two installed-image
-  instances demonstrated exclusive shared-file lease ownership and subsequent
-  release. Non-root data writes and persistence across container replacement
-  passed; mounted configuration is read-only and unchanged. Original station
-  configuration, recording station and existing recordings are preserved.
-- Station-local calibration/evidence paths now use `/config` and `/evidence`;
-  the leader calibration and task table are copied into the ignored mounted
-  configuration directory. The rejected host wrapper is moved into the backup.
-  Previous image/source/configuration are retained at
-  `/home/li1013/past_archives/container-entrypoint-20261002-1790891167114310539`
-  and tag `ur12e-collection:before-container-cli-20261002`.
-- UR/Hand-E/GELLO movement and camera acquisition: NOT RUN.
-
-Historical host-entrypoint acceptance below is retained as historical evidence,
-not container acceptance.
+Use the existing user-local PATH configuration for subsequent shells. The symlink
+follows the current deployment pointer; Python resolves the real script location,
+so station paths do not depend on the shell's current directory. No sudo or new
+Python environment is needed on the already provisioned collection PC. This is a
+host launcher update; the collector's installed Python package and runtime image
+are unchanged. Advanced launch options remain in `scripts/teleop.py`.
 
 ## Results, 2026-09-13
 

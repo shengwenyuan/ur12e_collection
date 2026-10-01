@@ -3,13 +3,11 @@ ARG ROS_IMAGE=ros@sha256:2589a8fba5257307857890173c069852c2abf913a0be7970f172478
 FROM ${ROS_IMAGE} AS dependencies
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-ENV UR12E_CONFIG_DIR=/config UR12E_DATA_DIR=/data
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      iputils-ping libusb-1.0-0 python3-venv \
+      libusb-1.0-0 python3-venv \
       ros-jazzy-foxglove-msgs ros-jazzy-ros2bag \
       ros-jazzy-rosbag2-storage-mcap ros-jazzy-rosbag2-transport \
     && rm -rf /var/lib/apt/lists/* \
-    && setcap -r /usr/bin/ping \
     && python3 -m venv --system-site-packages /opt/venv
 COPY requirements/runtime.txt /opt/requirements/runtime.txt
 RUN pip install --no-cache-dir --require-hashes -r /opt/requirements/runtime.txt
@@ -35,7 +33,6 @@ RUN pip install --no-cache-dir --no-deps /wheels/*.whl && rm -rf /wheels \
     && dpkg-query -W > /opt/os-packages.txt \
     && pip freeze > /opt/python-packages.txt
 COPY config/station.example.json /opt/examples/station.json
-COPY config/task-routes.json /opt/examples/task-routes.json
 COPY scripts/entrypoint.sh /entrypoint.sh
 USER collector
 WORKDIR /data

@@ -1,117 +1,90 @@
-"""Installed operator commands delegate in process before opening hardware."""
+"""Daily collection commands reuse the hardware launcher without executing it."""
 
+import importlib.util
 import json
 from pathlib import Path
 from unittest import mock
 
 import pytest
 
-from ur12e_collection import operator
-
 
 @pytest.fixture
 def entrypoint(tmp_path, monkeypatch):
-    config = tmp_path / "configuration"
-    config.mkdir()
-    (config / "teleop.ur.json").write_text("{}")
-    (config / "recording.station.json").write_text("{}")
-    (config / "task-routes.json").write_text(
+    scripts = Path(__file__).parents[1] / "scripts"
+    monkeypatch.syspath_prepend(str(scripts))
+    spec = importlib.util.spec_from_file_location(
+        "collection_entrypoint", scripts / "ur12e.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    root = tmp_path / "deployment"
+    (root / "config/local").mkdir(parents=True)
+    (root / "config/teleop.ur.json").write_text("{}")
+    (root / "config/task-routes.json").write_text(
         json.dumps({"Pick up the red block.": "red-block"})
     )
-    monkeypatch.setenv("UR12E_CONFIG_DIR", str(config))
-    monkeypatch.setenv("UR12E_DATA_DIR", str(tmp_path / "captures"))
     monkeypatch.setattr("builtins.input", lambda _: "1")
+    (root / "config/local/recording.station.json").write_text("{}")
+    monkeypatch.setattr(module.teleop, "ROOT", root)
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(operator.cli, "main", mock.Mock(return_value=0))
-    monkeypatch.setattr(operator.commands, "run", mock.Mock(return_value=0))
-    monkeypatch.setattr(
-        operator.configuration,
-        "load",
-        mock.Mock(
-            return_value={
-                "follower": {
-                    "backend": "ur",
-                    "host": "station",
-                    "interface": "enp3s0",
-                }
-            }
-        ),
-    )
-    monkeypatch.setattr(
-        operator.network, "check", mock.Mock(return_value={"ok": True})
-    )
-    return operator
+    monkeypatch.setenv("HOME", str(tmp_path / "operator"))
+    monkeypatch.setattr(module.teleop, "main", mock.Mock())
+    return module
 
 
 @pytest.mark.parametrize("output", [None, "new captures", "~/custom"])
-def test_recording_delegates_in_process(entrypoint, tmp_path, output):
+def test_recording_arguments_resolve_independently_of_deployment(
+    entrypoint, output
+):
     argv = ["gello"] + (["--output", output] if output else [])
-    with mock.patch("subprocess.run", side_effect=AssertionError("nested run")):
-        assert entrypoint.main(argv) == 0
-    command = entrypoint.cli.main.call_args.args[0]
-    args = entrypoint.cli.parser().parse_args(command)
-    assert args.config == tmp_path / "configuration/teleop.ur.json"
-    assert (
-        args.record_station == tmp_path / "configuration/recording.station.json"
-    )
-    expected = Path(output) if output else tmp_path / "captures"
+    entrypoint.main(argv)
+    command = entrypoint.teleop.main.call_args.args[0]
+    args = entrypoint.teleop.arguments(command)[0]
+    root = entrypoint.teleop.ROOT
+    assert args.config == root / "config/teleop.ur.json"
+    assert args.record_station == root / "config/local/recording.station.json"
+    expected = Path(output) if output else Path.home() / "ur12e-data"
     assert args.record_output == expected.expanduser().resolve() / "red-block"
+    assert args.image == "ur12e-collection:current"
     assert args.operator_approved and not args.preflight
     assert args.task == "Pick up the red block."
     assert not args.record_output.exists()
-    entrypoint.network.check.assert_called_once_with("station", "enp3s0")
 
 
 @pytest.mark.parametrize(
-    "argv",
-    [["--help"], ["gello", "--help"], ["cali", "--help"], ["dagger"], []],
+    "argv", [["--help"], ["gello", "--help"], ["dagger"], []]
 )
 def test_help_and_unknown_modes_never_launch(entrypoint, argv):
     with pytest.raises(SystemExit) as result:
         entrypoint.main(argv)
     assert result.value.code == (0 if "--help" in argv else 2)
-    entrypoint.cli.main.assert_not_called()
-    entrypoint.network.check.assert_not_called()
-    entrypoint.commands.run.assert_not_called()
+    entrypoint.teleop.main.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "filename", ["teleop.ur.json", "recording.station.json"]
-)
-def test_missing_station_never_launches(entrypoint, tmp_path, capsys, filename):
-    (tmp_path / "configuration" / filename).unlink()
+def test_missing_station_never_launches(entrypoint, capsys):
+    (entrypoint.teleop.ROOT / "config/local/recording.station.json").unlink()
     with pytest.raises(SystemExit) as result:
         entrypoint.main(["gello"])
     assert result.value.code == 2
     assert "missing station configuration" in capsys.readouterr().err
-    entrypoint.cli.main.assert_not_called()
+    entrypoint.teleop.main.assert_not_called()
 
 
-def test_configuration_overrides(entrypoint, tmp_path):
-    profile = tmp_path / "other-profile.json"
-    station = tmp_path / "other-station.json"
-    profile.write_text("{}")
-    station.write_text("{}")
-    entrypoint.main(
-        ["gello", "--config", str(profile), "--station", str(station)]
-    )
-    args = entrypoint.cli.parser().parse_args(
-        entrypoint.cli.main.call_args.args[0]
-    )
-    assert args.config == profile and args.record_station == station
+def test_station_local_profile_overrides_repository_default(entrypoint):
+    configuration = entrypoint.teleop.ROOT / "config/local/teleop.ur.json"
+    configuration.write_text("{}")
+    entrypoint.main(["gello"])
+    command = entrypoint.teleop.main.call_args.args[0]
+    args = entrypoint.teleop.arguments(command)[0]
+    assert args.config == configuration
+    assert args.record_station.parent == configuration.parent
 
 
-def test_owner_exit_is_preserved(entrypoint):
-    entrypoint.cli.main.return_value = 7
-    assert entrypoint.main(["gello"]) == 7
-
-
-def test_network_mismatch_never_launches(entrypoint):
-    entrypoint.network.check.side_effect = ValueError("wrong interface")
+def test_launcher_exit_is_preserved(entrypoint):
+    entrypoint.teleop.main.side_effect = SystemExit(7)
     with pytest.raises(SystemExit) as result:
         entrypoint.main(["gello"])
-    assert result.value.code == 2
-    entrypoint.cli.main.assert_not_called()
+    assert result.value.code == 7
 
 
 def test_task_choice_retries_and_preserves_description(
@@ -124,11 +97,10 @@ def test_task_choice_retries_and_preserves_description(
     )
     with mock.patch("builtins.input", side_effect=["bad", "0", "3", "2"]):
         entrypoint.main(["gello", "--task-routes", str(route)])
-    args = entrypoint.cli.parser().parse_args(
-        entrypoint.cli.main.call_args.args[0]
-    )
+    command = entrypoint.teleop.main.call_args.args[0]
+    args = entrypoint.teleop.arguments(command)[0]
     assert args.task == description
-    assert args.record_output == tmp_path / "captures/red-box"
+    assert args.record_output == Path.home() / "ur12e-data/red-box"
     text = capsys.readouterr().out
     assert "Collection mode: GELLO" in text and description in text
 
@@ -143,7 +115,7 @@ def test_cancel_selection_never_launches(entrypoint, answer):
         with pytest.raises(SystemExit) as result:
             entrypoint.main(["gello"])
     assert result.value.code == 0
-    entrypoint.cli.main.assert_not_called()
+    entrypoint.teleop.main.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -165,36 +137,18 @@ def test_cancel_selection_never_launches(entrypoint, answer):
         '{"task": "$(touch-pwned)"}',
     ],
 )
-def test_invalid_routes_never_launch(entrypoint, tmp_path, body):
-    (tmp_path / "configuration/task-routes.json").write_text(body)
+def test_invalid_routes_never_launch(entrypoint, body):
+    path = entrypoint.teleop.ROOT / "config/task-routes.json"
+    path.write_text(body)
     with pytest.raises(SystemExit) as result:
         entrypoint.main(["gello"])
     assert result.value.code == 2
-    entrypoint.cli.main.assert_not_called()
+    entrypoint.teleop.main.assert_not_called()
 
 
-def test_missing_routes_never_launch(entrypoint, tmp_path):
+def test_missing_routes_never_launch(entrypoint):
+    (entrypoint.teleop.ROOT / "config/task-routes.json").unlink()
     with pytest.raises(SystemExit) as result:
-        entrypoint.main(
-            ["gello", "--task-routes", str(tmp_path / "absent.json")]
-        )
+        entrypoint.main(["gello"])
     assert result.value.code == 2
-    entrypoint.cli.main.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "camera,role", [("left", "third_left"), ("wrist", "wrist")]
-)
-def test_calibration_delegates_with_mounted_defaults(
-    entrypoint, tmp_path, camera, role
-):
-    with mock.patch("subprocess.run", side_effect=AssertionError("nested run")):
-        entrypoint.main(
-            ["cali", f"--{camera}", "--validate-only", "--poses", "poses.json"]
-        )
-    args = entrypoint.commands.run.call_args.args[0]
-    assert args.role == role and args.validate_only
-    assert args.config == tmp_path / "configuration/teleop.ur.json"
-    assert args.station == tmp_path / "configuration/recording.station.json"
-    assert not args.operator_approved
-    entrypoint.cli.main.assert_not_called()
+    entrypoint.teleop.main.assert_not_called()
