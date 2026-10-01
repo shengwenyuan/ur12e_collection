@@ -765,3 +765,14 @@ After the operator ended production and powered off the robot, the candidate
 was promoted on PC and Mac as `current` (`917c714247b2`). Ubuntu offline checks
 passed 654 tests with five skips; station configuration and recordings were
 preserved. Physical acceptance of these changes remains pending.
+
+### 2026-10-02: Replacement station delivery
+
+The operator authorized a local collector commit and replacement-station image
+deployment after reviewing and backing up the existing version. Collector code
+`93d3ee0` is installed as `ur12e-collection:current` (`9ea59bc56825`) on the
+replacement station. All four UR12e repositories are synchronized under the
+station home directory; installed regression passed 693 tests with five skips.
+The daily launcher prefers an ignored station-local control profile and uses
+provisioned Python 3.12. Physical acceptance remains pending; GELLO USB was absent
+during delivery. See [the M01 delivery record](docs/m01-runtime-deployment/li1013-20261002.md).
