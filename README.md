@@ -6,19 +6,32 @@ The application provides persistent three-camera acquisition, verified MCAP reco
 
 ## Daily collection on the provisioned PC
 
+Open the current image terminal on the station:
+
 ```sh
-ur12e gello
-ur12e gello --output ~/another-dataset
+cd ~/ur12e_collection
+python3 scripts/enter.py
 ```
 
-Before hardware connection, select a task from `config/task-routes.json`. Keys
+Then run the installed commands inside that terminal:
+
+```sh
+ur12e gello
+ur12e gello --output /data/another-dataset
+ur12e cali --help
+```
+
+Before hardware initialization, select a task from `/config/task-routes.json`
+(or the image's bundled task table when no override is mounted). Keys
 are full English descriptions and values are unique short directory names. Use
 `--task-routes PATH` for another table. The selected description is recorded in
-the snapshot; output defaults to `~/ur12e-data/<task-route>/session-*`.
+the snapshot; output defaults to `/data/<task-route>/session-*`, persisted in
+the host's `~/ur12e-data` directory.
 
-Launch from any working directory; the
-installed deployment supplies the existing station configuration and `current`
-image. Space requests HOME (including full Hand-E opening), starts recording,
+The image supplies `ur12e` on PATH; the terminal mounts station configuration,
+leader/camera devices, evidence and data. Entering the terminal does not start a
+hardware session. Connect GELLO before entering for collection; re-enter after
+device reconnection. Space requests HOME (including full Hand-E opening), starts recording,
 then stops/saves the episode;
 `a` discards and `q` finishes the session. Ctrl+C uses the existing stop/exit path.
 Starting this command is the operator's explicit session launch, including SDK
@@ -70,4 +83,4 @@ It reuses the installed image without changing the control console. See the
 Camera-specific AprilGrid calibration now has `ur12e cali --left|--right|--wrist`
 replay/solve entries. See the [waypoint JSON and usage contract](docs/m12-calibration/replay-usage.md)
 and [software versus physical acceptance](docs/m12-calibration/keyboard-aprilgrid.md).
-This increment is not yet deployed or physically calibrated.
+The image includes these commands; physical calibration acceptance remains pending.

@@ -57,7 +57,7 @@ def route(host, interface, root=pathlib.Path("/")):
 
 
 def check(host, interface):
-    """Perform host-side route and bounded loss check before Docker startup."""
+    """Check the station network namespace before physical session startup."""
     result = route(host, interface)
     completed = subprocess.run(
         [

@@ -773,6 +773,7 @@ deployment after reviewing and backing up the existing version. Collector code
 `93d3ee0` is installed as `ur12e-collection:current` (`9ea59bc56825`) on the
 replacement station. All four UR12e repositories are synchronized under the
 station home directory; installed regression passed 693 tests with five skips.
-The daily launcher prefers an ignored station-local control profile and uses
-provisioned Python 3.12. Physical acceptance remains pending; GELLO USB was absent
+The operator subsequently selected native `ur12e` commands inside the image
+terminal, superseding the host user-local launcher. M09's updated entrypoint plan
+tracks this correction and M01 records its image delivery. Physical acceptance remains pending; GELLO USB was absent
 during delivery. See [the M01 delivery record](docs/m01-runtime-deployment/li1013-20261002.md).
