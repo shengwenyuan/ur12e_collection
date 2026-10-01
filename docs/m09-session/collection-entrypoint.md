@@ -2,7 +2,8 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: implemented / container delivery verification pending, 2026-10-02.
+Status: accepted for offline container delivery / physical acceptance pending,
+2026-10-02.
 The operator explicitly rejected the host user-local launcher and selected an
 interactive container terminal with direct `ur12e gello`, `ur12e cali`, and
 related commands. This supersedes the earlier host-entrypoint design below.
@@ -81,8 +82,30 @@ re-enter after connecting/re-enumerating devices. Hardware checks remain pending
   211 files; production/launcher Pylint passed at 10/10. New checks cover direct
   in-process dispatch, mounted defaults/overrides, calibration/help, wired-route
   failure, cancellation before hardware, terminal mounts and shared lease path.
-- M01-A01/A02/A03: actual installed-image and replacement-station verification
-  pending. Logs are retained in `artifacts/container-entrypoint-20261002/`.
+- M01-A01 PASS: code `d4aabe2` is installed as `ur12e-collection:current`, image
+  `afe9aacbb394`, linux/amd64. All 119 installed package/schema files and bundled
+  scripts match committed source. Actual image Bash resolves `/opt/venv/bin/ur12e`
+  and passes help/menu cancellation without a source checkout, Docker binary or
+  Docker socket. Loopback ping passes as UID 1000 with all capabilities dropped;
+  the initial candidate's file-capability execution failure was fixed before
+  promotion. No robot packet-loss or connectivity test was run.
+- M01-A02 PASS for this station's software delivery: installed-image regression
+  passed 703 tests with five skips, network disabled, no device mounts, non-root
+  execution and read-only root. The final image archive is mirrored to Mac and
+  transfer integrity is verified. Logs and receipts are retained in
+  `artifacts/container-entrypoint-20261002/`.
+- M01-A03 / M09-A01 PASS: the actual host Python 3.10 helper opened an interactive
+  current-image terminal and `ur12e` help worked directly. Two installed-image
+  instances demonstrated exclusive shared-file lease ownership and subsequent
+  release. Non-root data writes and persistence across container replacement
+  passed; mounted configuration is read-only and unchanged. Original station
+  configuration, recording station and existing recordings are preserved.
+- Station-local calibration/evidence paths now use `/config` and `/evidence`;
+  the leader calibration and task table are copied into the ignored mounted
+  configuration directory. The rejected host wrapper is moved into the backup.
+  Previous image/source/configuration are retained at
+  `/home/li1013/past_archives/container-entrypoint-20261002-1790891167114310539`
+  and tag `ur12e-collection:before-container-cli-20261002`.
 - UR/Hand-E/GELLO movement and camera acquisition: NOT RUN.
 
 Historical host-entrypoint acceptance below is retained as historical evidence,

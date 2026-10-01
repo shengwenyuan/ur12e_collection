@@ -15,11 +15,12 @@ aligns shadow UR observation retention to 125 Hz while preserving 120 Hz
 actions and 30 fps images. Raw MCAP retains independent high-rate streams;
 training projection and dataloader cadence belong to the external consumer.
 
-Current delivery: the [2026-09-13 consolidated release](docs/m01-runtime-deployment/current-20260913.md)
-uses source `8b2ebff` on Mac Docker and the collection PC. `current`, `native-isaac`
-and `physical-teleop` select one immutable image; both installed suites pass 621
-tests with five skips. Old collector images were removed and superseded PC
-deployments archived. Isaac remains external. Physical recording successes and
+Current delivery: the [2026-10-02 replacement station release](docs/m01-runtime-deployment/li1013-20261002.md)
+uses code `d4aabe2` and image `afe9aacbb394` on the li1013 station; the verified
+image archive is mirrored to Mac. Native and installed regressions each pass
+703 tests with five skips. Operator commands execute inside the image terminal.
+Previous station source/image/configuration are backed up; existing data is
+preserved. Isaac remains external. Physical recording successes and
 the unresolved stop-timeout/watchdog issue are recorded in
 [M09](docs/m09-session/physical-recording.md); deployment adds no motion authority.
 
@@ -770,10 +771,12 @@ preserved. Physical acceptance of these changes remains pending.
 
 The operator authorized a local collector commit and replacement-station image
 deployment after reviewing and backing up the existing version. Collector code
-`93d3ee0` is installed as `ur12e-collection:current` (`9ea59bc56825`) on the
+`d4aabe2` is installed as `ur12e-collection:current` (`afe9aacbb394`) on the
 replacement station. All four UR12e repositories are synchronized under the
-station home directory; installed regression passed 693 tests with five skips.
+station home directory; native and installed regressions passed 703 tests with
+five skips. The actual image terminal resolves the installed `ur12e` command.
 The operator subsequently selected native `ur12e` commands inside the image
 terminal, superseding the host user-local launcher. M09's updated entrypoint plan
-tracks this correction and M01 records its image delivery. Physical acceptance remains pending; GELLO USB was absent
+tracks this correction and M01 records its image delivery. Physical acceptance
+remains pending; GELLO USB was absent
 during delivery. See [the M01 delivery record](docs/m01-runtime-deployment/li1013-20261002.md).
