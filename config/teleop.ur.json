@@ -57,7 +57,7 @@
     "force": 32,
     "open_tolerance": 5
   },
-  "home_open_gripper": false,
+  "home_open_gripper": true,
   "guards": {
     "input_rate": 3.141592653589793,
     "intent_error": 0.5235987755982988,

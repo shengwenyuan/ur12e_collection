@@ -11,9 +11,15 @@ ur12e gello
 ur12e gello --output ~/another-dataset
 ```
 
-The default output is `~/ur12e-data`. Launch from any working directory; the
+Before hardware connection, select a task from `config/task-routes.json`. Keys
+are full English descriptions and values are unique short directory names. Use
+`--task-routes PATH` for another table. The selected description is recorded in
+the snapshot; output defaults to `~/ur12e-data/<task-route>/session-*`.
+
+Launch from any working directory; the
 installed deployment supplies the existing station configuration and `current`
-image. Space requests HOME, starts recording, then stops/saves the episode;
+image. Space requests HOME (including full Hand-E opening), starts recording,
+then stops/saves the episode;
 `a` discards and `q` finishes the session. Ctrl+C uses the existing stop/exit path.
 Starting this command is the operator's explicit session launch, including SDK
 initialization; motion remains subject to the existing keyboard/state gates.

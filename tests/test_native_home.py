@@ -144,7 +144,7 @@ def test_native_stop_deadline_faults_while_fresh_feedback_is_moving(
     owner = device.owner()
     owner.start()
     owner.stop()
-    for _ in range(16):
+    for _ in range(program.settling.STOP_TIMEOUT_NS // 120_000_000):
         device.advance(qd=(0.001,) * 6)
         owner.step()
         assert owner.state == "stopping"

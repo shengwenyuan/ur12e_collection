@@ -10,13 +10,21 @@ collection command, an optional output directory, and future room for
 
 - `ur12e gello` starts the existing physical GELLO recording session using
   `config/teleop.ur.json`, `config/local/recording.station.json`, image
-  `ur12e-collection:current`, and task label `gello_collection`.
+  `ur12e-collection:current`, and an operator-selected task from `config/task-routes.json`.
+  The JSON maps full English descriptions to unique directory names; selection
+  precedes hardware access. See [task routing and HOME](task-routing-and-home.md).
 - Output defaults to `~/ur12e-data`; `--output DIRECTORY` overrides it. The
-  existing recorder allocates unique session directories; older data is preserved.
+  existing recorder allocates unique session directories beneath the selected
+  task name (`<output>/<route>/session-*`); older data is preserved.
 - Configuration resolves from the installed deployment, independent of the
   operator's working directory. Reuse the existing host Docker launcher and its
   network, USB, lease, image pinning, recording and error handling. Do not create
   a second control/session implementation or a shell-command string.
+- A station may supply `config/local/teleop.ur.json` for its Ethernet interface,
+  leader device and file paths. The daily command prefers that ignored local
+  profile when present, otherwise retaining `config/teleop.ur.json`. An invalid
+  local profile is reported rather than silently replaced with another station's
+  defaults. The recording station remains `config/local/recording.station.json`.
 - Typing `ur12e gello` is the explicit operator launch action, equivalent to the
   existing `--operator-approved` launch. It can initialize SDK/tool connections;
   HOME and following remain gated by the existing Space transitions. No extra
@@ -39,8 +47,8 @@ help from another working directory. Validate parser/command composition with
 mocked launch execution only. No physical connection, preflight, camera capture
 or robot/leader/gripper control may be started by this delivery.
 
-Future configuration growth can add task/station presets or a mounted config
-file when required. This increment changes no MCAP semantics, protection policy,
+Task routing is now provided by a repository JSON file; `--task-routes PATH`
+selects an external file when needed. This increment changes no MCAP semantics, protection policy,
 TCP offset fields or DAgger implementation.
 
 ## Installation

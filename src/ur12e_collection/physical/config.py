@@ -15,8 +15,8 @@ def validate(value):
         raise ValueError("physical serial and Ethernet interface are required")
     if value.get("twins"):
         raise ValueError("commissioning requires an isolated physical primary")
-    if value.get("home_open_gripper") is not False:
-        raise ValueError("physical HOME must not release the gripper")
+    if value.get("home_open_gripper") is not True:
+        raise ValueError("physical HOME requires full gripper opening")
     limits = value["limits"]
     ceilings = {
         "speed": math.radians(12),

@@ -31,7 +31,7 @@ def test_physical_profile_has_separate_units_and_conservative_bounds():
     assert value["limits"].acceleration == math.radians(15)
     assert value["limits"].ready_acceleration == math.radians(6)
     assert value["guards"].measured_speed == math.radians(14.4)
-    assert value["home_open_gripper"] is False
+    assert value["home_open_gripper"] is True
     assert value["gripper"]["speed"] == value["gripper"]["force"] == 32
 
 
@@ -180,7 +180,7 @@ def session():
         mock.Mock(),
         calibration,
         value["limits"],
-        home_open_gripper=False,
+        home_open_gripper=value["home_open_gripper"],
     )
     instance.controller.progress.feedback = state.Feedback(
         value["limits"].ready,
@@ -193,11 +193,11 @@ def session():
     return instance, device
 
 
-def test_home_never_opens_real_gripper_and_space_cancels_home():
+def test_home_opens_real_gripper_and_space_cancels_home():
     instance, device = session()
     instance.key(" ", 1_000_000_000)
     assert instance.state == "homing"
-    device.gripper.assert_not_called()
+    device.gripper.assert_called_once_with(0)
     instance.key(" ", 2_000_000_000)
     assert instance.state == "stopping"
     device.stop.assert_called_once_with(False)
@@ -308,11 +308,11 @@ def test_slow_stop_retains_observation_and_serializes_watchdog_writes():
     try:
         assert entered.wait(1)
         assert not stop.done.is_set()
-        sdk.setWatchdog.assert_called_once_with(0.5)
+        sdk.setWatchdog.assert_called_once_with(0.25)
     finally:
         release.set()
         stop.join()
-    assert sdk.setWatchdog.call_args_list == [mock.call(0.5), mock.call(5.0)]
+    assert sdk.setWatchdog.call_args_list == [mock.call(0.25), mock.call(5.0)]
     sdk.servoStop.assert_called_once_with(0.1)
     sdk.stopJ.assert_not_called()
 
@@ -606,3 +606,44 @@ def test_rejection_does_not_restart_stop_supervision(state):
     assert instance.state == state
     device.stop.assert_not_called()
     device.close.assert_not_called()
+
+
+@pytest.mark.parametrize("accepted", [True, False])
+def test_physical_home_opens_only_after_arm_acceptance(accepted):
+    from ur12e_collection.physical import transport
+
+    sdk, worker = mock.Mock(), mock.Mock()
+    sdk.moveJ.return_value = accepted
+    device = transport.Transport(sdk, mock.Mock(), worker, configuration())
+    if accepted:
+        device.move(configuration()["limits"].ready, 0.01, 0.02, 0)
+        worker.offer.assert_called_once_with(0)
+    else:
+        with pytest.raises(model.ControlError, match="rejected moveJ"):
+            device.move(configuration()["limits"].ready, 0.01, 0.02, 0)
+        worker.offer.assert_not_called()
+
+
+def test_home_requires_measured_tool_open_and_times_out_when_blocked():
+    instance, _ = session()
+    instance.key(" ", 1_000_000_000)
+    instance.controller = mock.Mock()
+    instance.controller.state = "hold"
+    instance.controller.progress.feedback = state.Feedback(
+        instance.limits.ready,
+        (0.0,) * 6,
+        2,
+        2_000_000_000,
+        True,
+        "",
+        gripper_open=False,
+    )
+    instance.step(2_000_000_000)
+    assert instance.state == "homing"
+    with pytest.raises(model.ControlError, match="opening timed out"):
+        instance.step(6_001_000_000)
+    instance.controller.progress.feedback = dataclasses.replace(
+        instance.controller.progress.feedback, gripper_open=True
+    )
+    instance.step(3_000_000_000)
+    assert instance.state == "ready"

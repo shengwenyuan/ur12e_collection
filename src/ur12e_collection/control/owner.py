@@ -104,7 +104,16 @@ class Controller:
             ):
                 raise ControlError("leader input is stale")
             if p.state in ("moving", "stopping") and now_ns > p.deadline_ns:
-                raise ControlError("motion or stop timed out")
+                if p.state == "stopping":
+                    budget = settling.STOP_TIMEOUT_NS
+                    elapsed = now_ns - p.deadline_ns + budget
+                    raise ControlError(
+                        f"stop timed out: elapsed_s={elapsed / 1e9:.3f}, "
+                        f"budget_s={budget / 1e9:g}, "
+                        f"max_speed_rad_s={max(map(abs, feedback.qd)):.6f}; "
+                        f"{feedback.motion_error}"
+                    )
+                raise ControlError("motion timed out")
             self.transport.heartbeat()
             self._settle(feedback, now_ns)
             return feedback

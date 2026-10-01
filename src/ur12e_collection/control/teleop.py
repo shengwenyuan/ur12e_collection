@@ -35,6 +35,7 @@ class Teleoperation:
         self.guards = guards
         self.tracking = guarding.Tracking(guards) if guards else None
         self.home_open_gripper = home_open_gripper
+        self.home_gripper_deadline = 0
         self.controller = owner.Controller(transport, limits)
         self.closing_sign = closing_sign
         self.gripper_reference = None
@@ -57,6 +58,7 @@ class Teleoperation:
             if self.home_open_gripper:
                 self.controller.transport.gripper(0)
             self.controller.go_ready(now_ns)
+            self.home_gripper_deadline = now_ns + 5_000_000_000
             self.state = "homing"
         elif self.state == "ready":
             if not self.controller.progress.feedback.gripper_open:
@@ -118,6 +120,13 @@ class Teleoperation:
         """Pump native input continuously and keep primary feedback required."""
         self.controller.tick(now_ns)
         self.source.samples(now_ns)
+        if (
+            self.state == "homing"
+            and self.home_open_gripper
+            and not self.controller.progress.feedback.gripper_open
+            and now_ns > self.home_gripper_deadline
+        ):
+            raise model.ControlError("Hand-E opening timed out during HOME")
         if (
             self.guards is not None
             and max(map(abs, self.controller.progress.feedback.qd))

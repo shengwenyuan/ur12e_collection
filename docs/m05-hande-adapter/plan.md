@@ -248,3 +248,12 @@ actuation or grasp-retention acceptance is claimed.
 Protocol references: [Robotiq bridge archive](https://dof.robotiq.com/discussion/2420/control-robotiq-gripper-mounted-on-ur-robot-via-socket-communication-python)
 and the [ur_rtde Hand-E example](https://sdurobotics.gitlab.io/ur_rtde/_static/robotiq_gripper.py).
 The installed URCap version/target selection still needs lab verification.
+
+## HOME opening update, 2026-09-15
+
+The operator now requests full opening during explicit HOME. The shared tool
+worker receives raw POS=0 after arm HOME is accepted, retaining SPE=32/FOR=32.
+READY requires measured opening; stop/quit still cancel pending commands without
+a release. No automatic activation or leader writes are introduced. Scope and
+software/hardware results are tracked in the
+[M09 increment](../m09-session/task-routing-and-home.md).

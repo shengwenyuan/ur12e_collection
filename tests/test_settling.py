@@ -55,12 +55,13 @@ class Transport:
     def __init__(self):
         self.feedback = model.State(profile.HOME, (0.0,) * 6, 0, 0)
         self.stops = []
+        self.heartbeats = 0
 
     def read(self):
         return self.feedback
 
     def heartbeat(self):
-        pass
+        self.heartbeats += 1
 
     def stop(self, servo):
         self.stops.append(servo)
@@ -75,7 +76,7 @@ class Transport:
 
 
 @pytest.mark.parametrize("settles", [True, False])
-def test_cancel_dispatches_now_and_confirms_or_faults_within_two_seconds(
+def test_cancel_dispatches_now_and_confirms_or_faults_within_four_seconds(
     settles,
 ):
     device = Transport()
@@ -83,20 +84,20 @@ def test_cancel_dispatches_now_and_confirms_or_faults_within_two_seconds(
     control.tick(0)
     control.halt(0)
     assert device.stops == [False]
-    for milliseconds in range(100, 1800, 100):
+    for milliseconds in range(100, 3800, 100):
         device.advance(milliseconds, speed=0.02)
         control.tick(milliseconds * 1_000_000)
         assert control.state == "stopping"
-    for milliseconds in (1800, 1900, 2000):
+    for milliseconds in (3800, 3900, 4000):
         device.advance(milliseconds, speed=0 if settles else 0.02)
         control.tick(milliseconds * 1_000_000)
     if settles:
         assert control.state == "hold"
         assert device.stops == [False]
     else:
-        device.advance(2001)
+        device.advance(4001)
         with pytest.raises(model.ControlError, match="timed out"):
-            control.tick(2_001_000_000)
+            control.tick(4_001_000_000)
         assert control.state == "fault"
 
 
@@ -110,3 +111,39 @@ def test_cancel_does_not_confirm_from_repeated_cached_readback():
     assert control.state == "stopping"
     with pytest.raises(model.ControlError, match="stale"):
         control.tick(251_000_000)
+
+
+def test_measured_slow_stop_keeps_heartbeat_after_old_deadline():
+    device = Transport()
+    control = owner.Controller(device, profile.LIMITS)
+    control.tick(0)
+    control.halt(0)
+    for milliseconds in range(10, 2371, 10):
+        # Reproduce the latest run's approximately 2.16-second crossing.
+        device.advance(
+            milliseconds, speed=0.016 if milliseconds < 2160 else 0.009
+        )
+        control.tick(milliseconds * 1_000_000)
+        if milliseconds < 2360:
+            assert control.state == "stopping"
+    assert control.state == "hold"
+    assert device.heartbeats == 238
+    assert device.stops == [False]
+
+
+def test_stop_timeout_explains_budget_without_refreshing_faulted_owner():
+    device = Transport()
+    control = owner.Controller(device, profile.LIMITS)
+    control.tick(0)
+    control.halt(0)
+    for milliseconds in range(100, 4001, 100):
+        device.advance(milliseconds, speed=0.02)
+        control.tick(milliseconds * 1_000_000)
+    count = device.heartbeats
+    device.advance(4001, speed=0.02)
+    with pytest.raises(
+        model.ControlError, match="stop timed out.*budget_s=4.*max_speed"
+    ):
+        control.tick(4_001_000_000)
+    assert device.heartbeats == count
+    assert control.progress.target is None

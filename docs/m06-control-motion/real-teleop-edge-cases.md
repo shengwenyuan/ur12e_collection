@@ -610,3 +610,14 @@ The `8e34182` adjustment and prior handover diagnostics are now included in the
 [M09 delivery record](../m09-session/physical-recording.md#image-delivery-and-pc-checks-2026-09-13).
 New-rate physical movement acceptance remains NOT RUN; deployment is software
 and camera-only verified. The operator will initiate the next combined run.
+
+### 2026-09-15 candidate policy update
+
+The operator now requests Hand-E opening during explicit HOME. This supersedes
+the earlier no-auto-open-on-HOME policy; stop, fault and exit still retain grasp
+semantics. The stop-confirmation budget becomes four seconds while retaining
+0.01 degree/s for 200 ms of fresh feedback. Normal watchdog rate, trajectory
+rates and UR safety settings are unchanged. See [M09 scope and acceptance](../m09-session/task-routing-and-home.md)
+and [the stop-budget evidence](../m09-session/physical-recording.md). These are
+software-validated candidate changes; PC production remains on its prior image
+until the operator authorizes the post-production switch.

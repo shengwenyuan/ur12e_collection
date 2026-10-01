@@ -87,11 +87,15 @@ class Transport(URTransport):
         super().heartbeat()
 
     def move(self, q, speed, acceleration, gripper_position=None):
-        """HOME never opens the real tool."""
-        if gripper_position is not None:
-            raise model.ControlError("physical HOME must not command Hand-E")
+        """Open through the tool worker after the arm accepts HOME."""
+        if self.stopping is not None and not self.stopping.done.is_set():
+            raise model.ControlError("stop still owns the SDK")
+        if gripper_position not in (None, 0):
+            raise model.ControlError("physical HOME only permits tool opening")
         self.halted = False
         super().move(q, speed, acceleration)
+        if gripper_position is not None:
+            self.tool.offer(gripper_position)
 
     def servo(self, q, gripper_position=None):
         """Only dispatch a tool request after the arm accepts its target."""
@@ -158,7 +162,7 @@ class Transport(URTransport):
     def _confirm_standstill(self):
         """Confirm from outputs without requiring a running SDK program."""
         stable = settling.Standstill()
-        deadline = time.monotonic() + 2
+        deadline = time.monotonic() + settling.STOP_TIMEOUT_NS / 1e9
         while time.monotonic() < deadline:
             state = self._observe()
             if self.watchdog_enabled and not self.protected:

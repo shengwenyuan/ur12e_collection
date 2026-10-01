@@ -2,7 +2,7 @@
 
 import threading
 
-from ur12e_collection.control import model
+from ur12e_collection.control import model, settling
 
 
 class Stop:
@@ -26,13 +26,14 @@ class Stop:
     def _run(self):
         try:
             # The synchronous SDK servoStop blocks longer than a normal input
-            # deadline. Only the already-revoked stopping phase gets 2 seconds.
-            if not self.control.setWatchdog(0.5):
+            # deadline. Only revoked stopping gets the confirmation budget.
+            if not self.control.setWatchdog(1e9 / settling.STOP_TIMEOUT_NS):
                 raise model.ControlError("stop watchdog setup failed")
             self.emit(
                 "stop_dispatched",
                 servo=self.servo,
                 deceleration=self.deceleration,
+                budget_s=settling.STOP_TIMEOUT_NS / 1e9,
             )
             if self.servo:
                 if not self.control.servoStop(self.deceleration):
@@ -57,7 +58,7 @@ class Stop:
 
     def join(self):
         """Bound local cleanup; a stalled call remains controller-supervised."""
-        if not self.done.wait(2):
+        if not self.done.wait(settling.STOP_TIMEOUT_NS / 1e9):
             raise model.ControlError("SDK stop stalled; stop unconfirmed")
         self.thread.join()
         self.check()

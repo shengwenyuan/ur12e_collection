@@ -142,7 +142,7 @@ def audit(rows):
         "moving_at_interrupt": max(map(speed, before)) > 0.1,
         "prompt_stop_request": 0 <= metrics["stop_dispatch_delay_s"] <= 0.1,
         "stable_within_two_seconds": (
-            0 <= metrics["stop_time_s"] <= settling.STOP_TIMEOUT_NS / 1e9
+            0 <= metrics["stop_time_s"] <= 2  # Historical settling-v2 policy.
         ),
         "motion_speed": metrics["observed_peak_deg_s"] <= 1.2,
         "hold": metrics["hold_peak_deg_s"] <= math.degrees(settling.STOP_SPEED)

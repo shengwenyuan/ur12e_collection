@@ -505,3 +505,49 @@ by watchdog expiry is therefore the leading explanation, not evidence of collisi
 or a physical Ethernet disconnection. Exact controller-side attribution remains
 unverified. Review the stop-confirmation budget and fault/watchdog handover together
 before changing thresholds; do not suppress the controller watchdog to hide it.
+
+### Stop-budget correction, 2026-09-15
+
+Status: implementing; Mac software development and staged delivery authorized.
+The repeated C207A0 in session `1789411380012292843` followed an ordinary stop
+of episode 0011: SDK acknowledgement at +1.621 s, owner timeout at +2.021 s,
+first independent speed below 0.01 degree/s at +2.158 s, safety mode 3 at +2.216 s.
+At approximately +2 s speed was 0.016 degree/s. The original fault then prevents
+watchdog refresh; this timing supports expiry as a secondary consequence rather
+than proving a physical network disconnection. Ten episodes were retained and
+two discarded according to the session report, including the verified interrupted
+0011 prefix. Historical evidence and prior two-second acceptance remain intact.
+
+Use one four-second stop-confirmation budget from stop request, retaining
+<=0.01 degree/s for 200 ms of fresh advancing feedback. Stop dispatch remains
+immediate. Use the same duration for the physical blocking SDK watchdog window,
+worker cleanup and independent close confirmation; restore the existing 5 Hz
+watchdog after the SDK returns. Normal healthy stopping continues heartbeat and
+readback until measured hold. A true timeout still latches the original failure,
+revokes targets and permits controller watchdog protection; never refresh blindly
+in a faulted owner or restart the SDK. Add explicit stop-timeout elapsed/budget,
+maximum measured speed and modes so any subsequent C207 does not hide the cause.
+The independent review observer retains save/discard/quit and partial semantics.
+Keep the historical `settling-v2` READY audit's two-second criterion fixed.
+
+M03-A02/A03 and M09-A03 software cases: reproduce the 2.16-second low-speed
+crossing, require the complete stability window, accept only within four seconds;
+continue heartbeat after two seconds while healthy; reject sustained movement,
+stale feedback, unsafe modes and a stalled SDK. Existing collection review and
+protective-stop tests must still pass. No physical fault injection is authorized.
+Results and candidate delivery identity: pending.
+
+Current HOME policy is superseded by [task routing and HOME preparation](task-routing-and-home.md):
+explicit HOME now requests full opening; stop, exit and protective stop do not.
+
+Stop correction software acceptance: M03-A02/A03 and M09-A03 PASS offline.
+A deterministic 2.16-second low-speed crossing now reaches hold only after the
+full 200 ms window, while heartbeat remains active past the old deadline.
+Continuous motion still faults after four seconds and reports elapsed time,
+budget, measured peak speed and backend mode detail. Stale readback remains
+rejected; SDK write ownership and collection review/save/discard/quit regressions
+pass. Historical `settling-v2` continues using its original two-second gate.
+Native Mac and installed amd64 candidate each passed 654 tests with five skips.
+See [candidate identity and delivery](task-routing-and-home.md). Physical stop
+and C207 recurrence acceptance remain NOT RUN; staging does not establish a
+hardware fix. Controller safety thresholds and all motion rates are unchanged.

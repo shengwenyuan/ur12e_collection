@@ -750,3 +750,18 @@ joint bounds apply during following. Held monitoring uses 0.05 degrees/s and
 Leader startup spread allows 10 counts. See the current candidate identity,
 prior lag-triggered stop, gripper coverage and remaining gates in
 [the physical control acceptance record](docs/m06-control-motion/real-teleop-edge-cases.md).
+
+### 2026-09-15 candidate: stop budget, HOME opening and task routing
+
+The operator authorized offline implementation and candidate staging during
+ongoing PC production. M03/M06 use a four-second stop confirmation budget with
+unchanged 0.01 degree/s / 200 ms standstill evidence; historical two-second audits
+remain historical. M05 opens Hand-E during explicit HOME and requires actual
+opening before READY. M09 selects full task descriptions from repository JSON
+and stores sessions beneath the mapped directory. See
+[the task/HOME plan](docs/m09-session/task-routing-and-home.md) and
+[stop-budget correction](docs/m09-session/physical-recording.md).
+After the operator ended production and powered off the robot, the candidate
+was promoted on PC and Mac as `current` (`917c714247b2`). Ubuntu offline checks
+passed 654 tests with five skips; station configuration and recordings were
+preserved. Physical acceptance of these changes remains pending.
