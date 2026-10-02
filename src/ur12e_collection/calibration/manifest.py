@@ -4,7 +4,7 @@ import hashlib
 import json
 
 from ur12e_collection import contracts
-from ur12e_collection.calibration import board, geometry
+from ur12e_collection.calibration import aprilgrid, board, geometry
 
 CONTEXT = (
     "simulated",
@@ -55,7 +55,11 @@ def context(value: dict) -> None:
         raise ValueError("invalid calibration camera role")
     for name in ("camera_serial", "base_id", "mount_id", "script_revision"):
         identity(value[name])
-    board.Board(**value["board"]).create()
+    definition = value["board"]
+    if definition.get("type") == "aprilgrid":
+        aprilgrid.Grid(**{k: v for k, v in definition.items() if k != "type"})
+    else:
+        board.Board(**definition).create()
     board.optics(value["intrinsics"])
     if (
         value["intrinsics"].get("width"),
@@ -90,11 +94,15 @@ def result(value: dict) -> None:
             "detections",
         ),
     )
-    if value["schema_version"] != 1 or value["calibration_id"] != digest(
-        {k: v for k, v in value.items() if k != "calibration_id"}
-    ):
+    if value["schema_version"] not in (1, 3) or value[
+        "calibration_id"
+    ] != digest({k: v for k, v in value.items() if k != "calibration_id"}):
         raise ValueError("calibration result hash/version differs")
     context(value["context"])
+    if (value["schema_version"] == 3) != (
+        value["context"]["board"].get("type") == "aprilgrid"
+    ):
+        raise ValueError("calibration board differs from snapshot schema")
     solution = value["solution"]
     wrist = value["context"]["role"] == "wrist"
     if solution["round"] != ("wrist" if wrist else "fixed"):

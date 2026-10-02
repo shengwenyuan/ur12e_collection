@@ -17,12 +17,16 @@ def configure(parser):
         )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--validate-only", action="store_true")
+    mode.add_argument("--replay", action="store_true")
     mode.add_argument("--solve", type=pathlib.Path, metavar="RUN")
     mode.add_argument("--verify", type=pathlib.Path, metavar="BUNDLE")
+    mode.add_argument("--activate", type=pathlib.Path, metavar="BUNDLE")
+    parser.add_argument("--calibration-config", type=pathlib.Path)
     parser.add_argument("--poses", type=pathlib.Path)
     parser.add_argument("--config", type=pathlib.Path)
     parser.add_argument("--station", type=pathlib.Path)
     parser.add_argument("--output", type=pathlib.Path)
+    parser.add_argument("--result-output", type=pathlib.Path)
     parser.add_argument("--operator-approved", action="store_true")
 
 
@@ -30,7 +34,13 @@ def _execute(args):
     """Offline operations never enter the physical replay lifecycle."""
     # Optional vision/motion dependencies only load for the selected operation.
     # pylint: disable=import-outside-toplevel
-    if args.solve or args.verify:
+    if args.activate:
+        from ur12e_collection.calibration import activation
+
+        if args.station is None:
+            raise ValueError("activation requires --station")
+        value = activation.activate(args.activate, args.station, args.role)
+    elif args.solve or args.verify:
         from ur12e_collection.calibration import pipeline
 
         selected = args.solve or args.verify
@@ -57,7 +67,9 @@ def _execute(args):
             raise ValueError("replay requires --output RUN")
         result_path = None
         if not args.validate_only:
-            result_path = args.output.with_name(args.output.name + ".result")
+            result_path = args.result_output or (
+                args.output.with_name(args.output.name + ".result")
+            )
             for path in (
                 result_path,
                 result_path.with_name(result_path.name + ".partial"),
@@ -80,8 +92,10 @@ def run(args):
     """Report invalid input as a CLI error, including OpenCV fit failures."""
     # pylint: disable=import-outside-toplevel
     import cv2
+    from ur12e_collection.calibration import deployment
 
     try:
+        deployment.configure(args)
         return _execute(args)
     # OpenCV exports its exception through the native extension.
     # pylint: disable-next=catching-non-exception

@@ -61,6 +61,45 @@ def test_help_and_unknown_modes_never_launch(entrypoint, argv):
     entrypoint.teleop.main.assert_not_called()
 
 
+def test_calibration_preview_on_pc_uses_offline_image(entrypoint, monkeypatch):
+    root = entrypoint.teleop.ROOT
+    route = root / "left.json"
+    route.write_text("{}")
+    monkeypatch.setattr(entrypoint.cali.sys, "platform", "linux")
+    factory = mock.Mock(return_value=(["docker", "run"], "pinned-image"))
+    monkeypatch.setattr(entrypoint.teleop, "container_command", factory)
+    launch = mock.Mock(return_value=mock.Mock(returncode=0))
+    monkeypatch.setattr(entrypoint.cali.subprocess, "run", launch)
+    check = mock.Mock(side_effect=AssertionError("no network probe"))
+    monkeypatch.setattr(entrypoint.cali.network, "check", check)
+    assert (
+        entrypoint.main(
+            ["cali", "--left", "--poses", str(route), "--validate-only"]
+        )
+        == 0
+    )
+    factory.assert_called_once_with(
+        "ur12e-collection:current", "2g", physical=False, interactive=False
+    )
+    command = launch.call_args.args[0]
+    assert "--device" not in command and "--operator-approved" not in command
+    assert f"{route}:{route}:ro" in command
+    assert "--validate-only" in command
+    check.assert_not_called()
+
+
+def test_calibration_replay_requires_operator_before_network(
+    entrypoint, monkeypatch
+):
+    monkeypatch.setattr(entrypoint.cali.sys, "platform", "linux")
+    launch = mock.Mock()
+    monkeypatch.setattr(entrypoint.cali.subprocess, "run", launch)
+    with pytest.raises(SystemExit) as error:
+        entrypoint.main(["cali", "--left", "--replay"])
+    assert error.value.code == 2
+    launch.assert_not_called()
+
+
 def test_missing_station_never_launches(entrypoint, capsys):
     (entrypoint.teleop.ROOT / "config/local/recording.station.json").unlink()
     with pytest.raises(SystemExit) as result:

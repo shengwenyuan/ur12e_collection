@@ -7,17 +7,25 @@ import sys
 
 import teleop
 
-from ur12e_collection.calibration import commands
+from ur12e_collection.calibration import commands, deployment
+from ur12e_collection.physical import network
 
 
 def launch(args):
     """Offline work stays local; physical work uses the current Ubuntu image."""
-    args.config = args.config or teleop.ROOT / "config/teleop.ur.json"
+    local = teleop.ROOT / "config/local/teleop.ur.json"
+    args.config = args.config or (
+        local if local.is_file() else teleop.ROOT / "config/teleop.ur.json"
+    )
     args.station = (
         args.station or teleop.ROOT / "config/local/recording.station.json"
     )
-    if args.solve or args.verify or args.validate_only:
-        return commands.run(args)
+    local = teleop.ROOT / "config/local/calibration.json"
+    if args.calibration_config is None and local.is_file():
+        args.calibration_config = local
+    deployment.configure(args)
+    if args.solve or args.verify or args.activate or args.validate_only:
+        return _offline(args) if sys.platform == "linux" else commands.run(args)
     if not args.operator_approved or sys.platform != "linux":
         raise ValueError(
             "replay requires Ubuntu and explicit --operator-approved"
@@ -29,10 +37,18 @@ def launch(args):
     from ur12e_collection.calibration import replay
 
     config, _ = replay.prepare(args)
+    print(
+        network.check(
+            config["follower"]["host"], config["follower"]["interface"]
+        ),
+        flush=True,
+    )
     paths = {
         name: getattr(args, name).expanduser().resolve()
         for name in ("config", "station", "poses", "output")
     }
+    if args.result_output is not None:
+        paths["result-output"] = args.result_output.expanduser().resolve()
     if (
         paths["output"].exists()
         or paths["output"].with_name(paths["output"].name + ".partial").exists()
@@ -63,10 +79,14 @@ def launch(args):
     command += teleop.camera_devices()
     for name in ("config", "station", "poses"):
         command += ["-v", f"{paths[name]}:{paths[name]}:ro"]
-    output = paths["output"].parent
+    for output in {
+        p.parent
+        for key, p in paths.items()
+        if key in ("output", "result-output")
+    }:
+        output.mkdir(parents=True, exist_ok=True)
+        command += ["-v", f"{output}:{output}:rw"]
     command += [
-        "-v",
-        f"{output}:{output}:rw",
         "--entrypoint",
         "python",
         image,
@@ -75,7 +95,54 @@ def launch(args):
         "cali",
         "--" + args.role.replace("third_", ""),
         "--operator-approved",
+        "--replay",
     ]
     for name, path in paths.items():
         command += ["--" + name, str(path)]
+    return subprocess.run(command, check=False).returncode
+
+
+def _offline(args):
+    """Use image-pinned OpenCV on the PC, without network or device mounts."""
+    command, image = teleop.container_command(
+        "ur12e-collection:current", "2g", physical=False, interactive=False
+    )
+    arguments = ["cali", "--" + args.role.replace("third_", "")]
+    names = (
+        ("config", "station", "poses")
+        if args.validate_only
+        else ("solve", "verify", "activate")
+    )
+    if args.activate:
+        names += ("station",)
+    for name in names:
+        selected = getattr(args, name)
+        if selected is None:
+            continue
+        path = selected.expanduser().resolve(strict=True)
+        mount = path.parent if args.activate and name == "station" else path
+        access = "rw" if args.activate and name == "station" else "ro"
+        command += ["-v", f"{mount}:{mount}:{access}"]
+        arguments += ["--" + name, str(path)]
+    if args.validate_only:
+        arguments += ["--validate-only"]
+    if args.solve:
+        if args.output is None:
+            raise ValueError("--solve requires --output or calibration config")
+        output = args.output.expanduser().resolve()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        command += ["-v", f"{output.parent}:{output.parent}:rw"]
+        arguments += ["--output", str(output)]
+    command += [
+        "-e",
+        "OPENBLAS_NUM_THREADS=1",
+        "-e",
+        "OMP_NUM_THREADS=1",
+        "--entrypoint",
+        "python",
+        image,
+        "-m",
+        "ur12e_collection",
+        *arguments,
+    ]
     return subprocess.run(command, check=False).returncode

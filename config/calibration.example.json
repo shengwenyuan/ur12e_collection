@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "output_root": "~/ur12e-calibration",
+  "routes": {
+    "third_left": "~/ur12e-calibration/third_left/routes/colleague-20260926.json",
+    "third_right": "~/ur12e-calibration/third_right/routes/colleague-20260926.json"
+  }
+}

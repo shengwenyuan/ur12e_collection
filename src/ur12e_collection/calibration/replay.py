@@ -10,7 +10,13 @@ import sys
 import time
 
 from ur12e_collection import filesystem, station
-from ur12e_collection.calibration import camera, geometry, rollout, routes
+from ur12e_collection.calibration import (
+    camera,
+    deployment,
+    geometry,
+    rollout,
+    routes,
+)
 from ur12e_collection.control import model, owner, trace
 from ur12e_collection.followers import config as configuration
 from ur12e_collection.physical import transport as hardware
@@ -51,9 +57,18 @@ def drive(capture, source, log):
     controller = capture.traversal.controller
     controller.tick(time.monotonic_ns())
     capture.start(time.monotonic_ns())
+    shown = None
     while capture.traversal.state != "complete":
         started = time.monotonic_ns()
         capture.traversal.step(started)
+        progress = (capture.traversal.index, capture.traversal.state)
+        if progress != shown:
+            print(
+                f"Calibration {min(progress[0] + 1, len(capture.route.poses))}"
+                f"/{len(capture.route.poses)}: {progress[1]}",
+                flush=True,
+            )
+            shown = progress
         log.emit(
             "feedback",
             state=controller.progress.feedback,
@@ -75,12 +90,7 @@ def run(args):
     """Acquire, stop, persist and publish; failures retain partial evidence."""
     config, route = prepare(args)
     if args.validate_only:
-        return {
-            "state": "valid_structure",
-            "motion_ready": False,
-            "checkpoints": len(route.poses),
-            "role": route.role,
-        }
+        return deployment.preview(route, config["limits"])
     if not args.operator_approved:
         raise ValueError("calibration replay requires --operator-approved")
     if sys.platform != "linux":

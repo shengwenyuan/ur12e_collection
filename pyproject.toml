@@ -20,7 +20,7 @@ hardware = [
   "pyrealsense2==2.56.5.9235; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "ur-rtde==1.6.5; sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
-dev = ["black==26.5.1", "pylint==4.0.8", "pytest==8.4.2"]
+dev = ["black==26.5.1", "pylint==4.0.8", "pytest==8.4.2", "PyYAML==6.0.2"]
 
 [project.scripts]
 ur-collect = "ur12e_collection.cli:main"

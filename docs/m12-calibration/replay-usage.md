@@ -2,7 +2,7 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Implementation contract, 2026-09-15. The [formal plan](keyboard-aprilgrid.md)
+Implementation contract, updated 2026-10-03. The [formal plan](keyboard-aprilgrid.md)
 records scope and acceptance. Teaching and IK generation are separate work;
 this workflow accepts a colleague's already reviewed, ordered joint route.
 Software tests are not authorization or evidence for physical motion.
@@ -21,9 +21,12 @@ Offline preflight (no device connections):
 ur12e cali --left --poses /absolute/path/left.json --validate-only
 ```
 
-The host entry defaults `--config` and `--station` to deployment
-`config/teleop.ur.json` and `config/local/recording.station.json`. Override them
-explicitly when needed. Package entrypoints require both for replay/validation.
+The host entry prefers `config/local/teleop.ur.json`, falling back to
+`config/teleop.ur.json`; station defaults to `config/local/recording.station.json`.
+`config/local/calibration.json` optionally supplies role routes and the output
+root (see `config/calibration.example.json`). Explicit CLI paths take precedence.
+On Ubuntu, offline validation/solve/verify/activation use the installed image
+without network or device mounts, avoiding host OpenCV version differences. Package entrypoints require both for replay/validation.
 The selected camera and robot serial must match configuration. When a station
 setup declaration exists, base and mount IDs must also match.
 
@@ -43,7 +46,9 @@ through the existing owner, verifies standstill and observes the post-stop hold.
 A fresh launch starts the entire route; partial runs are never resumed.
 
 The launch records one run, closes motion ownership, then automatically solves
-intrinsics and extrinsics, producing sibling `left-run-001.result`. The raw run
+intrinsics and extrinsics. With deployment configuration, output goes under
+`~/ur12e-calibration/<role>/runs/<id>` and `results/<id>`. Without that configuration,
+the default result is the sibling `left-run-001.result`; `--result-output` overrides it. The raw run
 survives a failed solve. Offline re-solving or verification never connects to a
 robot or camera:
 
@@ -81,7 +86,7 @@ Never duplicate placeholder poses to pass the count gate.
   "joint_names": ["base", "shoulder", "elbow", "wrist1", "wrist2", "wrist3"],
   "units": "rad",
   "start_q": [0, -1.57, -1.57, -1.57, 1.57, 0],
-  "profile": {"width": 1920, "height": 1080, "fps": 30, "format": "rgb8"},
+  "profile": {"width": 640, "height": 480, "fps": 30, "format": "rgb8"},
   "board": {"tag_m": 0.028, "gap_m": 0.0084},
   "waypoints": [
     {
@@ -102,7 +107,7 @@ Never duplicate placeholder poses to pass the count gate.
 - `board_attachment`: `flange` for fixed cameras; `base` for wrist with the board
   independently fixed to the table. `board_mount_id` identifies that rigid setup,
   not a claimed known board-to-flange transform; the solver estimates it.
-- `board`: measured outer black edge and inter-tag gap in **meters**. The fixed
+- `board`: measured outer black edge and inter-tag gap in **meters**. The default
   board layout is tag36h11, 4 columns x 6 rows, IDs 0-23 ascending right then up.
   Decoded tag corners map to bottom-right, bottom-left, top-left, top-right
   because this PDF rotates each tag 180 degrees relative to OpenCV defaults.
@@ -111,20 +116,25 @@ Never duplicate placeholder poses to pass the count gate.
 
 ## Resolution and reference frames
 
-At the reported ~1 m fixed-camera distance, prefer 1920x1080 RGB8/30 Hz.
-For the wrist's <=20 cm working distance, use 1280x720 RGB8/30 Hz if the actual
-D405 SDK stream supports it. The file explicitly selects a mode; there is no
-silent fallback. D405 1288x808 is a special stereo calibration mode and is not
-assumed available as RGB8. Both roles can explicitly use 640x480; fixed cameras
-also permit 1280x720. Actual selected profile must match before control startup.
+All new routes require native 640x480 RGB8/30 Hz. No higher-resolution detection,
+resizing or camera-matrix scaling is performed. This workflow streams RGB only;
+normal collection retains its RGB-D alignment. Factory depth/stereo parameters
+are unchanged. Use the default PDF layout or configure `board` with `columns`,
+`rows`, `dictionary` (tag36h11), `first_id`, `layout` (`bottom_up` or `top_down`),
+`marker_quarter_turns`, `tag_m` and `gap_m`. Defaults retain the original PDF.
 
-This workflow streams only RGB for calibration. Normal collection remains
-640x480 RGB-D/30 Hz with SDK depth alignment unchanged. A high-resolution result
-is bound to its RGB mode. Do not rescale a 16:9 camera matrix into a 4:3 image.
-A result at 640x480 is merely pixel-profile-compatible, not automatically active.
-Schema-2 results are intentionally not accepted by the legacy ChArUco schema-1
-activation API. Production profile calibration/verified pixel mapping and
-explicit activation remain separate follow-up work, not a claim of this result.
+Explicit activation re-verifies the entire bundle and converts its fitted
+optics and directed transforms to an AprilGrid schema-3 station result:
+
+```sh
+ur12e cali --left --activate ~/ur12e-calibration/third_left/results/<id>
+```
+
+The station must already declare matching base/mount identities and camera
+serials. A mismatch or failed solve preserves its previous calibration. This
+command does not move devices. Result activation does not certify absolute
+physical accuracy or unchanged mounting. Older ChArUco schema-1 results retain
+their original contract.
 
 Transforms are `T_A_B` mapping B coordinates into A, translation in meters:
 

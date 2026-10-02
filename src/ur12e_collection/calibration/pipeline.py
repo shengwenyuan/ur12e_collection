@@ -128,6 +128,10 @@ def evaluate(root: pathlib.Path) -> dict:
         route=route.document,
         evidence=evidence,
         opencv_version=cv2.__version__,
+        detections={
+            item["pose_id"]: detection
+            for item, detection in zip(observations, detections)
+        },
     )
     value["calibration_id"] = manifest.digest(value)
     return value

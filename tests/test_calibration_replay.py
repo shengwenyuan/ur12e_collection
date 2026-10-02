@@ -160,6 +160,9 @@ def environment(tmp_path, monkeypatch):
         output=tmp_path / "run",
         operator_approved=True,
         validate_only=False,
+        activate=None,
+        result_output=None,
+        calibration_config=None,
     )
     clock = types.SimpleNamespace(now=1_000_000_000)
 

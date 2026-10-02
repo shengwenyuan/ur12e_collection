@@ -52,6 +52,7 @@ def parse(value: dict, role: str, limits: model.Limits) -> Route:
             "board",
             "waypoints",
         ),
+        ("provenance",),
     )
     _identity(value, role)
     start = tuple(value["start_q"])
@@ -133,16 +134,13 @@ def _identity(value, role):
     aprilgrid.Grid(**value["board"])
     manifest.keys(value["profile"], ("width", "height", "fps", "format"))
     profile = value["profile"]
-    allowed = ((640, 480), (1280, 720))
-    if role != "wrist":
-        allowed += ((1920, 1080),)
     if (
         any(
             (not isinstance(profile[k], int) or isinstance(profile[k], bool))
             for k in ("width", "height", "fps")
         )
-        or (profile["width"], profile["height"]) not in allowed
+        or (profile["width"], profile["height"]) != (640, 480)
         or profile["fps"] != 30
         or profile["format"] != "rgb8"
     ):
-        raise ValueError("unsupported explicit RGB8/30 calibration profile")
+        raise ValueError("calibration requires native 640x480 RGB8/30")

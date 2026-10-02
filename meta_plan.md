@@ -429,8 +429,11 @@ Keep independent held-out validation and actual TCP-offset-to-flange conversion.
 The operator's digital-twin viewpoint comparison gives preliminary support to
 the colleague's extrinsics; independent physical accuracy remains unverified.
 See [teach/replay integration](docs/m12-calibration/teach-replay-integration.md).
-These additions are planned; they supersede the older high-resolution defaults
-and deferred teaching scope, not the current software's implementation status.
+Imported-route replay, portable role paths, native 480p detection and explicit
+AprilGrid snapshot activation are implemented with offline regression. See the
+[Flexlab delivery](docs/m12-calibration/flexlab-replay-20261003.md). Interactive
+teaching and physical replay acceptance remain pending. This supersedes the
+older high-resolution defaults below.
 
 Latest alignment, 2026-09-15: keyboard-based teaching with camera-specific JSON
 routes containing at least 20 capture checkpoints (normally 20-30 per camera),

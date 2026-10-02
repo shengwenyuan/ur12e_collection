@@ -10,12 +10,39 @@ from ur12e_collection.calibration import board
 
 @dataclasses.dataclass(frozen=True)
 class Grid:
-    """IDs increase rightward, then upward; origin is tag zero bottom-left."""
+    """Versioned layout; defaults match the original bottom-up PDF board."""
 
     tag_m: float = 0.028
     gap_m: float = 0.0084
+    columns: int = 4
+    rows: int = 6
+    dictionary: str = "DICT_APRILTAG_36h11"
+    first_id: int = 0
+    layout: str = "bottom_up"
+    marker_quarter_turns: int = 2
 
     def __post_init__(self):
+        for value, minimum in (
+            (self.columns, 1),
+            (self.rows, 1),
+            (self.first_id, 0),
+            (self.marker_quarter_turns, 0),
+        ):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < minimum
+            ):
+                raise ValueError(
+                    "AprilGrid layout requires integer dimensions/IDs"
+                )
+        if (
+            self.layout not in ("bottom_up", "top_down")
+            or self.marker_quarter_turns > 3
+            or self.dictionary != "DICT_APRILTAG_36h11"
+            or self.first_id + self.columns * self.rows > 587
+        ):
+            raise ValueError("invalid AprilGrid layout or dictionary")
         if any(not np.isfinite(v) or v <= 0 for v in (self.tag_m, self.gap_m)):
             raise ValueError(
                 "measured tag edge and gap must be positive meters"
@@ -27,11 +54,20 @@ class Grid:
         if (
             not np.issubdtype(ids.dtype, np.integer)
             or len(set(ids.tolist())) != len(ids)
-            or np.any((ids < 0) | (ids >= 24))
+            or np.any(
+                (ids < self.first_id)
+                | (ids >= self.first_id + self.columns * self.rows)
+            )
         ):
-            raise ValueError("AprilGrid requires distinct IDs in 0..23")
-        origins = np.c_[ids % 4, ids // 4, np.zeros(len(ids))]
-        corners = np.array([[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]])
+            raise ValueError("AprilGrid requires distinct IDs in its layout")
+        indices = ids - self.first_id
+        origins = np.c_[
+            indices % self.columns, indices // self.columns, np.zeros(len(ids))
+        ]
+        corners = np.array([[0, 1, 0], [1, 1, 0], [1, 0, 0], [0, 0, 0]])
+        if self.layout == "top_down":
+            corners[:, 1] = 1 - corners[:, 1]
+        corners = np.roll(corners, -self.marker_quarter_turns, axis=0)
         return (
             (
                 origins[:, None, :] * (self.tag_m + self.gap_m)
@@ -51,10 +87,11 @@ def detect(rgb: np.ndarray, grid: Grid, limits: board.DetectionLimits) -> dict:
     if sharpness < limits.sharpness:
         raise ValueError("calibration image is blurred")
     dictionary = cv2.aruco.getPredefinedDictionary(
-        cv2.aruco.DICT_APRILTAG_36h11
+        getattr(cv2.aruco, grid.dictionary)
     )
     parameters = cv2.aruco.DetectorParameters()
-    parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+    # Tag edge fitting remains useful when 480p tags span few pixels.
+    parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_APRILTAG
     # OpenCV native return annotations omit the tuple result.
     # pylint: disable-next=unpacking-non-sequence
     corners, ids, _ = cv2.aruco.ArucoDetector(

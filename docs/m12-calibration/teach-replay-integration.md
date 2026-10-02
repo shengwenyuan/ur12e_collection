@@ -2,7 +2,8 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: aligned requirements; implementation pending, 2026-10-03.
+Status: imported-route replay implemented / physical acceptance pending,
+2026-10-03. Interactive teaching remains deferred for this increment.
 Dependencies: M02 station configuration, M03 feedback, M06 motion ownership,
 M07 cameras and M10 provenance. This extends
 [the AprilGrid implementation plan](keyboard-aprilgrid.md) and supersedes its
@@ -26,12 +27,15 @@ authorized by this planning update.
 
 ## Operator flow and configuration
 
-Planned entries, not yet available in the installed CLI:
+The aligned complete workflow includes:
 
 ```sh
 ur12e cali --left --teach
 ur12e cali --left --replay
 ```
+
+`--replay` is implemented; `--teach` remains a later increment. This deployment
+uses the colleague's already measured teaching through the offline importer.
 
 The same modes support `--right` and `--wrist`. Resolve station files, selected
 routes and output roots from configuration; retain explicit path overrides.
@@ -115,8 +119,9 @@ adopting its directory layout:
   validation, evidence hashes, diagnostic overlays and immutable result IDs.
 
 The AprilGrid result bundle and older station activation schema currently
-differ. Implement an explicit validated conversion into the station snapshot
-contract; do not activate by relabeling a schema version. Failed verification
+differ. The explicit `--activate` conversion now produces a schema-3 AprilGrid
+station snapshot after full bundle verification; it does not relabel a
+schema-1 ChArUco result. Failed verification
 or mismatched camera/profile/board identities must preserve the prior result.
 
 ## Implementation order and acceptance
@@ -130,15 +135,37 @@ or mismatched camera/profile/board identities must preserve the prior result.
 
 | Stable gate | Integration evidence required | Result |
 | --- | --- | --- |
-| M12-A01 | Teach/save/replay uses actual joint routes and fresh stable two-second captures | NOT RUN |
-| M12-A02 | All role mappings; native 480p; PDF corner mapping; explicit invalid/insufficient-view rejection | NOT RUN |
-| M12-A03 | No held-out leakage; known fixed/wrist geometry; nonzero TCP offset; physical accuracy reported separately | NOT RUN |
-| M12-A04 | Interrupted runs retain evidence; failed solve/activation preserves prior calibration | NOT RUN |
-| M06 / M10-A03 | Exclusive owner, bounded stop, no board release; clocks/units/transforms traceable | NOT RUN |
+| M12-A01 | Imported measured joint routes and fresh stable two-second captures | PASS software; physical NOT RUN |
+| M12-A02 | Role mappings; native 480p; PDF corner mapping; explicit invalid/insufficient-view rejection | PASS software; current visibility NOT RUN |
+| M12-A03 | No held-out leakage; known fixed/wrist geometry; nonzero TCP offset; physical accuracy reported separately | PASS software; physical accuracy NOT RUN |
+| M12-A04 | Interrupted runs retain evidence; failed solve/activation preserves prior calibration | PASS software |
+| M06 / M10-A03 | Exclusive owner, bounded stop, no board release; clocks/units/transforms traceable | PASS device-double regression; physical NOT RUN |
 
 Earlier replay/solver software acceptance remains recorded in the parent plan.
-It does not establish acceptance of these additions. Exact keyboard bindings
+Current checks and delivery are recorded in [the Flexlab receipt](flexlab-replay-20261003.md).
+Exact keyboard bindings
 and step sizes remain implementation planning details before motion development.
+
+## Approved deployment increment (2026-10-03)
+
+The operator requested implementation and deployment using the colleague's
+existing taught waypoints, avoiding another teaching session. Deliver the route
+import/replay/solve path first; interactive keyboard teaching remains a later
+increment. Import actual measured radians in recorded order, never old fitted
+extrinsics or old images as fresh observations. Preserve the original source
+file/hash next to the canonical route. Use the first waypoint as the required
+start, avoiding an invented transit from the colleague's later redefined center.
+Reserve every sixth checkpoint for validation before any new image acquisition
+(25 fit + 5 validation for the supplied 30-point routes).
+
+A configured `calibration.json` resolves role routes and output root; explicit
+overrides remain available. Offline preview reports each segment's unwrapped
+joint delta and nominal moveJ duration, start/end joints and existing speed/
+acceleration bounds. It cannot establish collision clearance. Neither import,
+preview, image deployment nor offline tests may send hardware commands. First
+physical replay remains operator-launched and supervised. Deployment requires
+confirmation of the intended SSH station because the alias currently differs
+from the most recent delivery record.
 
 ## Repository review before publication (2026-10-03)
 
