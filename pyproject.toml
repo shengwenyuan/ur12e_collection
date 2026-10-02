@@ -12,6 +12,7 @@ dependencies = ["jsonschema==4.25.1"]
 [project.optional-dependencies]
 leader = ["dynamixel-sdk==4.0.5", "pyserial==3.5"]
 hardware = [
+  "PyYAML==6.0.2",
   "av==15.1.0",
   "mcap==1.4.0",
   "mcap-ros2-support==0.5.7",

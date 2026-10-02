@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 
 from ur12e_collection import contracts
 from ur12e_collection.calibration import aprilgrid, board, geometry
@@ -83,6 +84,13 @@ def setup(value: dict) -> None:
 
 def result(value: dict) -> None:
     """Verify identity, transform direction and accepted residuals."""
+    if value.get("schema_version") == 4:
+        if value["calibration_id"] != digest(
+            {k: v for k, v in value.items() if k != "calibration_id"}
+        ):
+            raise ValueError("external calibration hash differs")
+        _external_result(value)
+        return
     keys(
         value,
         (
@@ -143,3 +151,73 @@ def active(config: dict) -> None:
             or source["simulated"] != declared["simulated"]
         ):
             raise ValueError("calibration differs from camera/setup identity")
+
+
+HEADER = re.compile(
+    r"^# FINAL hand-eye calibration for (camera_\d+) \(serial (\d+)\)\.$",
+    re.MULTILINE,
+)
+
+
+def source_hash(value):
+    """Hash the original UTF-8 report bytes retained in an episode."""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def external_report(value):
+    """Require an explicitly directed, metric, rigid external solution."""
+    if (
+        value["mode"] != "eye_to_hand"
+        or not value["transform_meaning"].startswith("T_base_camera:")
+        or not isinstance(value["timestamp"], str)
+        or not value["timestamp"]
+    ):
+        raise ValueError("external result must describe metric T_base_camera")
+    transform = geometry.transform(value["transform"])
+    if list(transform[:3, 3]) != value["translation_m"]:
+        raise ValueError("external translation differs from metric transform")
+    return transform.tolist()
+
+
+def _external_result(value):
+    """Validate embedded provenance independently of the source filesystem."""
+    keys(
+        value,
+        (
+            "schema_version",
+            "calibration_id",
+            "context",
+            "solution",
+            "source",
+            "validation",
+        ),
+    )
+    binding = value["context"]
+    keys(binding, ("role", "camera_serial", "base_id", "mount_id", "simulated"))
+    if (
+        binding["role"] not in ("third_left", "third_right")
+        or binding["simulated"] is not False
+    ):
+        raise ValueError("external fixed camera requires physical provenance")
+    for name in ("camera_serial", "base_id", "mount_id"):
+        identity(binding[name])
+    source = value["source"]
+    keys(source, ("name", "camera_name", "sha256", "yaml", "report"))
+    identity(source["name"])
+    header = HEADER.search(source["yaml"])
+    if (
+        header is None
+        or header.groups() != (source["camera_name"], binding["camera_serial"])
+        or source_hash(source["yaml"]) != source["sha256"]
+    ):
+        raise ValueError("external source serial/hash differs")
+    if value["validation"] != {
+        "status": "external_provided",
+        "collector_validation": "not_run",
+    }:
+        raise ValueError("external import cannot claim collector validation")
+    if value["solution"] != {
+        "round": "fixed",
+        "T_base_camera": external_report(source["report"]),
+    }:
+        raise ValueError("external solution differs from source report")

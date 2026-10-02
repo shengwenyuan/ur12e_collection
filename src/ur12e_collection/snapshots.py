@@ -90,6 +90,9 @@ def _calibration(result):
     if setup is not None and setup["simulated"] != result["simulated"]:
         raise ValueError("declared setup simulation differs from snapshot")
     for role, value in (result["calibration"] or {}).get("cameras", {}).items():
+        if value["schema_version"] == 4:
+            # External extrinsics do not claim or replace observed optics.
+            continue
         if (
             value["context"]["intrinsics"]
             != result["cameras"][role]["color_intrinsics"]
