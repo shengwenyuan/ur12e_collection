@@ -148,3 +148,48 @@ No device-reading calibration run, robot motion, gripper command or collection
 session was launched. The next action is operator alignment on first starts,
 current board visibility and the substantial point-to-point paths, then a
 supervised left replay followed by a separately positioned right replay.
+
+## Current replay/validation delivery (2026-10-03)
+
+This update supersedes the initial image, timing and CLI above. The operator
+approved moveJ speed 0.15 rad/s, acceleration 0.30 rad/s², calibration-only stopJ
+deceleration 0.30 rad/s², and 1.5-second stationary capture. `--replay` is the
+explicit motion authorization; `--operator-approved` is removed from cali.
+Mutually exclusive `--validate` previews configured routes, or uses `--solve RUN`
+and `--verify BUNDLE` to process existing evidence without device connections.
+Activation remains a separate explicit command. No collection motion setting
+or station configuration was changed.
+
+- Implementation commit: `d1b9ea0eddc109e4e52213348129c30c6ce1e70c`.
+- Mac native: Black PASS (213 files), Pylint PASS (10.00/10), 717 tests PASS,
+  five SKIP. Ubuntu installed image: 720 PASS / two SKIP on both Mac Docker
+  Desktop and Flexlab, with no network or devices mounted.
+- Current image on both hosts: `ur12e-collection:current`, also tagged
+  `ur12e-collection:cali-d1b9ea0`,
+  `sha256:bf3b29c8fe9a45227af09a82e7ddb53b5f10f6f5bf0563b7794ea57a622682ac`.
+  Reused the prior local image layers with build networking disabled; no
+  dependency downloads. OS, ROS and Python/vision dependency versions unchanged.
+- M01-A01 PASS: 121 installed package files match source on both hosts; delivery
+  archive and script checksums pass. Ten existing configuration files preserved
+  byte-for-byte. Existing routes, captures and calibration results were retained.
+- M12-A01 / M06 PASS software: both real imported routes passed the actual
+  traversal/owner with synthetic feedback, 30 ordered captures each, approved
+  movement rates and exact 1.5-second dwell. Nominal movement plus capture:
+  left 181.41 s, right 161.98 s; real settling, warmup and shutdown add time.
+- M12-A03/A04 PASS software: old two-second evidence and explicit new 1.5-second
+  evidence verify; wrong dwell fails. Offline solve/verify never opens devices;
+  raw evidence is unchanged. Missing/conflicting modes reject before networking.
+- M01-A03 PASS: actual host commands `ur12e cali --left --validate` and
+  `ur12e cali --right --validate` passed from `/tmp` using current image and
+  deployed routes, reporting `motion_ready=false`.
+- PC backup: `~/past_archives/before-cali-d1b9ea0-1790969809197256455`;
+  prior image remains tagged `before-cali-d1b9ea0`. The already running Isaac
+  teleop container was left running on its pinned prior installed image; its
+  configuration and mounted simulation repository were not modified.
+- Logs: local `artifacts/calibration-timing-20261003/`; PC delivery and receipt:
+  `~/ur12e-deliveries/cali-d1b9ea0/`.
+
+Fresh physical calibration, current camera visibility and motion acceptance:
+**NOT RUN**. Deployment sent no hardware commands. Operator launch commands are
+`ur12e cali --left --replay` and, after manually reaching its required start,
+`ur12e cali --right --replay`.

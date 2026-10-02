@@ -213,3 +213,9 @@ update changes documentation only; no image rebuild or hardware launch occurred.
 - Mac checks: Black PASS (213 files), Pylint PASS (10.00/10), pytest
   **717 passed, five skipped**. Image delivery results follow in the linked
   Flexlab receipt. Real camera capture and robot replay: **NOT RUN**.
+
+Delivery completed on Mac and Flexlab: the installed Ubuntu image passed
+720 tests with two skipped on each host; all 121 package files match source.
+Both deployed offline validation entries and both 30-point synthetic-feedback
+route traversals passed. See the current section of the Flexlab receipt for
+image identity, preserved configuration and rollback. Hardware remains NOT RUN.
