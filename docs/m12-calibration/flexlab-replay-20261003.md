@@ -2,7 +2,7 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: implementation complete; image deployment and physical acceptance pending.
+Status: offline deployment accepted; physical replay acceptance pending.
 Aligned 2026-10-03. Target confirmed by the operator: the current
 `ssh ur12e-collection` destination, `robot2026fall@ur12e-flexlab`, not `li1013`.
 No calibration motion or collection session is started by this delivery.
@@ -30,7 +30,7 @@ HOME-to-center or left-to-right connecting move.
 | Route | First joints in degrees (base, shoulder, elbow, wrist1, wrist2, wrist3) | Nominal total |
 | --- | --- | --- |
 | left / 327122073926 | -19.778, -89.993, -89.990, -89.994, 90.003, -134.598 | 423.80 s |
-| right / 327122075735 | 35.27, -65.29, -125.81, -90.00, 90.00, -0.64 | 368.46 s |
+| right / 327122075735 | 35.266, -65.290, -125.813, -89.996, 90.003, -0.637 | 368.46 s |
 
 Estimates use 3 degrees/s and 6 degrees/s², per-segment acceleration/deceleration
 and two seconds of stationary capture per pose. Camera warmup, measured settling,
@@ -101,6 +101,50 @@ and activating results is a separate explicit action after reviewing the output.
 - M12-A04: corruption, activation identity mismatch and prior-result retention
   PASS offline. Keyboard teaching is intentionally outside this import/replay
   increment, because existing teaching is being reused.
-- M01 image/source identity and installed Ubuntu regression: pending.
+- M01 image/source identity and installed Ubuntu regression: PASS below.
 - Printed dimensions, current camera visibility, physical path clearance and
   millimeter accuracy: NOT RUN; no hardware control sent.
+
+## Completed software delivery
+
+- Implementation commit: `04036fc6ba225130332d5ef4c275f028fcbf6304`.
+  Later acceptance documentation does not change its executable content.
+- Mac native checks: Black PASS (212 files), Pylint PASS (10.00/10), pytest
+  707 PASS / 5 SKIP. The final CLI isolation and activation subset also passed.
+- Image: `ur12e-collection:current`, also tagged `cali-04036fc`, identical on
+  Mac Docker Desktop and Flexlab:
+  `sha256:1537f9df1cd1d0ca5cb68c10efeeab959d6b45abadfa33463b5791a6beff116b`.
+  Platform linux/amd64, Ubuntu 24.04 / ROS 2 Jazzy / Python 3.12, OpenCV
+  4.12.0.88 and NumPy 2.2.6. Build reused the existing image layers with build
+  networking disabled. Only the 768 kB pinned development PyYAML wheel was
+  fetched in addition to the locally built collector wheel.
+- Installed-package tests: 710 PASS / 2 SKIP on both Mac's Ubuntu container and
+  the actual PC. Runs used no network or device mounts, non-root user and
+  read-only root. The first Mac run had one ROS logging failure because the
+  read-only home lacked a writable log directory; setting
+  `ROS_LOG_DIR=/tmp/ros-log` corrected the test environment and the full rerun
+  passed. No application gate was relaxed.
+- M01-A01 PASS: all 120 installed package files match source hashes; image,
+  source archive and hash-manifest transfer checksums passed. The archived image
+  SHA-256 is `cdfa952eecaa4b59fdb37e5819de5cbdc7488487610122f17035e0b203efa17a`.
+- M12-A01 PASS software: both imported 30-point routes completed the actual
+  traversal/owner with synthetic device feedback. All 60 targets retained their
+  order, speed/acceleration and two-second dwell; no hardware commands were sent.
+- M01-A03 PASS: actual `ur12e cali --left --validate-only` and `--right
+  --validate-only` work from `/tmp` on the PC through the deployed image and
+  configured routes. They report `motion_ready=false`, not physical acceptance.
+- Eight existing station configuration files remained byte-identical. Only the
+  new calibration path configuration/example and imported route tree were added.
+  Existing recordings and production calibration declarations were not modified.
+- Source/config backup:
+  `/home/robot2026fall/past_archives/before-cali-04036fc-1790967205349626997`.
+  Prior image retained as `ur12e-collection:before-cali-04036fc`.
+- Reproducible local logs and route previews live in ignored
+  `artifacts/calibration-20261003/`; PC delivery archive/receipt:
+  `~/ur12e-deliveries/cali-04036fc/`. Routes and future observations live under
+  `~/ur12e-calibration/third_left/` and `third_right/`.
+
+No device-reading calibration run, robot motion, gripper command or collection
+session was launched. The next action is operator alignment on first starts,
+current board visibility and the substantial point-to-point paths, then a
+supervised left replay followed by a separately positioned right replay.
