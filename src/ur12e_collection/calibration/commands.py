@@ -15,19 +15,33 @@ def configure(parser):
         cameras.add_argument(
             f"--{flag}", dest="role", action="store_const", const=role
         )
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--validate-only", action="store_true")
-    mode.add_argument("--replay", action="store_true")
-    mode.add_argument("--solve", type=pathlib.Path, metavar="RUN")
-    mode.add_argument("--verify", type=pathlib.Path, metavar="BUNDLE")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
+        "--validate", action="store_true", help="offline checks only"
+    )
+    mode.add_argument(
+        "--replay",
+        action="store_true",
+        help="authorize route motion and capture",
+    )
     mode.add_argument("--activate", type=pathlib.Path, metavar="BUNDLE")
+    evidence = parser.add_mutually_exclusive_group()
+    evidence.add_argument("--solve", type=pathlib.Path, metavar="RUN")
+    evidence.add_argument("--verify", type=pathlib.Path, metavar="BUNDLE")
     parser.add_argument("--calibration-config", type=pathlib.Path)
     parser.add_argument("--poses", type=pathlib.Path)
     parser.add_argument("--config", type=pathlib.Path)
     parser.add_argument("--station", type=pathlib.Path)
     parser.add_argument("--output", type=pathlib.Path)
     parser.add_argument("--result-output", type=pathlib.Path)
-    parser.add_argument("--operator-approved", action="store_true")
+
+
+def check_mode(args):
+    """Reject incompatible operations before file, network or device access."""
+    if sum((args.replay, args.validate, bool(args.activate))) != 1:
+        raise ValueError("select --replay, --validate or --activate")
+    if (args.solve or args.verify) and not args.validate:
+        raise ValueError("--solve and --verify require --validate")
 
 
 def _execute(args):
@@ -63,10 +77,10 @@ def _execute(args):
             raise ValueError(
                 "replay/validation requires --poses, --config and --station"
             )
-        if not args.validate_only and args.output is None:
+        if args.replay and args.output is None:
             raise ValueError("replay requires --output RUN")
         result_path = None
-        if not args.validate_only:
+        if args.replay:
             result_path = args.result_output or (
                 args.output.with_name(args.output.name + ".result")
             )
@@ -90,6 +104,7 @@ def _execute(args):
 
 def run(args):
     """Report invalid input as a CLI error, including OpenCV fit failures."""
+    check_mode(args)
     # pylint: disable=import-outside-toplevel
     import cv2
     from ur12e_collection.calibration import deployment

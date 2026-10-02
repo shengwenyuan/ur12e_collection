@@ -63,8 +63,9 @@ board. Preserve nominal and measured geometry separately. The PDF's historical
 Future teaching work may add `--teach` for keyboard teaching under the same selected camera entry, and
 an optional explicit `--poses FILE`; defaults resolve by role from deployment
 configuration, independent of the shell's working directory. A final valid route
-might be invoked as `ur12e cali --left --poses left.json`. The replay form is implemented with required `--poses`, `--output` and explicit
-`--operator-approved`; only the future teaching flag remains unimplemented.
+might be invoked as `ur12e cali --left --replay --poses left.json`. Explicit
+`--replay` authorizes motion; configured paths can supply `--poses` and `--output`.
+Only the future teaching flag remains unimplemented.
 The current file contract is documented in [replay usage](replay-usage.md).
 
 Keyboard increments are bounded joint or Cartesian pose requests. Direct joint
@@ -176,11 +177,13 @@ References: [OpenCV 4.12 camera/hand-eye calibration](https://docs.opencv.org/4.
 ## Approved replay/calculation increment
 
 Implement `ur12e cali --left|--right|--wrist --poses FILE` with explicit
-`--validate-only`, `--operator-approved` for replay, and offline `--solve RUN`.
+`--replay` for motion, or `--validate` for offline preview, `--solve RUN` and
+`--verify BUNDLE`. These mode choices are mutually exclusive.
 The canonical JSON contract is documented in `replay-usage.md`; validate the
 entire route, camera/setup identities, joint order, radians, start tolerance,
 20-40 unique capture checkpoints and >=5 held-out checkpoints before connecting.
-The configured READY speed/acceleration bound each route segment. Start mismatch
+Calibration-specific speed 0.15 rad/s and acceleration 0.30 rad/s² bound each
+route segment; stopJ uses 0.30 rad/s². These supersede shared READY defaults. Start mismatch
 rejects motion; no implicit HOME, return route, IK, gripper opening or resume.
 
 Reuse M06 Controller/Traversal and physical Transport, including exclusive host

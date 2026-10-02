@@ -16,6 +16,7 @@ from ur12e_collection.calibration import (
     geometry,
     rollout,
     routes,
+    timing,
 )
 from ur12e_collection.control import model, owner, trace
 from ur12e_collection.followers import config as configuration
@@ -25,6 +26,8 @@ from ur12e_collection.physical import transport as hardware
 def prepare(args):
     """Validate all files/identities before any camera or robot connection."""
     config = configuration.load(args.config)
+    config["limits"] = timing.motion_limits(config["limits"])
+    config["follower"]["stop_deceleration"] = timing.STOP_DECELERATION
     if config["follower"]["backend"] != "ur":
         raise ValueError(
             "calibration launcher requires the physical UR profile"
@@ -89,10 +92,10 @@ def drive(capture, source, log):
 def run(args):
     """Acquire, stop, persist and publish; failures retain partial evidence."""
     config, route = prepare(args)
-    if args.validate_only:
+    if args.validate:
         return deployment.preview(route, config["limits"])
-    if not args.operator_approved:
-        raise ValueError("calibration replay requires --operator-approved")
+    if not args.replay:
+        raise ValueError("calibration motion requires --replay")
     if sys.platform != "linux":
         raise ValueError("physical calibration runs on the Ubuntu station")
     lease_path, destination, partial = _paths(args.output)
@@ -103,6 +106,8 @@ def run(args):
         "simulated": False,
         "route": route.document,
         "limits": dataclasses.asdict(config["limits"]),
+        "capture_duration_ns": timing.DWELL_NS,
+        "stop_deceleration_rad_s2": timing.STOP_DECELERATION,
         "image_id": os.environ.get("UR12E_IMAGE_ID", "unavailable"),
     }
     try:

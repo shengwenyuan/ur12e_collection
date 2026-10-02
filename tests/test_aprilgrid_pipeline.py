@@ -3,6 +3,7 @@
 import copy
 import dataclasses
 import json
+import shutil
 
 import cv2
 import numpy as np
@@ -277,6 +278,24 @@ def test_complete_pixel_pipeline_publishes_and_reverifies(
     (tmp_path / "bundle/images/000.png").write_bytes(b"corrupt")
     with pytest.raises(ValueError):
         pipeline.verify(tmp_path / "bundle")
+
+
+def test_explicit_shorter_dwell_is_verified_against_each_observation(
+    run_evidence, tmp_path
+):
+    run = tmp_path / "run"
+    shutil.copytree(run_evidence, run)
+    document = json.loads((run / "run.json").read_text())
+    document["capture_duration_ns"] = 1_500_000_000
+    for item in document["observations"]:
+        dwell = item["dwell"]
+        dwell["stop_receipt_ns"] = dwell["start_receipt_ns"] + 1_500_000_000
+    filesystem.write_json(run / "run.json", document)
+    assert pipeline.evaluate(run)["metric_consistency_passed"]
+    document["observations"][0]["dwell"]["stop_receipt_ns"] += 1
+    filesystem.write_json(run / "run.json", document)
+    with pytest.raises(ValueError, match="in-dwell"):
+        pipeline.evaluate(run)
 
 
 @pytest.mark.parametrize(

@@ -153,18 +153,18 @@ def state(now, **changes):
     )
 
 
-def test_two_second_checkpoint_excludes_moving_and_boundary_images():
+def test_stationary_checkpoint_excludes_moving_and_boundary_images():
     gate = checkpoint.Checkpoint("pose-1", profile.HOME, profile.LIMITS)
     gate.update(state(0, qd=(0.1,) * 6), 0)
     assert not gate.image(0, state(0))
-    for now in range(100_000_000, 2_300_000_000, 100_000_000):
+    for now in range(100_000_000, 1_800_000_000, 100_000_000):
         gate.update(state(now), now)
         gate.image(now, state(now))
     assert gate.start_ns == 200_000_000
-    assert not gate.image(2_200_000_000, state(2_200_000_000))
-    result = gate.finish(2_200_000_000)
+    assert not gate.image(1_700_000_000, state(1_700_000_000))
+    result = gate.finish(1_700_000_000)
     assert (
-        result["stop_receipt_ns"] - result["start_receipt_ns"] == 2_000_000_000
+        result["stop_receipt_ns"] - result["start_receipt_ns"] == 1_500_000_000
     )
 
 

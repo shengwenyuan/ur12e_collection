@@ -5,6 +5,7 @@ import dataclasses
 
 from ur12e_collection import contracts
 from ur12e_collection.calibration.checkpoint import Checkpoint
+from ur12e_collection.calibration.timing import DWELL_NS
 from ur12e_collection.control import model
 
 
@@ -39,7 +40,7 @@ class Pose:
 
 
 class Traversal:
-    """Motion finishes before two-second capture; vision never owns a robot."""
+    """Motion finishes before stationary capture; vision never owns a robot."""
 
     def __init__(self, controller, poses, capture):
         if not isinstance(poses, tuple) or not 1 <= len(poses) <= 40:
@@ -93,7 +94,7 @@ class Traversal:
             self.state = self.checkpoint.state
             if (
                 self.checkpoint.start_ns is not None
-                and now_ns >= self.checkpoint.start_ns + 2_000_000_000
+                and now_ns >= self.checkpoint.start_ns + DWELL_NS
             ):
                 if self.views != set(pose.roles):
                     raise ValueError(

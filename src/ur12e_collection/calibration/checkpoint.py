@@ -1,10 +1,11 @@
 """Stationary capture checkpoints consume readback and never issue motion."""
 
 from ur12e_collection.control.model import ControlError, Limits, State, distance
+from ur12e_collection.calibration.timing import DWELL_NS
 
 
 class Checkpoint:
-    """One target, a settled start and an exact two-second receipt window."""
+    """One target, a settled start and an exact stationary receipt window."""
 
     def __init__(self, pose_id: str, target: tuple, limits: Limits):
         limits.check(target)
@@ -63,7 +64,7 @@ class Checkpoint:
         """Accept an in-window image with an actual preceding pose readback."""
         if (
             self.state != "capturing"
-            or not self.start_ns <= receipt_ns < self.start_ns + 2_000_000_000
+            or not self.start_ns <= receipt_ns < self.start_ns + DWELL_NS
         ):
             return False
         if (
@@ -80,7 +81,7 @@ class Checkpoint:
         """A full dwell and fresh final readback are required for completion."""
         if (
             self.state != "capturing"
-            or now_ns < self.start_ns + 2_000_000_000
+            or now_ns < self.start_ns + DWELL_NS
             or not self.images
             or now_ns - self.previous.received_ns > self.limits.freshness_ns
         ):
@@ -89,6 +90,6 @@ class Checkpoint:
         return {
             "pose_id": self.pose_id,
             "start_receipt_ns": self.start_ns,
-            "stop_receipt_ns": self.start_ns + 2_000_000_000,
+            "stop_receipt_ns": self.start_ns + DWELL_NS,
             "accepted_images": self.images,
         }

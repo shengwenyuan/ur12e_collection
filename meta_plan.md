@@ -422,6 +422,13 @@ Acceptance targets: `M11-A01` pixel-exact depth round trip; `M11-A02` independen
 
 ## M12. Independent Visual Calibration
 
+Replay timing aligned on 2026-10-03: 0.15 rad/s moveJ speed, 0.30 rad/s²
+acceleration and 1.5-second stationary capture. These calibration-only values
+supersede prior replay timing; collection motion parameters are unchanged.
+Calibration stopJ deceleration is 0.30 rad/s². Explicit `--replay` authorizes
+motion without an additional flag; mutually exclusive `--validate` previews
+routes or solves/verifies existing evidence without device connections.
+
 Latest alignment, 2026-10-03: integrate the colleague's teaching workflow with
 explicit `ur12e cali --left|--right|--wrist --teach|--replay`, native 640x480 RGB
 at 30 Hz, configured paths and the original configurable PDF board profile.

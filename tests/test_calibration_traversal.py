@@ -56,7 +56,7 @@ def make(capture):
     return transport, traversal
 
 
-def test_twenty_taught_poses_each_capture_for_two_seconds():
+def test_twenty_taught_poses_each_capture_for_one_point_five_seconds():
     evidence = []
     transport, script = make(
         lambda pose, frame, state: evidence.append(
@@ -85,7 +85,7 @@ def test_twenty_taught_poses_each_capture_for_two_seconds():
     assert script.state == "complete" and len(script.results) == 20
     assert len(transport.moves) == 20
     assert all(
-        r["stop_receipt_ns"] - r["start_receipt_ns"] == 2_000_000_000
+        r["stop_receipt_ns"] - r["start_receipt_ns"] == 1_500_000_000
         for r in script.results
     )
     assert all(previous < receipt for _, receipt, previous in evidence)

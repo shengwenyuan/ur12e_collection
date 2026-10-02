@@ -159,8 +159,8 @@ def test_preview_uses_actual_unwrapped_segments_and_ready_rates():
         not preview["motion_ready"] and not preview["path_clearance_verified"]
     )
     assert len(preview["segments"]) == 20
-    assert preview["nominal_total_s"] >= 40
-    assert preview["speed_deg_s"] == math.degrees(profile.LIMITS.ready_speed)
+    assert preview["nominal_total_s"] >= 30
+    assert preview["speed_deg_s"] == math.degrees(0.15)
 
 
 def test_aprilgrid_activation_and_failed_verification_preserve_station(
@@ -207,3 +207,40 @@ def test_activation_mismatched_setup_is_atomic(run_evidence, tmp_path):
     with pytest.raises(ValueError, match="declared setup"):
         activation.activate(bundle, path, "third_left")
     assert path.read_bytes() == original
+
+
+def test_validate_solves_and_verifies_evidence_without_devices(
+    run_evidence, tmp_path, monkeypatch
+):
+    from unittest import mock
+    from ur12e_collection.calibration import commands, replay
+
+    connect = mock.Mock(side_effect=AssertionError("offline validation"))
+    monkeypatch.setattr(replay.hardware, "open_transport", connect)
+    monkeypatch.setattr(replay.camera, "Source", connect)
+    bundle = tmp_path / "offline-result"
+    original = (run_evidence / "run.json").read_bytes()
+    solve = cli.parser().parse_args(
+        [
+            "cali",
+            "--left",
+            "--validate",
+            "--solve",
+            str(run_evidence),
+            "--output",
+            str(bundle),
+        ]
+    )
+    assert commands.run(solve) == 0
+    verify = cli.parser().parse_args(
+        [
+            "cali",
+            "--left",
+            "--validate",
+            "--verify",
+            str(bundle),
+        ]
+    )
+    assert commands.run(verify) == 0
+    assert (run_evidence / "run.json").read_bytes() == original
+    connect.assert_not_called()

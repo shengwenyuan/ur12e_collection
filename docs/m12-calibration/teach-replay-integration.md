@@ -9,6 +9,23 @@ M07 cameras and M10 provenance. This extends
 [the AprilGrid implementation plan](keyboard-aprilgrid.md) and supersedes its
 high-resolution capture defaults and deferred teaching scope.
 
+Replay timing update, 2026-10-03: the operator explicitly approved the
+colleague's moveJ speed 0.15 rad/s and acceleration 0.30 rad/s², and shortened
+the stationary capture window to 1.5 seconds. Apply these to calibration only;
+collection HOME and teleoperation settings remain unchanged. Record the actual
+capture duration in each new run and retain verification of historical
+two-second runs. Update previews, boundary tests and deployed images without
+launching hardware. This supersedes the two-second replay references below.
+
+The operator also approved calibration-only stopJ deceleration 0.30 rad/s².
+Explicit `--replay` authorizes motion without another approval flag. The mutually
+exclusive `--validate` mode only reads configured routes or existing evidence:
+alone it previews the route, with `--solve RUN` it writes a new derived bundle,
+and with `--verify BUNDLE` it checks that bundle. It never connects to devices or
+activates results. Keep `--activate BUNDLE` as a separate explicit operation.
+Acceptance must cover missing/conflicting modes before device access, offline
+input isolation, calibration-only rates and historical capture verification.
+
 ## Evidence and agreed scope
 
 The colleague repository was reviewed at `7cd6dea`. The operator reports that
@@ -180,3 +197,19 @@ Local Mac `scripts/check` completed: Black PASS (207 files), Pylint PASS
 (10.00/10), pytest PASS (693 passed, five skipped). This validates the existing
 offline software, not the planned integration or physical calibration. This
 update changes documentation only; no image rebuild or hardware launch occurred.
+
+## Replay/validation timing update acceptance (2026-10-03)
+
+- M12-A01 / M06 PASS software: calibration-only moveJ 0.15 rad/s,
+  acceleration and stopJ deceleration 0.30 rad/s²; stationary capture 1.5 s.
+  Lifecycle tests verify the effective transport configuration and unchanged
+  collection configuration. New runs preserve capture and stop timing.
+- M12-A03/A04 PASS software: offline `--validate --solve` and `--verify` use
+  real rendered-image evidence without opening device factories or changing
+  raw input. Historical two-second runs still verify; incorrect dwell fails.
+- M01-A03 PASS software: explicit `--replay` launches without an extra approval
+  flag; missing/conflicting modes fail before network/device access. Offline
+  host commands use the network-isolated image and read-only evidence mounts.
+- Mac checks: Black PASS (213 files), Pylint PASS (10.00/10), pytest
+  **717 passed, five skipped**. Image delivery results follow in the linked
+  Flexlab receipt. Real camera capture and robot replay: **NOT RUN**.

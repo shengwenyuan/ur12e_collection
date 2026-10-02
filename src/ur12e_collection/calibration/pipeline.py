@@ -26,7 +26,7 @@ def _digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def readback(item, limits, offset):
+def readback(item, limits, offset, duration_ns=2_000_000_000):
     """Derive flange from fresh, stationary actual TCP readback."""
     raw = item["actual"]
     values = {
@@ -49,7 +49,7 @@ def readback(item, limits, offset):
         <= receipt
         < dwell["stop_receipt_ns"]
         or not 0 <= receipt - exposure <= 250_000_000
-        or dwell["stop_receipt_ns"] - dwell["start_receipt_ns"] != 2_000_000_000
+        or dwell["stop_receipt_ns"] - dwell["start_receipt_ns"] != duration_ns
         or max(map(abs, state.qd)) >= limits.stopped_speed
     ):
         raise ValueError(
@@ -74,6 +74,10 @@ def evaluate(root: pathlib.Path) -> dict:
         raise ValueError("a completed schema-2 replay run is required")
     if not isinstance(document["simulated"], bool):
         raise ValueError("explicit simulation provenance required")
+    # Older schema-2 runs predate explicit capture timing and used two seconds.
+    duration_ns = document.get("capture_duration_ns", 2_000_000_000)
+    if duration_ns not in (1_500_000_000, 2_000_000_000):
+        raise ValueError("unsupported calibration capture duration")
     values = dict(document["limits"])
     for key in ("lower", "upper", "ready"):
         values[key] = tuple(values[key])
@@ -90,7 +94,7 @@ def evaluate(root: pathlib.Path) -> dict:
     for item, target in zip(observations, route.poses):
         if (item["pose_id"], item["split"]) != (target.pose_id, target.split):
             raise ValueError("observation identity/split differs from route")
-        state = readback(item, limits, offset["pose"])
+        state = readback(item, limits, offset["pose"], duration_ns)
         color = item["color"]
         times = (state.timestamp, color["time"]["source_ns"], color["sequence"])
         if any(a <= b for a, b in zip(times, previous)):

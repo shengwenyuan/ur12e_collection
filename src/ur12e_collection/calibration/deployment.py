@@ -4,7 +4,7 @@ import json
 import math
 import time
 
-from ur12e_collection.calibration import manifest
+from ur12e_collection.calibration import manifest, timing
 from ur12e_collection.control import model
 from ur12e_collection.followers.config import resolve
 
@@ -34,6 +34,7 @@ def preview(route, limits):
     """Describe joint interpolation, not Cartesian clearance or real timing."""
     previous = route.start
     segments = []
+    limits = timing.motion_limits(limits)
     speed, acceleration = limits.ready_speed, limits.ready_acceleration
     for pose in route.poses:
         for index, target in enumerate(pose.waypoints):
@@ -64,9 +65,10 @@ def preview(route, limits):
         "end_deg": [round(math.degrees(v), 3) for v in previous],
         "speed_deg_s": math.degrees(speed),
         "acceleration_deg_s2": math.degrees(acceleration),
-        "stationary_capture_s": 2,
+        "stationary_capture_s": timing.DWELL_NS / 1e9,
         "nominal_total_s": round(
-            sum(s["nominal_motion_s"] for s in segments) + 2 * len(route.poses),
+            sum(s["nominal_motion_s"] for s in segments)
+            + timing.DWELL_NS / 1e9 * len(route.poses),
             2,
         ),
         "path_clearance_verified": False,

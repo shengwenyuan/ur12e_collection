@@ -29,11 +29,11 @@ HOME-to-center or left-to-right connecting move.
 
 | Route | First joints in degrees (base, shoulder, elbow, wrist1, wrist2, wrist3) | Nominal total |
 | --- | --- | --- |
-| left / 327122073926 | -19.778, -89.993, -89.990, -89.994, 90.003, -134.598 | 423.80 s |
-| right / 327122075735 | 35.266, -65.290, -125.813, -89.996, 90.003, -0.637 | 368.46 s |
+| left / 327122073926 | -19.778, -89.993, -89.990, -89.994, 90.003, -134.598 | 181.41 s |
+| right / 327122075735 | 35.266, -65.290, -125.813, -89.996, 90.003, -0.637 | 161.98 s |
 
-Estimates use 3 degrees/s and 6 degrees/s², per-segment acceleration/deceleration
-and two seconds of stationary capture per pose. Camera warmup, measured settling,
+Estimates use 0.15 rad/s and 0.30 rad/s², per-segment acceleration/deceleration
+and 1.5 seconds of stationary capture per pose. Camera warmup, measured settling,
 controller speed scaling, the post-stop hold observation and solving add time.
 The largest adjacent joint changes are 72.65 degrees (left, entering waypoint
 27) and 73.13 degrees (right, entering waypoint 23). These are substantial joint
@@ -62,23 +62,23 @@ This delivery does not change production station calibration/setup declarations.
 Device-free preview, safe before robot startup:
 
 ```sh
-ur12e cali --left --validate-only
-ur12e cali --right --validate-only
+ur12e cali --left --validate
+ur12e cali --right --validate
 ```
 
 Only after operator alignment on the board, manually reached start and cleared
 path, run one camera at a time:
 
 ```sh
-ur12e cali --left --replay --operator-approved
+ur12e cali --left --replay
 # After the first run finishes and the operator manually reaches the right start:
-ur12e cali --right --replay --operator-approved
+ur12e cali --right --replay
 ```
 
 The configured camera starts and warms up before control ownership is acquired.
 Replay requires the measured arm to be within the configured arrival tolerance
 of the printed start (currently 0.1 degrees on every joint). It visits 30 targets
-in order, verifies standstill, then collects two seconds at each target. Progress
+in order, verifies standstill, then collects 1.5 seconds at each target. Progress
 prints checkpoint/state changes. The board can leave view during transit; each
 stationary checkpoint needs a valid fresh image. Hand-E keeps its grasp; no
 opening/closing command is sent. The last waypoint is the endpoint; there is no
@@ -105,7 +105,7 @@ and activating results is a separate explicit action after reviewing the output.
 - Printed dimensions, current camera visibility, physical path clearance and
   millimeter accuracy: NOT RUN; no hardware control sent.
 
-## Completed software delivery
+## Initial software delivery (superseded by the update below)
 
 - Implementation commit: `04036fc6ba225130332d5ef4c275f028fcbf6304`.
   Later acceptance documentation does not change its executable content.

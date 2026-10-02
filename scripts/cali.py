@@ -13,6 +13,7 @@ from ur12e_collection.physical import network
 
 def launch(args):
     """Offline work stays local; physical work uses the current Ubuntu image."""
+    commands.check_mode(args)
     local = teleop.ROOT / "config/local/teleop.ur.json"
     args.config = args.config or (
         local if local.is_file() else teleop.ROOT / "config/teleop.ur.json"
@@ -24,12 +25,10 @@ def launch(args):
     if args.calibration_config is None and local.is_file():
         args.calibration_config = local
     deployment.configure(args)
-    if args.solve or args.verify or args.activate or args.validate_only:
+    if not args.replay:
         return _offline(args) if sys.platform == "linux" else commands.run(args)
-    if not args.operator_approved or sys.platform != "linux":
-        raise ValueError(
-            "replay requires Ubuntu and explicit --operator-approved"
-        )
+    if sys.platform != "linux":
+        raise ValueError("replay requires the Ubuntu station")
     if args.poses is None or args.output is None:
         raise ValueError("replay requires --poses FILE and --output RUN")
     # File preflight happens before Docker starts or any device is opened.
@@ -94,7 +93,6 @@ def launch(args):
         "ur12e_collection",
         "cali",
         "--" + args.role.replace("third_", ""),
-        "--operator-approved",
         "--replay",
     ]
     for name, path in paths.items():
@@ -110,7 +108,7 @@ def _offline(args):
     arguments = ["cali", "--" + args.role.replace("third_", "")]
     names = (
         ("config", "station", "poses")
-        if args.validate_only
+        if args.validate and not (args.solve or args.verify)
         else ("solve", "verify", "activate")
     )
     if args.activate:
@@ -124,8 +122,8 @@ def _offline(args):
         access = "rw" if args.activate and name == "station" else "ro"
         command += ["-v", f"{mount}:{mount}:{access}"]
         arguments += ["--" + name, str(path)]
-    if args.validate_only:
-        arguments += ["--validate-only"]
+    if args.validate:
+        arguments += ["--validate"]
     if args.solve:
         if args.output is None:
             raise ValueError("--solve requires --output or calibration config")

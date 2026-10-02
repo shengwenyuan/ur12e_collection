@@ -18,7 +18,7 @@ no GELLO serial device is required. Installed package equivalent: `ur-collect ca
 Offline preflight (no device connections):
 
 ```sh
-ur12e cali --left --poses /absolute/path/left.json --validate-only
+ur12e cali --left --poses /absolute/path/left.json --validate
 ```
 
 The host entry prefers `config/local/teleop.ur.json`, falling back to
@@ -34,13 +34,19 @@ Future, separately authorized and supervised physical launch:
 
 ```sh
 ur12e cali --left --poses /absolute/path/left.json \
-  --output /absolute/path/calibration/left-run-001 --operator-approved
+  --output /absolute/path/calibration/left-run-001 --replay
 ```
 
+`--replay` itself authorizes motion; no additional approval flag is required.
+`--replay` and `--validate` are mutually exclusive. `--validate` alone checks
+the configured route; `--solve` and `--verify` require `--validate`. Activation
+is a separate explicit operation and is never part of validation.
+
 The operator must first place the arm at `start_q`, with the route cleared and
-board secured; no automatic move to the start is added. READY speed and
-acceleration from the reviewed physical profile bound every moveJ segment
-(currently 3 degrees/s and 6 degrees/s²). The last capture pose is the endpoint;
+board secured; no automatic move to the start is added. Calibration-specific speed 0.15 rad/s (8.59 degrees/s) and acceleration
+0.30 rad/s² (17.19 degrees/s²) bound every moveJ segment. Calibration stopJ
+deceleration is also 0.30 rad/s², recorded in each new run. The collection HOME
+and teleoperation settings are unchanged. The last capture pose is the endpoint;
 there is no implicit HOME/return or gripper opening. Ctrl-C or SIGTERM stops
 through the existing owner, verifies standstill and observes the post-stop hold.
 A fresh launch starts the entire route; partial runs are never resumed.
@@ -53,9 +59,9 @@ survives a failed solve. Offline re-solving or verification never connects to a
 robot or camera:
 
 ```sh
-ur12e cali --left --solve /absolute/path/calibration/left-run-001 \
+ur12e cali --left --validate --solve /absolute/path/calibration/left-run-001 \
   --output /absolute/path/calibration/left-result-002
-ur12e cali --left --verify /absolute/path/calibration/left-result-002
+ur12e cali --left --validate --verify /absolute/path/calibration/left-result-002
 ```
 
 ## Canonical waypoint JSON
@@ -151,15 +157,18 @@ Transforms are `T_A_B` mapping B coordinates into A, translation in meters:
 A separate camera process captures, detects and PNG-encodes frames. Its bounded
 queue cannot make OpenCV run on the 120 Hz control owner. The owner retains one
 sharp valid frame per pose; image files are written after motion cleanup. A
-trace writer independently records feedback/fault/stop events. Two seconds of
-stationarity are checked at each pose; captured images must have an exposure in
+trace writer independently records feedback/fault/stop events. A 1.5-second window of
+stationarity is checked at each pose; captured images must have an exposure in
 that dwell, a fresh preceding actual robot sample (<=50 ms), and SDK global-time
 provenance. Pre-arrival buffers and missing views fail rather than advancing.
 Visibility in transit is optional; visibility during each capture is required.
 
+New runs explicitly record `capture_duration_ns=1500000000`. Historical runs
+without that field retain their original two-second verification contract.
+
 `run.json` and lossless `images/*.png` preserve the route, limits, actual joint/TCP
 readback, flange transform, before/after offset, camera identity/profile, image
-source/receipt times and two-second dwell. `control/trace.jsonl` contains motion
+source/receipt times and 1.5-second dwell. `control/trace.jsonl` contains motion
 and shutdown evidence. Interrupted acquisition remains in `RUN.partial` with
 selected images and partial measurements and cannot be solved as a completed run.
 

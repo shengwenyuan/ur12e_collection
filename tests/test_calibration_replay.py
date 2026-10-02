@@ -98,7 +98,7 @@ def test_full_twenty_point_capture_uses_actual_pose_and_nonzero_offset():
     assert (
         records[0]["dwell"]["stop_receipt_ns"]
         - records[0]["dwell"]["start_receipt_ns"]
-        == 2_000_000_000
+        == 1_500_000_000
     )
 
 
@@ -158,8 +158,8 @@ def environment(tmp_path, monkeypatch):
         poses=route_path,
         role="wrist",
         output=tmp_path / "run",
-        operator_approved=True,
-        validate_only=False,
+        replay=True,
+        validate=False,
         activate=None,
         result_output=None,
         calibration_config=None,
@@ -206,7 +206,7 @@ def environment(tmp_path, monkeypatch):
 def test_entry_lifecycle_stops_before_camera_cleanup_and_preserves_partial(
     environment, monkeypatch, fault
 ):
-    args, device, _ = environment
+    args, device, factory = environment
     if fault in ("interrupt", "camera"):
 
         def fail(_self):
@@ -236,6 +236,19 @@ def test_entry_lifecycle_stops_before_camera_cleanup_and_preserves_partial(
         assert result["observations"] == 20
         document = json.loads((args.output / "run.json").read_text())
         assert document["state"] == "complete"
+        assert document["capture_duration_ns"] == 1_500_000_000
+        assert document["stop_deceleration_rad_s2"] == 0.30
+        assert (
+            factory.call_args.args[0]["follower"]["stop_deceleration"] == 0.30
+        )
+        assert (
+            configuration.load(args.config)["follower"]["stop_deceleration"]
+            != 0.30
+        )
+        assert all(move[1:] == (0.15, 0.30) for move in device.moves)
+        original = configuration.load(args.config)["limits"]
+        assert original.ready_speed != 0.15
+        assert original.ready_acceleration != 0.30
         assert len(list((args.output / "images").glob("*.png"))) == 20
     assert device.closed
 
@@ -245,18 +258,18 @@ def test_no_control_on_validation_or_missing_authorization(
     environment, approved, validate
 ):
     args, _, factory = environment
-    args.operator_approved, args.validate_only = approved, validate
+    args.replay, args.validate = approved, validate
     if validate:
         assert replay.run(args)["motion_ready"] is False
     else:
-        with pytest.raises(ValueError, match="operator-approved"):
+        with pytest.raises(ValueError, match="--replay"):
             replay.run(args)
     factory.assert_not_called()
 
 
 @pytest.mark.parametrize("camera", ["left", "right", "wrist"])
 def test_three_cli_entries_parse_without_devices(camera):
-    args = cli.parser().parse_args(["cali", f"--{camera}", "--validate-only"])
+    args = cli.parser().parse_args(["cali", f"--{camera}", "--validate"])
     assert args.role == (camera if camera == "wrist" else f"third_{camera}")
 
 
