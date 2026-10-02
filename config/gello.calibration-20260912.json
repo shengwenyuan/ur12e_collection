@@ -11,50 +11,50 @@
   ],
   "joints": [
     {
-      "home_count": 3113,
+      "home_count": 2574,
       "sign": 1,
-      "minimum": -983,
-      "maximum": 7209,
+      "minimum": -1522,
+      "maximum": 6670,
       "ratio": 1.0
     },
     {
-      "home_count": 2120,
+      "home_count": 2079,
       "sign": 1,
-      "minimum": -1976,
-      "maximum": 6216,
-      "ratio": 1.0
-    },
-    {
-      "home_count": 3187,
-      "sign": -1,
-      "minimum": -909,
-      "maximum": 7283,
+      "minimum": -2017,
+      "maximum": 6175,
       "ratio": 1.0
     },
     {
       "home_count": 1037,
-      "sign": 1,
+      "sign": -1,
       "minimum": -3059,
       "maximum": 5133,
       "ratio": 1.0
     },
     {
-      "home_count": 42,
+      "home_count": 3061,
       "sign": 1,
-      "minimum": -4054,
-      "maximum": 4138,
+      "minimum": -1035,
+      "maximum": 7157,
       "ratio": 1.0
     },
     {
-      "home_count": 1971,
+      "home_count": 1003,
       "sign": 1,
-      "minimum": -2125,
-      "maximum": 6067,
+      "minimum": -3093,
+      "maximum": 5099,
+      "ratio": 1.0
+    },
+    {
+      "home_count": 2057,
+      "sign": 1,
+      "minimum": -2039,
+      "maximum": 6153,
       "ratio": 1.0
     }
   ],
-  "gripper_open": 3256,
-  "gripper_closed": 3388,
-  "reference": "Assembly calibration revision 2026-09-12: operator-observed J2/J3 directions inverted from the prior rehearsal definition. Signs [1,1,-1,1,1,1]. HOME reference and lever endpoints retained. Inherited +/-4096-count logical input intervals are not accepted physical mechanical limits; powered HOME/HOLD and hardware activation remain unverified.",
-  "evidence_sha256": "773a2edcde32d0494e750a6208519704552e3fad332558813a6ab0a1854c7fe4"
+  "gripper_open": 1981,
+  "gripper_closed": 2422,
+  "reference": "Reassembly calibration revision 2026-10-02: motor IDs renumbered to physical joint order 1..7; HOME counts captured after a leader power cycle at UR HOME [0,-90,-90,-90,90,0] deg. Signs [1,1,-1,1,1,1] re-verified joint by joint against URSim 5.22.2 with absolute mapping. J3/J4/J5 encoder wrap points are about 88-91 deg from HOME: power the leader on near HOME. Inherited +/-4096-count logical input intervals are not accepted physical mechanical limits; powered HOME/HOLD and hardware activation remain unverified.",
+  "evidence_sha256": "6c4386b6623f7dec00ea1c770b7c7bee20a331772c4e8e82e7572fc66897112f"
 }
