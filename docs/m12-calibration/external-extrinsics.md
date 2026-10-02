@@ -2,7 +2,7 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: aligned / implementing. The operator explicitly requested activation of
+Status: implemented and deployed; offline persistence accepted. The operator explicitly requested activation of
 camera_3's newest colleague result on lispc, binding by serial rather than
 renaming left/right roles. Collection remains operator-started.
 
@@ -72,3 +72,36 @@ five skipped**. The actual latest camera_3 YAML also passed import against a
 copy of lispc's station; it resolves S/N 327122075735 to the existing third_left
 slot. Role labels were not changed. Initial test-fixture and lint issues were
 corrected before the final full run. Installed delivery acceptance follows.
+
+## lispc activation and delivery
+
+- Code: `0d3864323998f9bc48474cbc8aefaa2f5bfef9ca`. Mac and lispc current image:
+  `sha256:16f63391497fd9160618ed5f35b348ce80c790a7a0078a74721aa91985d94d9c`,
+  also tagged `ur12e-collection:extrinsics-0d38643`. Cached dependency layers
+  reused; existing PyYAML 6.0.2 was declared as a hardware/import dependency.
+- M01-A01 PASS: 122 installed package files match source on both hosts; transfer
+  hashes pass. M01-A02 PASS: installed regression on each host **727 passed,
+  two skipped**. Help and task-menu cancellation pass without hardware access.
+- Activated source: `~/camera_calibration/data/camera_3/handeye/final_result_all_30.yaml`,
+  timestamp `2026-10-02T20:11:03.905+00:00`, source SHA-256
+  `00c45a24af9a3f23835cc422e4ab18545d490704a4774ae6f03adcd28d456ac1`.
+- Bound by S/N `327122075735` to the existing `third_left` slot; no role swap.
+  Calibration ID:
+  `717c1b64e624b6eba8b66179209e8cb24e9af865fd0049b13927151f4f7e479c`.
+  Stored in `~/ur12e_collection/config/local/recording.station.json`.
+- M10-A03 PASS: the actual activated station file was loaded into the installed
+  image, embedded in a generated-pixel offline episode and verified from MCAP
+  and JSON. Geometry, serial, timestamp and source hash match exactly. Initial
+  test used the image default UID and could not read the private station file;
+  repeating with the operator UID/GID, as the real launcher does, passed.
+- Eight other configuration files remain byte-identical. The recording station
+  changed only `setup` and `calibration`. Other programs, data and historical
+  episodes were not modified; no capture/robot/gripper commands were issued.
+- Rollback source/config: `~/past_archives/before-extrinsics-0d38643-1790980812900138593`;
+  prior image tag `before-extrinsics-0d38643`. Evidence is in local
+  `artifacts/external-extrinsics-20261003/` and station
+  `~/ur12e-deliveries/extrinsics-0d38643/`.
+
+Start the next session normally with `ur12e gello`. Source files need not remain
+mounted. Physical accuracy and a live capture with the new extrinsics are NOT
+RUN by this delivery; the operator starts collection.

@@ -422,6 +422,12 @@ Acceptance targets: `M11-A01` pixel-exact depth round trip; `M11-A02` independen
 
 ## M12. Independent Visual Calibration
 
+Serial-bound external fixed-camera extrinsics can now be imported from a
+colleague YAML without changing logical camera roles. Schema-4 snapshots retain
+the supplied transform, source/report/hash and explicit external validation
+status; observed SDK intrinsics remain separate. See
+[external extrinsics](docs/m12-calibration/external-extrinsics.md).
+
 Replay timing aligned on 2026-10-03: 0.15 rad/s moveJ speed, 0.30 rad/s²
 acceleration and 1.5-second stationary capture. These calibration-only values
 supersede prior replay timing; collection motion parameters are unchanged.
