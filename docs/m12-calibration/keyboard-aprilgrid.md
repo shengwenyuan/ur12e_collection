@@ -9,6 +9,11 @@ physical execution still needs a separately supervised operator launch.
 Dependencies: M02 configuration, M03 actual pose/offset, M06 exclusive motion,
 M07 images and M10 provenance. Existing unrelated development is preserved.
 
+Update, 2026-10-03: the aligned [teach/replay integration](teach-replay-integration.md)
+supersedes the high-resolution defaults below with native 640x480 and adds
+explicit teaching/replay modes. Those additions remain implementation pending;
+the original replay acceptance below remains historical evidence.
+
 ## Confirmed requirements
 
 - Replace GELLO-based calibration teaching with keyboard control. Smooth human

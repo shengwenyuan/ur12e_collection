@@ -422,6 +422,16 @@ Acceptance targets: `M11-A01` pixel-exact depth round trip; `M11-A02` independen
 
 ## M12. Independent Visual Calibration
 
+Latest alignment, 2026-10-03: integrate the colleague's teaching workflow with
+explicit `ur12e cali --left|--right|--wrist --teach|--replay`, native 640x480 RGB
+at 30 Hz, configured paths and the original configurable PDF board profile.
+Keep independent held-out validation and actual TCP-offset-to-flange conversion.
+The operator's digital-twin viewpoint comparison gives preliminary support to
+the colleague's extrinsics; independent physical accuracy remains unverified.
+See [teach/replay integration](docs/m12-calibration/teach-replay-integration.md).
+These additions are planned; they supersede the older high-resolution defaults
+and deferred teaching scope, not the current software's implementation status.
+
 Latest alignment, 2026-09-15: keyboard-based teaching with camera-specific JSON
 routes containing at least 20 capture checkpoints (normally 20-30 per camera),
 and `ur12e cali --left|--right|--wrist`. Use the supplied 4x6 tag36h11 AprilGrid
