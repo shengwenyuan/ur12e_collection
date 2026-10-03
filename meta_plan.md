@@ -291,6 +291,8 @@ Acceptance targets: `M08-A01` true nearest-frame selection and threshold rejecti
 
 ## M09. Session, Episode and Keyboard Lifecycle
 
+Planned, not implemented: [local collection web console](docs/m09-session/web-console.md). Closing the owning page must safely end the collection session; headless/SSH access and bounded same-source preview are part of the deferred scope.
+
 Space starts leading and recording together; another Space ends both. In the
 current native physical path, UR starts at HOME and GELLO uses a fresh relative
 reference while manually supported. No leader motor writes are implemented.

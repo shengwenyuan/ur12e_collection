@@ -56,3 +56,33 @@ by the agent during preparation.
 
 References: [ROBOTIS udev latency rule](https://emanual.robotis.com/docs/en/platform/op3/recovery/)
 and [U2D2 latency setup](https://emanual.robotis.com/docs/en/platform/openmanipulator_x/quick_start_guide/).
+
+## lispc preparation, 2026-10-03
+
+The operator approved the same persistent configuration on lispc. Read-only
+inspection confirmed `ftdi_sio`, adapter `FTBEQCDG`, and a 16 ms latency timer;
+no GELLO rule existed in `/etc/udev/rules.d`. The serial-specific rule above was
+delivered to `~/ur12e_collection/config/local/99-gello-latency.rules`.
+Administrator installation is pending because SSH sudo requires a password.
+The operator received the installation, reload, targeted change-trigger and
+readback commands. Installation and reconnect/reboot acceptance are NOT RUN.
+
+Two collection failures (`1790981189805666424` and `1790981534311248204`) reported
+stale independent UR feedback about 0.5 seconds after entering `needs_home`.
+The control receiver continued advancing, with maximum observed source gaps
+of 16 ms and normal modes `(7, 1, 2)` until cleanup. A separate read-only
+probe with both UR receivers, independent Hand-E polling and the actual leader
+input passed for five seconds with the timer still at 16 ms. Therefore this
+host configuration deviation is not established as the cause of UR staleness.
+
+Follow-up: the operator completed installation. Readback confirmed the exact
+serial-specific rule in `/etc/udev/rules.d/99-gello-latency.rules` and
+`latency_timer=1`: installation PASS; reconnect/reboot persistence NOT RUN.
+The next operator-run session `1790981757290927188` retained `episode-0000`
+(24.56 s, 2,947 commands, 734 three-camera groups). Offline CRC reading and
+all 17,419 MCAP message counts matched metadata; embedded calibration matched
+the JSON snapshot. Finalization reports all RGB frames decoded and all depth
+hashes verified. This successful run follows the latency correction but does
+not independently prove the earlier UR-feedback root cause. The same session
+later discarded `episode-0001.partial` after a protective-stop mode; that
+event does not invalidate the completed first episode.
