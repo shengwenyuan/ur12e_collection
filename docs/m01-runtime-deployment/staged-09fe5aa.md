@@ -2,7 +2,7 @@
 
 **Code style requirement: Economical code, exceptional readability, and excellent abstraction design.**
 
-Status: software staging PASS; activation pending explicit operator confirmation.
+Status: software staging and activation PASS; hardware acceptance NOT RUN.
 
 The operator requests delivery of commit `09fe5aa` while collection remains
 active. Install source and image under revision-specific names only. Do not
@@ -70,3 +70,37 @@ PC evidence: `~/ur12e-releases/09fe5aa/receipt.json`, `installed-checks.log`,
 `artifacts/deployment-09fe5aa/`. Station snapshots remain outside Git and the
 image. The isolated candidate routes are under `source/config/local`; reconcile
 the daily launcher's route selection when activation is authorized.
+
+## Activation authorization, 2026-10-06
+
+The operator confirms collection has ended and requests replacement, retaining
+the previous version as `bak` without deleting it. Read-only inspection confirms
+no collection container is running and all 14 active configuration/launcher
+hashes still match the staging snapshot. Task routes match the new release.
+
+Keep the old deployment at its original path to preserve absolute configuration
+references; expose it as `~/ur12e-bak`. Tag the old current image as
+`ur12e-collection:bak`, then promote the verified `09fe5aa` image to `current`
+and atomically repoint `~/ur12e-current` to the staged source. Preserve the
+station calibration entrypoint configuration. Verify launcher help, installed
+package identity and active configuration without hardware or collection.
+The previously reported rate difference is explicit: the activated version
+uses following 24/30 and HOME 6/12 (degrees/s and degrees/s2 respectively).
+Do not delete any prior images, source directories or recordings.
+
+Activation PASS: `current` and `09fe5aa` both select image `80cd4823c9ec`;
+`bak` selects the former `e98510ee47f8` image. `~/ur12e-current` now resolves to
+`~/ur12e-releases/09fe5aa/source`, and `~/ur12e-bak` resolves to the untouched
+`~/ur12e-real-teleop`. The existing `ur12e` launcher symlink follows `current`.
+Its help and GELLO help commands pass. Rechecking the promoted image verifies
+all 122 installed files plus station, camera, route and relative-leader bindings.
+Calibration command configuration is preserved byte-for-byte. The task routes
+match both deployments; no route override is necessary. Default recording root
+remains `~/ur12e-data`, with the existing `--output` override available.
+
+Only the separate URSim service was running after validation. No collection or
+hardware control was launched; no prior image, source directory or recording
+was removed. PC activation evidence is in `activation.json` and
+`activation-checks.log` alongside the original staging receipt. Rollback must
+restore both the deployment symlink and image selection together; the backup
+directory alone does not select the backup image.
