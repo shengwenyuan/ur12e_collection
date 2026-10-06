@@ -1,3 +1,9 @@
 {
-  "Pick up the red block and place it inside the small box.": "red-block-in-box"
+  "Pick up the red block and place it inside the small box.": "red-block-in-box",
+  "Pick up the white block and place it inside the small box.": "white-block-in-box",
+  "Pick up the object and place it inside the box.": "object-in-box",
+  "Push the red block into the designated area.": "push-red-block-into-area",
+  "Push the white block into the designated area.": "push-white-block-into-area",
+  "Press the button vertically downward.": "press-button-downward",
+  "Place the red block on the left side and the white block on the right side.": "red-left-white-right"
 }
