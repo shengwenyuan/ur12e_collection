@@ -109,6 +109,8 @@ def test_completed_episode_allows_new_home_without_restarting_resources(owner):
     recording(owner)
     owner.active.path.mkdir()
     owner.phase = "finalizing"
+    owner.active.reason = "space"
+    owner.active.settled_ns = 2_000_000_000
     owner.motion.state = "held"
     owner.recorder.poll.return_value = [
         ("complete", {"episode": "episode-0000"})
@@ -122,7 +124,7 @@ def test_completed_episode_allows_new_home_without_restarting_resources(owner):
     owner.recorder.start.assert_not_called()
     owner.readers.start.assert_not_called()
     report = json.loads((owner.output / "session.json").read_text())
-    assert report["episodes"][0]["disposition"] == "retained"
+    assert report["episodes"][0]["disposition"] == "success"
 
 
 @pytest.mark.parametrize(
@@ -186,7 +188,7 @@ def test_required_io_failure_keeps_operator_choices_and_blocks_restart(
     owner.step(3_100_000_000)
     assert owner.phase == "blocked" and owner.done
     assert owner.completed[0]["verified"] is False
-    assert owner.completed[0]["disposition"] == "incomplete"
+    assert owner.completed[0]["disposition"] == "aborted"
     operation.assert_called_once()
     owner.motion.close.assert_not_called()
     owner.close()
@@ -223,8 +225,9 @@ def test_discard_then_normal_quit_commits_explicit_outcome(owner):
         owner.motion, "state", "stopping"
     )
     owner.key("a", 2_000_000_000)
-    assert owner.active.discard and owner.active.reason == "discard"
+    assert owner.active.reason == "abort"
     owner.phase = "finalizing"
+    owner.active.settled_ns = 2_000_000_000
     owner.motion.state = "held"
     owner.key("q", 2_000_000_001)
     assert not owner.done
@@ -236,7 +239,7 @@ def test_discard_then_normal_quit_commits_explicit_outcome(owner):
     outcome = json.loads(
         (owner.output / "episode-0000/outcome.json").read_text()
     )
-    assert outcome["disposition"] == "discarded"
+    assert outcome["disposition"] == "aborted"
     assert outcome["task_success"] is None
     owner.close()
     assert (
@@ -273,7 +276,7 @@ def reject_input(owner, monkeypatch):
     assert not owner.rejection.unavailable
 
 
-@pytest.mark.parametrize("choice", [" ", "a", "q"])
+@pytest.mark.parametrize("choice", [" ", "f", "a", "q"])
 def test_rejection_choices_wait_for_stop_and_writer_without_early_cleanup(
     owner, monkeypatch, choice
 ):
@@ -310,11 +313,14 @@ def test_rejection_choices_wait_for_stop_and_writer_without_early_cleanup(
             (owner.output / "episode-0000/outcome.json").read_text()
         )
         assert outcome["interruption"] == "input jump"
+        assert outcome["disposition"] == "aborted"
+        assert outcome["task_success"] is None
+        assert outcome["verified"] is True
         assert (
             owner.completed[0]["stop_confirmed_monotonic_ns"] == 3_100_000_000
         )
     else:
-        assert owner.completed[0]["disposition"] == "discarded"
+        assert owner.completed[0]["disposition"] == "aborted"
         assert owner.completed[0]["verified"] is False
     assert owner.phase == "idle" and owner.rejection is None
     assert owner.done == (choice == "q")
@@ -352,6 +358,7 @@ def test_fault_during_finalization_allows_disposition_and_quit(owner):
     recording(owner)
     owner.active.path.mkdir()
     owner.phase = "finalizing"
+    owner.active.settled_ns = 2_000_000_000
     owner.motion.state = "held"
     owner.motion.step.side_effect = ValueError("leader disconnected")
     owner.step(2_000_000_000)
@@ -364,7 +371,7 @@ def test_fault_during_finalization_allows_disposition_and_quit(owner):
     ]
     owner.step(3_200_000_000)
     assert owner.done
-    assert owner.completed[0]["disposition"] == "discarded"
+    assert owner.completed[0]["disposition"] == "aborted"
 
 
 @pytest.mark.parametrize("choice", ["a", "q"])
@@ -383,3 +390,186 @@ def test_existing_exit_or_discard_intent_survives_late_rejection(owner, choice):
     owner.step(2_200_000_000)
     assert owner.phase == "blocked"
     assert owner.done == (choice == "q")
+
+
+@pytest.mark.parametrize(
+    ("key", "expected", "success"),
+    [
+        (" ", "success", True),
+        ("f", "fail", False),
+        ("a", "aborted", None),
+        ("q", "aborted", None),
+    ],
+)
+def test_operator_outcomes_require_stop_and_verified_completion(
+    owner, key, expected, success
+):
+    recording(owner)
+    owner.motion.stop.side_effect = lambda _: setattr(
+        owner.motion, "state", "stopping"
+    )
+    owner.key(key, 2_000_000_000)
+    assert owner.phase == "stopping"
+    assert not owner.completed
+    owner.receipts.update(
+        ur_feedback=2_000_000_001, hande_feedback=2_000_000_001
+    )
+    owner.step(2_010_000_000)
+    assert owner.phase == "stopping"  # No stop confirmation yet.
+    owner.motion.state = "held"
+    owner.step(2_020_000_000)
+    assert owner.phase == "finalizing" and not owner.completed
+    owner.active.path.mkdir()
+    owner.recorder.poll.return_value = [
+        ("complete", {"episode": "episode-0000"})
+    ]
+    owner.step(2_030_000_000)
+    owner.recorder.poll.return_value = []
+    path = owner.output / "episode-0000/outcome.json"
+    outcome = json.loads(path.read_text())
+    assert outcome["schema_version"] == 2
+    assert outcome["disposition"] == expected
+    assert outcome["task_success"] is success
+    assert outcome["verified"] is True
+    assert owner.completed[0]["disposition"] == expected
+    assert owner.done == (key == "q")
+    original = path.read_bytes()
+    owner.key("a", 3_000_000_000)
+    owner.key("f", 4_000_000_000)
+    assert path.read_bytes() == original
+    owner.key("q", 4_000_000_001)
+    # A later session cleanup failure must not invalidate completed data.
+    owner.motion.close.side_effect = RuntimeError("session disconnect failed")
+    with pytest.raises(RuntimeError, match="session disconnect"):
+        owner.close()
+    assert path.read_bytes() == original
+    assert owner.completed[0]["disposition"] == expected
+    assert (
+        json.loads((owner.output / "session.json").read_text())["state"]
+        == "failed"
+    )
+
+
+@pytest.mark.parametrize("key", [" ", "f"])
+@pytest.mark.parametrize("fault", ["motion", "recorder"])
+def test_fault_after_completion_request_never_succeeds(owner, key, fault):
+    recording(owner)
+    owner.motion.stop.side_effect = lambda _: setattr(
+        owner.motion, "state", "stopping"
+    )
+    owner.key(key, 2_000_000_000)
+    operation = owner.motion.step if fault == "motion" else owner.recorder.poll
+    operation.side_effect = RuntimeError("first fault")
+    owner.step(2_100_000_000)
+    owner.interrupt("later cleanup fault")
+    assert owner.active.interruption == "first fault"
+    assert owner.active.disposition == "aborted"
+    owner.key("f", 3_000_000_000)
+    assert owner.active.disposition == "aborted"
+    partial = owner.active.path.with_name(owner.active.path.name + ".partial")
+    partial.mkdir()
+    owner.close()
+    assert owner.completed[0]["disposition"] == "aborted"
+    outcome = json.loads((partial / "outcome.json").read_text())
+    assert outcome["interruption"] == "first fault"
+    assert outcome["verified"] is False
+
+
+@pytest.mark.parametrize("phase", ["preparing", "recording", "finalizing"])
+@pytest.mark.parametrize("late_commit", [False, True])
+def test_interrupt_labels_unfinished_files_after_writer_cleanup(
+    owner, phase, late_commit
+):
+    recording(owner)
+    owner.phase = phase
+    path = owner.active.path
+    partial = path.with_name(path.name + ".partial")
+    partial.mkdir()
+    (partial / "raw-fixture").write_bytes(b"preserve")
+    owner.active.reason = "space" if phase == "finalizing" else "unstarted"
+    calls = []
+    owner.motion.close.side_effect = lambda: calls.append("motion")
+
+    def reap():
+        calls.append("recorder")
+        if late_commit:
+            partial.rename(path)
+
+    owner.recorder.close.side_effect = reap
+    owner.interrupt("KeyboardInterrupt")
+    owner.close()
+    assert calls == ["motion", "recorder"]
+    actual = path if late_commit else partial
+    outcome = json.loads((actual / "outcome.json").read_text())
+    assert outcome["disposition"] == "aborted"
+    assert outcome["task_success"] is None
+    assert outcome["interruption"] == "KeyboardInterrupt"
+    assert outcome["verified"] is False
+    assert (actual / "raw-fixture").read_bytes() == b"preserve"
+    assert owner.completed[0]["episode"] == actual.name
+    assert not owner.active
+    owner.close()
+    assert calls == ["motion", "recorder"]
+
+
+def test_unstarted_quit_keeps_aborted_entry_and_partial(owner):
+    prepare(owner)
+    partial = owner.active.path.with_name(owner.active.path.name + ".partial")
+    partial.mkdir()
+    owner.key("q", 1_200_000_000)
+    assert owner.done
+    owner.close()
+    outcome = json.loads((partial / "outcome.json").read_text())
+    assert outcome["disposition"] == "aborted"
+    assert outcome["reason"] == "session_end"
+    assert outcome["verified"] is False
+    assert len(owner.completed) == 1
+
+
+def test_commit_without_stop_confirmation_is_aborted(owner):
+    recording(owner)
+    owner.active.reason = "space"
+    owner.active.path.mkdir()
+    owner.phase = "finalizing"
+    owner.recorder.poll.return_value = [
+        ("complete", {"episode": "episode-0000"})
+    ]
+    owner.step(2_000_000_000)
+    assert owner.active.interruption == "episode stop was not confirmed"
+    owner.close()
+    outcome = json.loads(
+        (owner.output / "episode-0000/outcome.json").read_text()
+    )
+    assert outcome["disposition"] == "aborted" and outcome["verified"] is False
+
+
+def test_empty_exception_message_still_latches_aborted(owner):
+    recording(owner)
+    owner.active.reason = "space"
+    owner.interrupt("")
+    assert owner.active.disposition == "aborted"
+
+
+@pytest.mark.parametrize(
+    "error", [KeyboardInterrupt(), EOFError(), RuntimeError("SDK lost")]
+)
+def test_runtime_records_interrupt_reason_before_cleanup(owner, error):
+    from ur12e_collection.control import runtime
+
+    recording(owner)
+    drive = mock.Mock(side_effect=error)
+    log = mock.Mock()
+    if isinstance(error, RuntimeError):
+        with pytest.raises(RuntimeError, match="SDK lost"):
+            runtime._drive(drive, owner, mock.Mock(), log, recording=True)
+        expected = "SDK lost"
+    else:
+        assert (
+            runtime._drive(drive, owner, mock.Mock(), log, recording=True)
+            == 130
+        )
+        expected = type(error).__name__
+    assert owner.active.interruption == expected
+    owner.motion.close.assert_not_called()
+    owner.close()
+    assert owner.completed[0]["disposition"] == "aborted"

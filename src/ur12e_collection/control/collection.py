@@ -19,10 +19,17 @@ class Episode:
     cutoff: int = 0
     settled_ns: int = 0
     last_target: int = 0
-    discard: bool = False
     stop_sent: bool = False
-    reason: str = "space"
+    reason: str = "unstarted"
+    interruption: str | None = None
     tail: list = dataclasses.field(default_factory=list)
+
+    @property
+    def disposition(self):
+        """Faults cannot be upgraded by a later operator choice."""
+        if self.interruption is not None:
+            return "aborted"
+        return {"space": "success", "fail": "fail"}.get(self.reason, "aborted")
 
 
 @dataclasses.dataclass
@@ -96,8 +103,8 @@ class Session:
         """Normal exit waits for the active recorded episode to commit."""
         return (
             self.quit
-            and self.active is None
-            and self.phase in ("idle", "blocked")
+            and (self.active is None or self.phase == "closing")
+            and self.phase in ("idle", "blocked", "closing")
             and (
                 self.motion.state
                 in ("needs_home", "ready", "held", "waiting_leader", "engaging")
@@ -112,7 +119,7 @@ class Session:
         filesystem.write_json(
             self.output / "session.json",
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "state": status,
                 "episodes": self.completed,
                 "active_episode": (
@@ -131,7 +138,7 @@ class Session:
             self._reject("session", error, time.monotonic_ns())
 
     def _key(self, key, now):
-        if key not in (" ", "a", "q"):
+        if key not in (" ", "f", "a", "q"):
             return
         if key == "q":
             self._quit(now)
@@ -148,11 +155,10 @@ class Session:
                 flush=True,
             )
             return
-        if key == "a":
-            self._discard(now)
-            return
         if self.phase == "recording":
-            self._stop(now, "space")
+            self._stop(now, {" ": "space", "f": "fail", "a": "abort"}[key])
+        elif key != " ":
+            return
         elif self.phase == "engaging" and self.motion.state == "ready":
             self.motion.key(key, now)
         elif self.phase == "idle" and not self.quit:
@@ -172,20 +178,6 @@ class Session:
             else:
                 self.motion.key(key, now)
 
-    def _discard(self, now):
-        if self.phase in ("preparing", "engaging"):
-            print("Not recording yet; q cancels preparation.", flush=True)
-            return
-        if self.active:
-            self.active.discard = True
-        if self.phase == "recording":
-            self._stop(now, "discard")
-        elif self.phase == "idle" and self.completed:
-            last = self.completed[-1]
-            write_outcome(self.output / last["episode"], "discarded")
-            last["disposition"] = "discarded"
-            self._report("active")
-
     def _quit(self, now):
         self.quit = True
         if self.rejection:
@@ -197,19 +189,22 @@ class Session:
         elif self.motion.state == "homing":
             self.motion.stop(now)
         elif self.phase in ("preparing", "engaging"):
-            self.phase = "idle"
-            self.active = None  # Unstarted preparation remains a partial.
+            self.active.reason = "session_end"
+            # Close reaps the writer before recording its partial outcome.
+            self.phase = "closing"
 
     def _stop(self, now, reason):
         # Stop dispatch always precedes IPC or filesystem work.
+        self.active.reason = reason
         self.motion.stop(now)
         if self.motion.state != "stopping":
             raise model.ControlError("recording stop did not revoke following")
-        self.active.cutoff, self.active.reason = now, reason
+        self.active.cutoff = now
         self.phase = "stopping"
 
     def _begin(self):
         active = self.active
+        active.reason = "recording"
         active.start = self.motion.input.conditioner.target.created_ns
         context = self.motion.input.context() | {
             "gripper_reference": dataclasses.asdict(
@@ -223,7 +218,7 @@ class Session:
         self.phase = "recording"
         print(
             f"Recording {active.path.name}; "
-            "Space stops, a discards, q finishes session.",
+            "Space saves success; f saves fail; a aborts; q aborts and exits.",
             flush=True,
         )
 
@@ -272,22 +267,24 @@ class Session:
             elif operation == "complete":
                 if self.phase != "finalizing":
                     raise model.ControlError("unexpected episode completion")
-                disposition = "discarded" if self.active.discard else "retained"
+                if not self.active.settled_ns:
+                    raise model.ControlError("episode stop was not confirmed")
+                disposition = self.active.disposition
                 write_outcome(
                     self.active.path,
                     disposition,
-                    interruption=(
-                        self.rejection.reason if self.rejection else None
-                    ),
+                    interruption=self.active.interruption,
+                    verified=True,
+                    reason=self.active.reason,
                 )
                 self.completed.append(
                     result
                     | {
                         "disposition": disposition,
+                        "verified": True,
+                        "reason": self.active.reason,
                         "stop_confirmed_monotonic_ns": self.active.settled_ns,
-                        "interruption": (
-                            self.rejection.reason if self.rejection else None
-                        ),
+                        "interruption": self.active.interruption,
                     }
                 )
                 print(
@@ -325,7 +322,7 @@ class Session:
 
     def _begin_rejection(self, component, error, now):
         choice = "save" if self.quit else None
-        if self.active and self.active.discard:
+        if self.active and self.active.reason == "abort":
             choice = "abort"
         self.rejection = Rejection(str(error), choice=choice, since=now)
         if component not in ("motion", "session"):
@@ -333,7 +330,7 @@ class Session:
         if self.active:
             if self.active.start and not self.active.cutoff:
                 self.active.cutoff = now
-            self.active.reason = f"rejected: {error}"
+            self.interrupt(str(error))
         # Revoke motion before touching storage or waiting for user input.
         try:
             self.motion.reject(str(error), now)
@@ -347,8 +344,9 @@ class Session:
         if self.phase != "finalizing":
             self.phase = "review"
         print(
-            "Collection paused: Space saves valid data; "
-            "a abandons this episode; q finishes the session.",
+            "Collection paused: episode is aborted. "
+            "Space/f preserves valid data; "
+            "a keeps a partial; q exits.",
             flush=True,
         )
         if (
@@ -427,7 +425,13 @@ class Session:
                 self._samples(active.tail)
                 active.tail.clear()
                 event = active.records.authority(
-                    "released", active.reason, active.cutoff
+                    "released",
+                    (
+                        f"rejected: {active.interruption}"
+                        if active.interruption is not None
+                        else active.reason
+                    ),
+                    active.cutoff,
                 )
                 self.recorder.send("stop", (active.cutoff, event))
                 active.stop_sent = True
@@ -471,7 +475,7 @@ class Session:
         ):
             print(
                 "Stop unconfirmed; preserving partial data. "
-                "a discards; q exits.",
+                "a keeps the partial; q exits.",
                 flush=True,
             )
             self.rejection.choice = None
@@ -489,12 +493,9 @@ class Session:
         self.completed.append(
             {
                 "episode": self.active.path.name + ".partial",
-                "disposition": (
-                    "discarded"
-                    if self.rejection.choice == "abort"
-                    else "incomplete"
-                ),
-                "interruption": self.rejection.reason,
+                "disposition": "aborted",
+                "reason": self.active.reason,
+                "interruption": self.active.interruption,
                 "verified": False,
             }
         )
@@ -513,17 +514,51 @@ class Session:
             return
         self._report("active" if self.phase == "idle" else "rejected")
 
+    def interrupt(self, reason):
+        """Latch the unfinished episode; leave completed outcomes unchanged."""
+        if self.active and self.active.interruption is None:
+            self.active.interruption = reason
+
+    def _unfinished_outcomes(self):
+        # The recorder is reaped: its final rename cannot race this sidecar.
+        for episode in self.completed:
+            if episode["verified"]:
+                continue
+            path = self.output / episode["episode"]
+            committed = path.with_suffix("")
+            if not path.exists() and committed.is_dir():
+                path = committed
+                episode["episode"] = path.name
+            if path.is_dir():
+                write_outcome(
+                    path,
+                    "aborted",
+                    interruption=episode["interruption"],
+                    verified=False,
+                    reason=episode["reason"],
+                )
+
     def close(self):
-        """Abort unfinished output; preserve completed files."""
+        """Stop before storage cleanup; preserve every completed outcome."""
         if self.closed:
             return
         self.closed = True
-        normal = self.done
+        status = "complete" if self.done else "interrupted"
         self.readers.request_stop()
         self.recorder.abort.set()
         try:
             self.motion.close()
-        except BaseException:
-            self._report("failed")
+        except BaseException as error:
+            status = "failed"
+            self.interrupt(str(error))
             raise
-        self._report("complete" if normal else "interrupted")
+        finally:
+            try:
+                self.recorder.close()
+            finally:
+                if self.active:
+                    if status != "complete":
+                        self.interrupt("session interrupted")
+                    self._partial()
+                self._unfinished_outcomes()
+                self._report(status)

@@ -11,13 +11,27 @@ from ur12e_collection.control import lifecycle, model, owner, records
 
 
 def write_outcome(
-    destination: pathlib.Path, disposition: str, *, interruption=None
+    destination: pathlib.Path,
+    disposition: str,
+    *,
+    interruption=None,
+    verified=None,
+    reason=None,
 ) -> None:
     """Preserve verified data; atomically replace only the review decision."""
     filesystem.write_json(
         destination / "outcome.json",
-        {"schema_version": 1, "disposition": disposition, "task_success": None}
-        | ({"interruption": interruption} if interruption else {}),
+        {
+            "schema_version": 1 if verified is None else 2,
+            "disposition": disposition,
+            "task_success": {"success": True, "fail": False}.get(disposition),
+        }
+        | (
+            {"verified": verified, "reason": reason}
+            if verified is not None
+            else {}
+        )
+        | ({"interruption": interruption} if interruption is not None else {}),
     )
 
 

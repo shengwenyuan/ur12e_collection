@@ -22,8 +22,8 @@ def test_terminal_restored_after_interrupt():
                         not termios.tcgetattr(stream.fileno())[3]
                         & termios.ICANON
                     )
-                    os.write(master, b" a")
-                    assert keys() == [" ", "a"]
+                    os.write(master, b" afq")
+                    assert keys() == [" ", "a", "f", "q"]
                     raise KeyboardInterrupt
             restored = termios.tcgetattr(stream.fileno())
             # macOS sets the transient PENDIN flag when restoring canonical input.

@@ -138,7 +138,7 @@ def test_independent_stop_observation_rejects_stale_or_moving_feedback():
     assert not rejection.stopped_ns
 
 
-@pytest.mark.parametrize("choice", [" ", "a", "q"])
+@pytest.mark.parametrize("choice", [" ", "f", "a", "q"])
 def test_protective_review_saves_or_discards_and_requires_new_session(
     owner, monkeypatch, choice
 ):
@@ -175,6 +175,7 @@ def test_protective_review_saves_or_discards_and_requires_new_session(
         ]
     owner.step(clock[0])
     assert owner.phase == "blocked"
+    assert owner.completed[0]["disposition"] == "aborted"
     assert owner.done == (choice == "q")
     owner.motion.key.reset_mock()
     owner.key(" ", 4_000_000_000)

@@ -41,15 +41,18 @@ without changing the writer queue capacity or loss policy.
 
 ## Operator interaction
 
+The outcome contract below supersedes the original disposition behavior in
+historical acceptance notes later in this document.
+
 - Space: HOME; at READY prepare/start; during recording stop and save; after
   verified save request HOME. Another distinct Space starts the next episode.
-- `a`: stop/discard an active episode, or mark the last completed episode discarded
-  while idle. Keep verified files and an explicit disposition; task success stays
-  unknown. Camera workers do not restart.
-- `q`: normal session end. Stop an active episode, wait for hold and verified save,
-  then close. During preparation, abandon the unstarted partial. This is the
-  implementation default proposed to the operator; no contrary preference was
-  received. It is independent of keyboard debounce.
+- `f`: stop and save a failed task; `a`: stop and preserve an aborted episode.
+  Neither key changes a previously completed episode while idle. Camera workers
+  do not restart.
+- `q`: end the session. An actively recording episode becomes aborted; wait for
+  hold and verified persistence when possible. Already requested Space/f
+  finalization can finish normally. Preparation remains aborted/unverified.
+  This key is independent of keyboard debounce.
 - Ctrl+C / EOF / SIGTERM: interrupt and revoke following. Active output remains
   an incomplete partial; already committed episodes survive. Exit never requests
   HOME or releases the grasp. Existing 30-second post-stop observation remains.
@@ -87,6 +90,61 @@ interface-based: raw TCP plus static offset/reference metadata, with transforms
 left to cleaning. Numeric offset persistence is still unimplemented; historical
 files have not been modified. See the [M10 clarification](../m10-data-contract/plan.md#tcp-installation-and-hand-e-timing-clarification-2026-09-13)
 for provenance, frame direction and Hand-E training-time distinctions.
+
+## Explicit episode outcomes, aligned 2026-10-07
+
+Status: implemented / physical acceptance pending. The operator approves local
+development only, retaining
+`a` as aborted and adding `f` for task failure. This scope belongs to M09-A04,
+with regression coverage for M09-A01/A03 and M11 completion boundaries.
+
+Normal recording Space requests `success`; `f` requests `fail`; `a`, active
+recording `q`, interrupt/EOF and exceptions produce `aborted`. Success/failure
+require confirmed stop and independently verified persistence. They represent
+the operator's task assessment, not visual task verification. Exceptions before
+completion latch aborted and preserve the original fault; review Space/f cannot
+upgrade the result. Review `a` preserves a partial, while Space/f attempt to
+finalize a verified aborted fragment. A later session exit failure must not
+alter already completed episodes.
+
+Persist outcome schema 2 with `disposition`, `task_success` (true/false/null),
+`verified`, ending `reason` and optional `interruption`. File completeness is
+independent of task outcome; aborted files may be verified or partial. Session
+entries carry the same disposition and verification flag. Missing outcomes and
+legacy retained/discarded files are not automatically classified as success;
+historical files and the separate legacy simulator recorder remain unchanged.
+Consumers should select explicit success plus verified data by default. No
+training/export pipeline is added here.
+
+Implementation: replace the discard-only decision with one episode-local result
+derived from ending reason and a latched interruption; add `f` to terminal input;
+preserve unfinished outcome metadata after recorder cleanup, without racing its
+atomic rename. Keep motion ownership, rates, stop supervision, camera lifetime,
+MCAP contents and file finalization logic unchanged. Do not delete any data.
+
+Acceptance: normal Space/f/a/q; fault followed by every review key; stopping or
+writer failure after Space/f; partial cancellation and Ctrl+C cleanup; startup
+cancellation; late commit/ack and completed-episode exit faults; no idle-key
+relabeling; persistent multi-episode resources.
+
+M09-A01/A03/A04 software: PASS, native Mac Python 3.12 `scripts/check` on
+2026-10-07: Black PASS (217 files), Pylint 10/10, 760 tests passed / 5 skipped.
+The 22 additional cases cover explicit task outcomes, review-key fault priority,
+missing stop confirmation, empty exception messages, startup cancellation,
+KeyboardInterrupt/EOF/SDK propagation, late writer rename and cleanup failures
+after a committed episode. Existing protective-stop and persistence tests pass.
+Initial old-disposition assertions and style findings were corrected before the
+final full run. Local check output: `/tmp/episode-outcomes-check.log`.
+
+Partial outcomes enter `session.json` when cancellation is acknowledged. Their
+sidecars are written after recorder cleanup, when its directory rename can no
+longer race the parent. An unacknowledged final directory found during shutdown
+is conservatively marked aborted/unverified. No historical outcomes are rewritten.
+Hard termination without Python cleanup can still leave missing outcomes;
+missing is never implicit success.
+
+Hardware acceptance, Docker rebuild and PC deployment: NOT RUN. Changes remain
+local for review; this increment does not change motion or safety settings.
 
 ## Software and physical acceptance
 

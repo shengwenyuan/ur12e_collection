@@ -204,7 +204,7 @@ def drive(session, read_keys, log=None):
     motion = session.motion if recording else session
     print("Support the leader. No leader motor writes.")
     print(
-        "Recording enabled: a discards, q ends normally."
+        "Recording: Space success; f fail; a aborted; q aborts and exits."
         if recording
         else "Recording is disabled."
     )

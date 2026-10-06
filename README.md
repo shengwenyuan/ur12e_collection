@@ -19,8 +19,11 @@ the snapshot; output defaults to `~/ur12e-data/<task-route>/session-*`.
 Launch from any working directory; the
 installed deployment supplies the existing station configuration and `current`
 image. Space requests HOME (including full Hand-E opening), starts recording,
-then stops/saves the episode;
-`a` discards and `q` finishes the session. Ctrl+C uses the existing stop/exit path.
+then stops/saves the episode as `success`. During recording, `f` saves `fail`,
+`a` preserves `aborted`, and `q` aborts the current recording and exits.
+Interruptions and faults produce `aborted`, never success. Success/fail require
+confirmed stop and verified storage; completed episodes survive later exit
+errors. Ctrl+C uses the existing stop/exit path and preserves unfinished data.
 Starting this command is the operator's explicit session launch, including SDK
 initialization; motion remains subject to the existing keyboard/state gates.
 `dagger` is reserved for future implementation and is currently rejected.

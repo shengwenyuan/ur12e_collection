@@ -110,16 +110,27 @@ def launch(
             stack.callback(session.close)
             previous = signal.signal(signal.SIGTERM, _interrupt)
             stack.callback(signal.signal, signal.SIGTERM, previous)
-            try:
-                return drive(session, read_keys, log)
-            except (KeyboardInterrupt, EOFError):
-                if log:
-                    log.emit("interrupted")
-                return 130
-            except Exception as error:
-                if log:
-                    log.emit("fault", reason=str(error))
-                raise
+            return _drive(
+                drive, session, read_keys, log, recording=bool(capture)
+            )
+
+
+def _drive(drive, session, read_keys, log, *, recording):
+    """Record interruption reasons before unfinished-output cleanup."""
+    try:
+        return drive(session, read_keys, log)
+    except (KeyboardInterrupt, EOFError) as error:
+        if recording:
+            session.interrupt(type(error).__name__)
+        if log:
+            log.emit("interrupted")
+        return 130
+    except Exception as error:
+        if recording:
+            session.interrupt(str(error))
+        if log:
+            log.emit("fault", reason=str(error))
+        raise
 
 
 def _interrupt(_number, _frame):

@@ -305,24 +305,26 @@ READY --Space--> PREPARING -> ENGAGING / WAITING_LEADER -> RECORDING
 RECORDING --Space--> STOPPING -> FINALIZING -> HELD
 HELD --Space--> HOMING -> READY
 READY --next distinct Space--> PREPARING
-q -> stop active recording, verify/save, end session
-fault -> revoke following, REVIEW (Space save / a discard / q quit)
-Ctrl+C -> interrupt, preserve incomplete partial
+f -> stop and save fail; a -> stop and preserve aborted
+q -> abort active recording, preserve data, end session
+fault -> revoke following, REVIEW (Space/f preserve aborted / a partial / q quit)
+Ctrl+C -> interrupt, preserve aborted partial
 ```
 
 Space during recording stops; while HELD it requests HOME. A fresh Space at READY
 starts the next episode. Ignore Space while stopping/finalizing. The native
-control path also permits stopping HOME with Space. `a` stops/discards the active
-episode or marks the last completed episode while idle; verified files remain
-with an explicit disposition and unknown task success. `q` is the normal-exit
-implementation default; Ctrl+C interrupts. Exit never requests HOME or releases
+control path also permits stopping HOME with Space. Space labels a normal task
+`success`; `f` labels `fail`; `a` labels `aborted`. Success/fail require confirmed
+stop and verified persistence. Idle keys never relabel completed episodes.
+`q` aborts an active recording and exits; Ctrl+C interrupts. Exit never requests HOME or releases
 Hand-E. See the [physical recording plan](docs/m09-session/physical-recording.md)
 for current software and operator acceptance boundaries.
 
 A teleop rejection keeps the collection input loop alive while stop supervision
-continues. Space saves a verifiable pre-fault interval with its interruption
-reason; `a` abandons the interval; `q` saves valid output or preserves an incomplete
-partial before exiting. Only healthy resources may proceed to an explicit new
+continues. Space/f preserves a verifiable pre-fault interval as `aborted`, with
+its interruption reason; `a` preserves a partial; `q` preserves available output
+before exiting. No review key upgrades aborted to success/fail. Only healthy
+resources may proceed to an explicit new
 HOME/reference after disposition. Failed control, feedback or recorder resources
 block further motion; there is no automatic reconnection. See the physical
 recording plan for software acceptance and pending hardware verification.
@@ -333,7 +335,7 @@ The ending Space event closes the demonstration sampling boundary and revokes fo
 
 Holding means the actual posture after controlled deceleration, not an instantaneous freeze while moving. Verify stop latency/displacement and drift. Current GELLO operation requires manual support; powered motor hold remains unimplemented. Subsequent leader movement cannot move the UR. Normal completion does not put UR into freedrive, disable it, return it automatically to READY, or implicitly release Hand-E.
 
-Keep device connections across episodes. Do not resume following merely because writing completed. Debounce keyboard events so a held key cannot cross lifecycle boundaries. Keep operator discard, system failure, and task success distinct; whether a normal Space completion implies task success remains open. Writer success alone does not establish task success.
+Keep device connections across episodes. Do not resume following merely because writing completed. Debounce keyboard events so a held key cannot cross lifecycle boundaries. Space/f expresses the operator's success/failure judgment; writer success alone does not establish task success. Keep task outcome separate from file completeness, and never invalidate completed episodes because of a later session exit failure.
 
 Host sleep, crashes, and network failures require device-side timeout handling, not only Python cleanup callbacks. Shutdown order must preserve control safety independently of storage finalization.
 
