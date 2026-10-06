@@ -1,4 +1,4 @@
-"""Fixed joint calibration, independent of each episode mapping reference."""
+"""Relative input profiles and legacy fixed joint calibration."""
 
 import dataclasses
 import hashlib
@@ -47,21 +47,22 @@ def integer(value):
 class Joint:
     """One explicit signed teaching interval; never a powered goal range."""
 
-    home_count: int
+    home_count: int | None
     sign: int
     minimum: int
     maximum: int
     ratio: float = 1.0
 
     def __post_init__(self):
-        for value in (self.home_count, self.sign, self.minimum, self.maximum):
+        for value in (self.sign, self.minimum, self.maximum):
             integer(value)
         if (
             self.sign not in (-1, 1)
             or not MIN_COUNT <= self.minimum < self.maximum <= MAX_COUNT
-            or not self.minimum <= self.home_count <= self.maximum
         ):
             raise ValueError("invalid calibrated joint interval/sign")
+        if self.home_count is not None:
+            self.validate(self.home_count)
         if (
             isinstance(self.ratio, bool)
             or not isinstance(self.ratio, (float, int))
@@ -70,11 +71,17 @@ class Joint:
         ):
             raise ValueError("ratio must be positive and finite")
 
-    def relative(self, count: int) -> float:
+    def validate(self, count: int) -> None:
         """Reject another branch rather than wrapping it into the interval."""
         integer(count)
         if not self.minimum <= count <= self.maximum:
             raise ValueError("encoder outside calibrated mechanical interval")
+
+    def relative(self, count: int) -> float:
+        """Convert from the optional fixed absolute-calibration origin."""
+        if self.home_count is None:
+            raise ValueError("absolute mapping requires a fixed leader HOME")
+        self.validate(count)
         return (
             (count - self.home_count)
             * self.sign
@@ -85,31 +92,40 @@ class Joint:
 
 @dataclasses.dataclass(frozen=True)
 class Calibration:
-    """One immutable physical reference; all six directions must be verified."""
+    """Immutable input geometry with optional legacy absolute references."""
 
-    home_rad: tuple
+    home_rad: tuple | None
     joints: tuple[Joint, ...]
-    gripper_open: int
-    gripper_closed: int
+    gripper_open: int | None
+    gripper_closed: int | None
     reference: str
     evidence_sha256: str
 
     def __post_init__(self):
-        model.joints(self.home_rad)
+        if self.home_rad is not None:
+            model.joints(self.home_rad)
         if (
             not isinstance(self.joints, tuple)
             or len(self.joints) != 6
             or any(not isinstance(joint, Joint) for joint in self.joints)
         ):
             raise ValueError("six calibrated joints are required in ID order")
-        for endpoint in (self.gripper_open, self.gripper_closed):
-            integer(endpoint)
-            if not MIN_COUNT <= endpoint <= MAX_COUNT:
+        if self.home_rad is None:
+            if self.gripper_open is not None or self.gripper_closed is not None:
                 raise ValueError(
-                    "gripper endpoint outside signed register range"
+                    "relative input has no fixed gripper endpoints"
                 )
-        if not 20 <= abs(self.gripper_closed - self.gripper_open) < 2048:
-            raise ValueError("invalid gripper travel")
+            if any(joint.home_count is not None for joint in self.joints):
+                raise ValueError("relative input has no fixed leader HOME")
+        else:
+            if any(joint.home_count is None for joint in self.joints):
+                raise ValueError("absolute calibration requires joint HOME")
+            for endpoint in (self.gripper_open, self.gripper_closed):
+                integer(endpoint)
+                if not MIN_COUNT <= endpoint <= MAX_COUNT:
+                    raise ValueError("gripper endpoint outside encoder range")
+            if not 20 <= abs(self.gripper_closed - self.gripper_open) < 2048:
+                raise ValueError("invalid gripper travel")
         if (
             not isinstance(self.reference, str)
             or not self.reference.strip()
@@ -123,15 +139,39 @@ class Calibration:
 
     def angles(self, raw: tuple[int, ...]) -> tuple:
         """Convert measured counts into the fixed follower coordinate frame."""
-        if len(raw) != 7:
-            raise ValueError("all seven raw encoder values are required")
+        if self.home_rad is None:
+            raise ValueError("absolute mapping requires a fixed leader HOME")
+        self.validate(raw)
         return tuple(
             home + joint.relative(count)
             for home, joint, count in zip(self.home_rad, self.joints, raw[:6])
         )
 
+    def validate(self, raw: tuple[int, ...]) -> None:
+        """Validate all raw inputs without interpreting an absolute posture."""
+        if len(raw) != 7:
+            raise ValueError("all seven raw encoder values are required")
+        for joint, count in zip(self.joints, raw[:6]):
+            joint.validate(count)
+        integer(raw[6])
+        if not MIN_COUNT <= raw[6] <= MAX_COUNT:
+            raise ValueError("gripper input outside signed register range")
+
+    def delta(self, raw: tuple, baseline: tuple) -> tuple:
+        """Use direct count differences; fixed calibration origins cancel."""
+        self.validate(raw)
+        self.validate(baseline)
+        return tuple(
+            (count - start) * joint.sign * joint.ratio * RADIANS_PER_COUNT
+            for joint, count, start in zip(self.joints, raw[:6], baseline[:6])
+        )
+
     def gripper(self, raw: int) -> int:
         """Map travel to Robotiq raw position; keep input counts separately."""
+        if self.gripper_open is None:
+            raise ValueError(
+                "absolute gripper mapping requires fixed endpoints"
+            )
         integer(raw)
         fraction = (raw - self.gripper_open) / (
             self.gripper_closed - self.gripper_open
@@ -142,6 +182,21 @@ class Calibration:
 
     def document(self) -> dict:
         """Describe fixed physical context independently of episode mapping."""
+        if self.home_rad is None:
+            return {
+                "schema_version": 4,
+                "kind": "leader_relative_input",
+                "joints": [
+                    {
+                        k: v
+                        for k, v in dataclasses.asdict(j).items()
+                        if k != "home_count"
+                    }
+                    for j in self.joints
+                ],
+                "reference": self.reference,
+                "evidence_sha256": self.evidence_sha256,
+            }
         return {
             "schema_version": 3,
             "kind": "leader_joint_calibration",
@@ -173,6 +228,33 @@ def from_document(document: dict) -> Calibration:
     value = json.loads(json.dumps(document, allow_nan=False))
     if not isinstance(value, dict):
         raise ValueError("calibration must be a JSON object")
+    integer(value.get("schema_version"))
+    if value.get("schema_version") == 4:
+        if (
+            set(value)
+            != {
+                "schema_version",
+                "kind",
+                "joints",
+                "reference",
+                "evidence_sha256",
+            }
+            or value["kind"] != "leader_relative_input"
+        ):
+            raise ValueError("unexpected relative input fields or kind")
+        if any(
+            set(j) != {"sign", "minimum", "maximum", "ratio"}
+            for j in value["joints"]
+        ):
+            raise ValueError("unexpected relative joint fields")
+        return Calibration(
+            None,
+            tuple(Joint(None, **j) for j in value["joints"]),
+            None,
+            None,
+            value["reference"],
+            value["evidence_sha256"],
+        )
     fields = {field.name for field in dataclasses.fields(Calibration)}
     if set(value) != fields | {"schema_version", "kind"}:
         raise ValueError("unexpected or missing calibration fields")
@@ -270,5 +352,8 @@ def validate_binding(config):
     calibrated = from_document(value["document"])
     if calibrated.identity() != value["calibration_id"]:
         raise ValueError("leader calibration identity differs")
-    if list(calibrated.home_rad) != config["ur"]["ready_q_rad"]:
+    if (
+        calibrated.home_rad is not None
+        and list(calibrated.home_rad) != config["ur"]["ready_q_rad"]
+    ):
         raise ValueError("leader calibration and follower HOME differ")

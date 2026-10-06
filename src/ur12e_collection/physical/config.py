@@ -19,10 +19,10 @@ def validate(value):
         raise ValueError("physical HOME requires full gripper opening")
     limits = value["limits"]
     ceilings = {
-        "speed": math.radians(12),
-        "acceleration": math.radians(15),
-        "ready_speed": math.radians(3),
-        "ready_acceleration": math.radians(6),
+        "speed": math.radians(24),
+        "acceleration": math.radians(30),
+        "ready_speed": math.radians(6),
+        "ready_acceleration": math.radians(12),
         "freshness_ns": 250_000_000,
         "arrival": math.radians(0.1),
         "stopped_speed": math.radians(0.01),
@@ -36,11 +36,17 @@ def validate(value):
     if (
         not isinstance(stop, (int, float))
         or isinstance(stop, bool)
-        or stop != math.radians(2)
+        or stop not in (math.radians(2), math.radians(4))
+        or (limits.ready_speed > math.radians(3) and stop != math.radians(4))
     ):
-        raise ValueError("commissioning stop requires 2 degrees/s squared")
+        raise ValueError(
+            "HOME stop requires its reviewed 2 or 4 degrees/s squared"
+        )
     servo_stop = follower.get("servo_stop_deceleration_m_s2")
-    if servo_stop is not None and servo_stop != 0.1:
+    if servo_stop is not None and (
+        servo_stop not in (0.1, 0.2)
+        or (limits.speed > math.radians(12) and servo_stop != 0.2)
+    ):
         raise ValueError(
             "servo stop must use the separately reviewed tool units"
         )

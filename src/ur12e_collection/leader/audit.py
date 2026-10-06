@@ -26,12 +26,18 @@ class Audit:
             }
         )
         if (
+            context["schema_version"] == 1
+            and self.limits.ready != self.calibration.home_rad
+        ):
+            raise ValueError("invalid legacy leader HOME context")
+        if (
             context["mapping"] != "episode_relative"
-            or tuple(context["follower_home_rad"]) != self.calibration.home_rad
-            or self.limits.ready != self.calibration.home_rad
+            or context["schema_version"] not in (1, 2)
+            or tuple(context["follower_home_rad"]) != self.limits.ready
             or not 0 <= started_ns - self.baseline.start_ns <= 100_000_000
         ):
             raise ValueError("invalid leader baseline context")
+        self.calibration.validate(self.baseline.raw)
         self.command = model.Target(self.limits.ready, 0, started_ns)
         self.velocity = (0.0,) * 6
         self.intent_ns = None
@@ -64,10 +70,15 @@ class Audit:
                 <= 100_000_000
             ):
                 raise ValueError("recorded leader source discontinuity")
-        current = self.calibration.angles(sample.raw)
-        initial = self.calibration.angles(self.baseline.raw)
+        self.calibration.validate(sample.raw)
         expected = tuple(
-            h + q - q0 for h, q, q0 in zip(self.limits.ready, current, initial)
+            h + (q - q0) * axis.sign * axis.ratio * mapping.RADIANS_PER_COUNT
+            for h, axis, q, q0 in zip(
+                self.limits.ready,
+                self.calibration.joints,
+                sample.raw[:6],
+                self.baseline.raw[:6],
+            )
         )
         if model.distance(expected, record.joint_positions_rad) > 1e-12:
             raise ValueError(

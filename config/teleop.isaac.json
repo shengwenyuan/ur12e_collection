@@ -4,7 +4,7 @@
   "leader": {
     "device": "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTBEQCDG-if00-port0",
     "baudrate": 3000000,
-    "calibration": "gello.calibration-20260912.json",
+    "calibration": "gello.relative.json",
     "manual_support": true
   },
   "follower": {

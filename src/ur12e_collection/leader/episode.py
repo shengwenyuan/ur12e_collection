@@ -92,8 +92,6 @@ class EpisodeMapper:
             raise ValueError("input freshness must be positive")
         self._age_ns = min(limits.freshness_ns, freshness_ns)
         self._fault = None
-        if calibration.home_rad != limits.ready:
-            raise ValueError("calibration and follower HOME differ")
         if (
             not 0 <= now_ns - follower.received_ns <= self._age_ns
             or max(abs(v) for v in follower.qd) > limits.stopped_speed
@@ -112,8 +110,7 @@ class EpisodeMapper:
             raise ValueError("at least three stable startup samples required")
         for index, sample in enumerate(samples):
             _fresh(sample, now_ns, self._age_ns)
-            self._calibration.angles(sample.raw)
-            self._calibration.gripper(sample.raw[6])
+            self._calibration.validate(sample.raw)
             if index:
                 check_advance(samples[index - 1], sample, self._age_ns)
         if samples[-1].start_ns - samples[0].start_ns < 40_000_000:
@@ -125,12 +122,9 @@ class EpisodeMapper:
         """Return a detached record for immutable episode metadata."""
         return {
             "mapping": "episode_relative",
-            "schema_version": 1,
+            "schema_version": 2,
             "calibration_id": self._calibration.identity(),
             "baseline": dataclasses.asdict(self._baseline),
-            "baseline_calibrated_rad": self._calibration.angles(
-                self._baseline.raw
-            ),
             "follower_home_rad": self._limits.ready,
             "follower_start": dataclasses.asdict(self._follower),
         }
@@ -155,12 +149,9 @@ class EpisodeMapper:
         try:
             _fresh(sample, now_ns, self._age_ns)
             check_advance(self._last, sample, self._age_ns)
-            current = self._calibration.angles(sample.raw)
-            start = self._calibration.angles(self._baseline.raw)
-            self._calibration.gripper(sample.raw[6])
+            delta = self._calibration.delta(sample.raw, self._baseline.raw)
             desired = tuple(
-                home + q - q0
-                for home, q, q0 in zip(self._limits.ready, current, start)
+                home + change for home, change in zip(self._limits.ready, delta)
             )
             self._limits.check(desired)
             target = model.Target(desired, sample.sequence, sample.start_ns)

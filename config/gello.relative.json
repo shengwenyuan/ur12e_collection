@@ -1,0 +1,44 @@
+{
+  "schema_version": 4,
+  "kind": "leader_relative_input",
+  "joints": [
+    {
+      "sign": 1,
+      "minimum": -1522,
+      "maximum": 6670,
+      "ratio": 1.0
+    },
+    {
+      "sign": 1,
+      "minimum": -2017,
+      "maximum": 6175,
+      "ratio": 1.0
+    },
+    {
+      "sign": -1,
+      "minimum": -3059,
+      "maximum": 5133,
+      "ratio": 1.0
+    },
+    {
+      "sign": 1,
+      "minimum": -1035,
+      "maximum": 7157,
+      "ratio": 1.0
+    },
+    {
+      "sign": 1,
+      "minimum": -3093,
+      "maximum": 5099,
+      "ratio": 1.0
+    },
+    {
+      "sign": 1,
+      "minimum": -2039,
+      "maximum": 6153,
+      "ratio": 1.0
+    }
+  ],
+  "reference": "Relative input profile derived from reassembly calibration 2026-10-02. Joint order, signs, ratios and broad count intervals are unchanged. Each episode uses its own stable raw baseline; no fixed leader HOME or gripper endpoints. Intervals are inherited encoder bounds, not newly accepted physical mechanical limits. No motor writes authorized.",
+  "evidence_sha256": "6c4386b6623f7dec00ea1c770b7c7bee20a331772c4e8e82e7572fc66897112f"
+}

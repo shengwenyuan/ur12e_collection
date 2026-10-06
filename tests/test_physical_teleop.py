@@ -26,11 +26,11 @@ def sample(raw, sequence=0, stamp=1_000_000_000):
 
 def test_physical_profile_has_separate_units_and_conservative_bounds():
     value = configuration()
-    assert value["limits"].speed == math.radians(12)
-    assert value["limits"].ready_speed == math.radians(3)
-    assert value["limits"].acceleration == math.radians(15)
-    assert value["limits"].ready_acceleration == math.radians(6)
-    assert value["guards"].measured_speed == math.radians(14.4)
+    assert value["limits"].speed == math.radians(24)
+    assert value["limits"].ready_speed == math.radians(6)
+    assert value["limits"].acceleration == math.radians(30)
+    assert value["limits"].ready_acceleration == math.radians(12)
+    assert value["guards"].measured_speed == math.radians(28.8)
     assert value["home_open_gripper"] is True
     assert value["gripper"]["speed"] == value["gripper"]["force"] == 32
 
@@ -148,18 +148,18 @@ def test_gripper_encoder_jump_is_not_hidden_by_saturation():
 def test_tracking_grace_resets_and_requires_advancing_feedback():
     monitor = guards.Tracking(configuration()["guards"])
     feedback = model.State((0.0,) * 6, (0.0,) * 6, 1, 1)
-    monitor.check((0.05,) * 6, feedback, 1_000_000_000)
-    monitor.check((0.05,) * 6, feedback, 2_000_000_000)
-    monitor.check((math.radians(1.25),) * 6, feedback, 2_000_000_000)
+    monitor.check((math.radians(5),) * 6, feedback, 1_000_000_000)
+    monitor.check((math.radians(5),) * 6, feedback, 2_000_000_000)
+    monitor.check((math.radians(2.5),) * 6, feedback, 2_000_000_000)
     monitor.check(
-        (math.radians(2),) * 6,
+        (math.radians(4),) * 6,
         dataclasses.replace(feedback, timestamp=1.5),
         2_500_000_000,
     )
-    monitor.check((0.05,) * 6, feedback, 3_000_000_000)
+    monitor.check((math.radians(5),) * 6, feedback, 3_000_000_000)
     with pytest.raises(model.ControlError, match="tracking"):
         monitor.check(
-            (0.05,) * 6,
+            (math.radians(5),) * 6,
             dataclasses.replace(feedback, timestamp=1.3),
             3_300_000_000,
         )
@@ -336,7 +336,7 @@ def test_home_stop_uses_joint_deceleration_and_cancels_tool_pending():
     device = transport.Transport(sdk, mock.Mock(), worker, configuration())
     device.stop(False)
     device.stopping.join()
-    sdk.stopJ.assert_called_once_with(math.radians(2), True)
+    sdk.stopJ.assert_called_once_with(math.radians(4), True)
     sdk.servoStop.assert_not_called()
     worker.hold.assert_called_once()
 
@@ -647,3 +647,56 @@ def test_home_requires_measured_tool_open_and_times_out_when_blocked():
     )
     instance.step(3_000_000_000)
     assert instance.state == "ready"
+
+
+def test_doubled_profile_reverses_and_settles_with_jitter():
+    limits = configuration()["limits"]
+    previous = model.Target(limits.ready, 0, 1_000_000_000)
+    conditioner = conditioning.Conditioner(limits, previous)
+    velocity = (0.0,) * 6
+    peak = 0.0
+    for index in range(1000):
+        dt_ns = (8_333_333, 12_000_000, 20_000_000)[index % 3]
+        goal = (
+            limits.ready[0] + (0.6 if index < 180 else -0.2),
+            *limits.ready[1:],
+        )
+        target = conditioner.step(goal, previous.created_ns + dt_ns)
+        dt = dt_ns / 1e9
+        measured = tuple((a - b) / dt for a, b in zip(target.q, previous.q))
+        assert max(map(abs, measured)) <= math.radians(21.6) + 1e-10
+        assert (
+            max(abs(a - b) / dt for a, b in zip(measured, velocity))
+            <= math.radians(27) + 1e-8
+        )
+        assert model.distance(target.q, previous.q) <= math.radians(0.6)
+        peak = max(peak, max(map(abs, measured)))
+        previous, velocity = target, measured
+    assert peak > math.radians(20)
+    assert target.q == pytest.approx(goal, abs=1e-7)
+
+
+@pytest.mark.parametrize("servo", [False, True])
+def test_higher_rates_require_corresponding_stop_setting(tmp_path, servo):
+    value = json.loads((ROOT / "config/teleop.ur.json").read_text())
+    key = "servo_stop_deceleration_m_s2" if servo else "stop_deceleration"
+    value["follower"][key] = 0.1 if servo else math.radians(2)
+    path = tmp_path / "profile.json"
+    path.write_text(json.dumps(value))
+    with pytest.raises(ValueError, match="stop"):
+        config.load(path)
+    value["limits"]["speed" if servo else "ready_speed"] /= 2
+    path.write_text(json.dumps(value))
+    config.load(path)
+
+
+def test_following_stop_dispatch_uses_doubled_tool_deceleration():
+    from ur12e_collection.physical import transport
+
+    sdk, worker = mock.Mock(), mock.Mock()
+    device = transport.Transport(sdk, mock.Mock(), worker, configuration())
+    device.stop(True)
+    device.stopping.join()
+    sdk.servoStop.assert_called_once_with(0.2)
+    sdk.stopJ.assert_not_called()
+    worker.hold.assert_called_once()

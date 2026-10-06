@@ -621,3 +621,46 @@ rates and UR safety settings are unchanged. See [M09 scope and acceptance](../m0
 and [the stop-budget evidence](../m09-session/physical-recording.md). These are
 software-validated candidate changes; PC production remains on its prior image
 until the operator authorizes the post-production switch.
+
+### Rate doubling, aligned 2026-10-06
+
+The operator authorizes doubling following and HOME speed/acceleration and
+adjusting associated smoothing and guards, followed by commit and push. Scope
+is the physical UR profile and its validated envelope; Isaac examples retain
+their independent dynamics settings. No hardware launch or deployment is part
+of this change.
+
+| Parameter | Previous | New |
+| --- | --- | --- |
+| Following joint speed | 12 deg/s | 24 deg/s |
+| Following joint acceleration | 15 deg/s2 | 30 deg/s2 |
+| Effective conditioner speed / acceleration (90%) | 10.8 / 13.5 | 21.6 / 27 |
+| HOME speed / acceleration | 3 / 6 | 6 / 12 |
+| Measured joint overspeed guard | 14.4 deg/s | 28.8 deg/s |
+| Command step ceiling | 0.3 deg | 0.6 deg |
+| Tracking error angle | 2 deg | 4 deg |
+| Tracking persistence | 0.25 s | unchanged |
+| HOME stopJ deceleration | 2 deg/s2 | 4 deg/s2 |
+| Following servoStop deceleration | 0.1 m/s2 | 0.2 m/s2 |
+
+Keep the 90% conditioner margin and existing near-target braking law. Doubling
+speed and acceleration preserves the nominal acceleration-ramp duration while
+increasing responsiveness. Scale stop parameters instead of extending the
+4-second stop/watchdog window; joint limits do not establish a Cartesian stop
+distance, so physical stop performance remains unverified. The 30-degree queued
+intent allowance, raw input jump/rate limits, feedback freshness, HOME arrival,
+stationary/hold criteria, Hand-E speed/force, servo lookahead/gain and 120 Hz
+command rate remain unchanged. No jerk limiter is added.
+
+Update the physical validator with the new rate ceilings and reviewed stop
+values. Preserve acceptance of the previously reviewed stop pair for lower-rate
+station configurations; higher requested rates require the corresponding new
+stop value. Test acceleration/reversal/settling, jittered command periods,
+tracking persistence and actual-speed rejection without devices.
+
+M06 software acceptance: PASS on native Mac Python 3.12 via `scripts/check`:
+Black PASS (217 files), Pylint 10/10, pytest 738 passed and 5 skipped. Tests
+exercise doubled-rate reversal and settling under jitter, unchanged tracking
+persistence, stop-parameter compatibility and actual SDK stop dispatch values.
+Hardware movement/stopping acceptance: NOT RUN. No image rebuild, station
+configuration update or remote deployment was performed.

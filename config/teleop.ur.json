@@ -4,7 +4,7 @@
   "leader": {
     "device": "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTBEQCDG-if00-port0",
     "baudrate": 3000000,
-    "calibration": "gello.calibration-20260912.json",
+    "calibration": "gello.relative.json",
     "manual_support": true
   },
   "follower": {
@@ -12,8 +12,8 @@
     "host": "10.18.1.106",
     "serial": "20255100083",
     "interface": "enp128s31f6",
-    "stop_deceleration": 0.03490658503988659,
-    "servo_stop_deceleration_m_s2": 0.1
+    "stop_deceleration": 0.06981317007977318,
+    "servo_stop_deceleration_m_s2": 0.2
   },
   "twins": [],
   "limits": {
@@ -41,14 +41,14 @@
       1.5707963267948966,
       0
     ],
-    "speed": 0.20943951023931956,
-    "acceleration": 0.2617993877991494,
-    "ready_speed": 0.05235987755982989,
-    "ready_acceleration": 0.10471975511965978,
+    "speed": 0.4188790204786391,
+    "acceleration": 0.5235987755982988,
+    "ready_speed": 0.10471975511965978,
+    "ready_acceleration": 0.20943951023931956,
     "freshness_ns": 250000000,
     "arrival": 0.0017453292519943296,
     "stopped_speed": 0.00017453292519943296,
-    "step": 0.005235987755982988
+    "step": 0.010471975511965976
   },
   "gripper": {
     "closing_sign": 1,
@@ -61,9 +61,9 @@
   "guards": {
     "input_rate": 3.141592653589793,
     "intent_error": 0.5235987755982988,
-    "tracking_error": 0.03490658503988659,
+    "tracking_error": 0.06981317007977318,
     "tracking_seconds": 0.25,
-    "measured_speed": 0.25132741228718347,
+    "measured_speed": 0.5026548245743669,
     "gripper_input_rate": 12.566370614359172
   },
   "evidence": "../artifacts/physical-teleop",
