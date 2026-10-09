@@ -335,7 +335,8 @@ class ArchiveWriter:
 
 def _record_check(info: dict, simulated: bool):
     kind = info.pop("kind")
-    if info.pop("schema_version") != 1:
+    version = info.pop("schema_version")
+    if version != 1 and not (kind == "leader_intent" and version == 2):
         raise ValueError("unsupported control schema version")
     provenance = info["provenance"]
     provenance["time"] = contracts.SampleTime(**provenance["time"])
@@ -351,6 +352,8 @@ def _record_check(info: dict, simulated: bool):
     if "registers" in info:
         info["registers"] = tuple(tuple(pair) for pair in info["registers"])
     record = RECORD_TYPES[kind](**info)
+    if record.schema_version != version:
+        raise ValueError("control schema differs from mapping evidence")
     if record.provenance.simulated != simulated:
         raise ValueError("mixed provenance in control record")
     return record

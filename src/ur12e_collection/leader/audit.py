@@ -3,7 +3,7 @@
 import dataclasses
 
 from ur12e_collection.control import model
-from ur12e_collection.leader import episode, mapping
+from ur12e_collection.leader import episode, mapping, precision_audit
 
 
 class Audit:
@@ -31,8 +31,12 @@ class Audit:
         ):
             raise ValueError("invalid legacy leader HOME context")
         if (
-            context["mapping"] != "episode_relative"
-            or context["schema_version"] not in (1, 2)
+            (context["mapping"], context["schema_version"])
+            not in (
+                ("episode_relative", 1),
+                ("episode_relative", 2),
+                ("height_relative", 3),
+            )
             or tuple(context["follower_home_rad"]) != self.limits.ready
             or not 0 <= started_ns - self.baseline.start_ns <= 100_000_000
         ):
@@ -41,6 +45,11 @@ class Audit:
         self.command = model.Target(self.limits.ready, 0, started_ns)
         self.velocity = (0.0,) * 6
         self.intent_ns = None
+        self.precision = (
+            precision_audit.Audit(context["precision"], self.limits)
+            if context["schema_version"] == 3
+            else None
+        )
         self.gripper = (
             mapping.GripperReference(**context["gripper_reference"])
             if "gripper_reference" in context
@@ -80,6 +89,13 @@ class Audit:
                 self.baseline.raw[:6],
             )
         )
+        if self.precision:
+            delta = self.calibration.delta(sample.raw, self.previous.raw)
+            expected = self.precision.intent(
+                record, delta, self.command, self.velocity
+            )
+        elif record.mapping_state is not None:
+            raise ValueError("unexpected precision mapping evidence")
         if model.distance(expected, record.joint_positions_rad) > 1e-12:
             raise ValueError(
                 "recorded intent differs from raw relative mapping"
@@ -103,6 +119,8 @@ class Audit:
             raise ValueError("recorded command generation time invalid")
         q = record.joint_positions_rad
         self.limits.check(q)
+        if self.precision:
+            self.precision.sent(q, self.command, self.velocity, dt)
         velocity = tuple((a - b) / dt for a, b in zip(q, self.command.q))
         if (
             model.distance(q, self.command.q) > self.limits.step + 1e-10

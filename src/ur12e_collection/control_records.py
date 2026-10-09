@@ -1,5 +1,7 @@
 """Independent authority and provenance validation for controlled episodes."""
 
+import json
+
 
 class Validator:
     """Require bounded ownership and truthful intent, command and feedback."""
@@ -116,6 +118,15 @@ class Validator:
             self.leader_audit = Audit(
                 record.context, record.provenance.time.received_monotonic_ns
             )
+            height_mapping = (
+                self.context["leader_mapping"] == "height_relative_v1"
+            )
+            if height_mapping != (self.leader_audit.precision is not None):
+                raise ValueError("leader mapping differs from snapshot")
+            if height_mapping and json.dumps(
+                self.context["inputs"].get("precision"), sort_keys=True
+            ) != json.dumps(record.context["precision"], sort_keys=True):
+                raise ValueError("precision context differs from snapshot")
         if (
             record.action == "acquired"
             and self.context.get("leader_mapping")

@@ -13,15 +13,17 @@ class Conditioner:
         self.target = seed
         self.velocity = (0.0,) * 6
 
-    def step(self, desired: tuple, now_ns: int) -> model.Target:
+    def step(self, desired: tuple, now_ns: int, *, gain=1.0) -> model.Target:
         """Generate a command, never a fabricated leader acquisition."""
         self.limits.check(desired)
         dt = (now_ns - self.target.created_ns) / 1e9
         if not 0 < dt <= self.limits.freshness_ns / 1e9:
             raise model.ControlError("conditioner clock stalled or jumped")
         # Reserve numerical headroom for independent finite-difference checks.
-        acceleration = self.limits.acceleration * 0.9
-        speed = self.limits.speed * 0.9
+        if type(gain) not in (float, int) or not 0 < gain <= 1:
+            raise model.ControlError("invalid command gain")
+        acceleration = self.limits.acceleration * 0.9 * gain
+        speed = self.limits.speed * 0.9 * gain
         positions, velocities = [], []
         for goal, previous, velocity in zip(
             desired, self.target.q, self.velocity
@@ -33,11 +35,10 @@ class Conditioner:
                 ),
                 error,
             )
-            change = max(
+            velocity += max(
                 -acceleration * dt,
                 min(acceleration * dt, requested - velocity),
             )
-            velocity += change
             positions.append(previous + velocity * dt)
             velocities.append(velocity)
         result = model.Target(

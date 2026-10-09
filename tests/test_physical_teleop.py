@@ -100,6 +100,7 @@ def test_operating_bounds_still_reject_each_joint(axis):
 )
 def test_physical_rejects_inherited_sim_limits(tmp_path, change):
     value = json.loads((ROOT / "config/teleop.ur.json").read_text())
+    value["precision"]["enabled"] = False
     value["limits"].update(change)
     path = tmp_path / "config.json"
     path.write_text(json.dumps(value))
@@ -679,6 +680,7 @@ def test_doubled_profile_reverses_and_settles_with_jitter():
 @pytest.mark.parametrize("servo", [False, True])
 def test_higher_rates_require_corresponding_stop_setting(tmp_path, servo):
     value = json.loads((ROOT / "config/teleop.ur.json").read_text())
+    value["precision"]["enabled"] = False
     key = "servo_stop_deceleration_m_s2" if servo else "stop_deceleration"
     value["follower"][key] = 0.1 if servo else math.radians(2)
     path = tmp_path / "profile.json"

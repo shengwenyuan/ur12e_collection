@@ -39,6 +39,8 @@ def main(argv=None):
         parser.error("teleoperation runs on the Ubuntu PC")
     path = args.config.expanduser().resolve()
     value = config.load(path)
+    mode = "height-aware precision" if value.get("precision") else "simple"
+    print(f"Teleop mapping: {mode}\nConfiguration: {path}", flush=True)
     physical = value["follower"]["backend"] == "ur"
     recording = bool(args.record_station)
     if recording and (not physical or args.preflight):
@@ -168,6 +170,8 @@ def mount_paths(args, value, path, physical):
         path.parent: "ro",
         value["leader"]["calibration"].parent: "ro",
     }
+    if value.get("precision"):
+        mounts[value["precision"].path] = "ro"
     if recording:
         args.record_station = args.record_station.expanduser().resolve(
             strict=True

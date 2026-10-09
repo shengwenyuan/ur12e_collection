@@ -31,8 +31,10 @@ class Teleoperation:
         *,
         guards=None,
         home_open_gripper=True,
+        precision=None,
     ):
         self.guards = guards
+        self.precision = precision
         self.tracking = guarding.Tracking(guards) if guards else None
         self.home_open_gripper = home_open_gripper
         self.home_gripper_deadline = 0
@@ -100,6 +102,7 @@ class Teleoperation:
                 self.controller.progress.feedback,
                 now_ns,
                 guards=self.guards,
+                precision=self.precision,
             )
         except episode.UnstableReference:
             if self.state != "waiting_leader":
@@ -152,7 +155,9 @@ class Teleoperation:
                     self.controller.progress.feedback,
                     now_ns,
                 )
-            target = self.input.sample(time.monotonic_ns())
+            target = self.input.sample(
+                time.monotonic_ns(), self.controller.progress.feedback
+            )
             self.controller.transport.gripper(
                 self.gripper_reference.position(self.input.reading.raw[6])
             )
@@ -240,6 +245,7 @@ def drive(session, read_keys, log=None):
                 target=motion.controller.progress.target,
                 leader=active.evidence() if active else None,
                 desired=active.desired if active else None,
+                mapping_state=active.mapping_state if active else None,
             )
         # A burst is one operator intent, never multiple future operations.
         keys = read_keys()

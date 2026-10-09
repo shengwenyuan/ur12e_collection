@@ -34,6 +34,19 @@ collection command, an optional output directory, and future room for
 - Install a user-local executable symlink on the PC, using its current deployment
   pointer. Keep the advanced `scripts/teleop.py` invocation compatible.
 
+## Teleoperation mapping selection
+
+The repository UR profile enables height-aware precision mapping. Set
+`precision.enabled=false` in the selected teleop JSON for ordinary relative
+teleoperation; no geometry is loaded and no precision correction remains.
+Existing profiles that omit `precision` keep their previous simple behavior.
+The launcher prints both the selected profile and effective mode before device
+access. Station-local profiles retain precedence and require an explicit update
+when enabling this feature. Use `../kinematics/ur12e.urdf` from `config/local/`.
+Restart the session to change modes. See the
+[M06 plan](../m06-control-motion/height-aware-fine-teleop.md) for parameters and
+physical acceptance status. The daily command remains `ur12e gello`.
+
 ## Acceptance
 
 M09-A01: offline launcher tests prove default and overridden output, complete

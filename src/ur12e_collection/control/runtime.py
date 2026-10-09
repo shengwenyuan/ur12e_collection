@@ -97,6 +97,7 @@ def launch(
                 config["gripper"]["closing_sign"],
                 guards=config.get("guards"),
                 home_open_gripper=config.get("home_open_gripper", True),
+                precision=config.get("precision"),
             )
             if capture:
                 session = collection.Session(

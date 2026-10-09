@@ -195,3 +195,30 @@ Using measured POS as an action label can add actuator lag and erase intended
 closure at contact. Existing leader intent contains `gripper_request_raw`; actual
 asynchronous gripper send/ack timestamps remain absent. Training action semantics
 and any latency compensation require separate downstream validation.
+
+### Height-aware mapping evidence, 2026-10-07
+
+The opt-in [M06 precision profile](../m06-control-motion/height-aware-fine-teleop.md)
+extends existing records without adding topics or changing measured TCP/Hand-E
+semantics. Ordinary relative mapping and its historical records remain supported.
+
+- Snapshot `control.leader_mapping` is `height_relative_v1`; `control.inputs.precision`
+  embeds settings, URDF text and SHA256. The acquired authority context uses
+  mapping `height_relative`, version 3, with the identical precision document.
+  Geometry is embedded once per snapshot/context, not in each sample.
+- Opted-in `leader_intent` uses schema version 2. Its raw acquisition remains
+  unchanged; `joint_positions_rad` is the gain-scaled candidate before pending
+  travel correction. `mapping_state` holds the actual joint feedback and its
+  source timestamp/clock/host acquisition time, nominal-FK z, applied gain and
+  corrected `accepted` reference. Missing or inconsistent evidence is rejected.
+- `control/command` retains the actual sent, conditioned target. Measured state
+  stays separate. Independent verification reconstructs incremental mapping,
+  height gain, correction, and command derivatives; it also checks snapshot /
+  acquired-context agreement and rejects clock changes or stale source evidence.
+- Historical schema-1 leader intents and context versions 1/2 still use the
+  previous fixed episode-relative reconstruction. No historical data is rewritten.
+
+M10-A01/A03 software acceptance: PASS for MCAP write/read/verify with synthetic
+camera data and precision intents/commands/feedback, interval reset, and forged
+gain/height/correction/command/clock rejection. Full live-camera collection with
+this profile and physical motion: NOT RUN.

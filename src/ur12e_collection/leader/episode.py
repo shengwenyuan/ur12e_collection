@@ -143,15 +143,19 @@ class EpisodeMapper:
         if self._fault is not None:
             raise model.ControlError(f"episode mapping stopped: {self._fault}")
 
-    def target(self, sample: Sample, now_ns: int) -> model.Target:
-        """Reject bad input permanently; no catch-up, rebase or integration."""
+    def target(
+        self, sample: Sample, now_ns: int, *, reference=None, gain=1.0
+    ) -> model.Target:
+        """Map fresh input against the fixed or continuous reference."""
         self._healthy()
         try:
             _fresh(sample, now_ns, self._age_ns)
             check_advance(self._last, sample, self._age_ns)
-            delta = self._calibration.delta(sample.raw, self._baseline.raw)
+            origin = self._baseline if reference is None else self._last
+            delta = self._calibration.delta(sample.raw, origin.raw)
+            reference = self._limits.ready if reference is None else reference
             desired = tuple(
-                home + change for home, change in zip(self._limits.ready, delta)
+                q + gain * change for q, change in zip(reference, delta)
             )
             self._limits.check(desired)
             target = model.Target(desired, sample.sequence, sample.start_ns)

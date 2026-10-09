@@ -90,6 +90,7 @@ class LeaderIntent:
     joint_positions_rad: tuple[float, ...] | None
     gripper_request_raw: int | None
     acquisition: dict | None = None
+    mapping_state: dict | None = None
 
     kind: str = dataclasses.field(default="leader_intent", init=False)
     schema_version: int = dataclasses.field(default=SCHEMA_VERSION, init=False)
@@ -99,6 +100,10 @@ class LeaderIntent:
             raise ValueError("sample provenance is required")
         _joints(self.joint_positions_rad)
         _raw(self.gripper_request_raw)
+        if self.mapping_state is not None:
+            if not isinstance(self.mapping_state, dict):
+                raise ValueError("mapping state must be a document")
+            object.__setattr__(self, "schema_version", 2)
 
 
 @dataclasses.dataclass(frozen=True)

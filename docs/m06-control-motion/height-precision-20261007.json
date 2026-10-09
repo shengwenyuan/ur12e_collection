@@ -1,0 +1,549 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "feature": "M06 height-aware fine teleoperation",
+  "status": "implemented; exact simulator fault-profile regression and physical acceptance pending",
+  "deployment": {
+    "image_id": "sha256:1f6f6041f226c3d17ac367f95af365ec05f95807970d178ba91381e8e5673604",
+    "platform": "linux/amd64",
+    "labels": {
+      "org.opencontainers.image.base.name": "ros@sha256:2589a8fba5257307857890173c069852c2abf913a0be7970f172478baecb09e4",
+      "org.opencontainers.image.cached-dependencies": "sha256:80ac995dacda2403bd5815a5c2355cd63db48ac1366f62751fe6e4f112c2c508",
+      "org.opencontainers.image.revision": "1e63ca6-precision-3a6d0f700a9d",
+      "org.opencontainers.image.title": "ur12e-collection",
+      "org.opencontainers.image.version": "24.04",
+      "org.ur12e.source-tree": "3a6d0f700a9d0201129551c8ecd81c488c2f8db50d27d23a2b83dcd2fd685c9c"
+    },
+    "production_source": "/home/robot2026fall/ur12e-releases/dfa83f8/source",
+    "source_equality_files": 125,
+    "tests": {
+      "local": {
+        "passed": 793,
+        "skipped": 5
+      },
+      "ubuntu_installed_image": {
+        "passed": 796,
+        "skipped": 2
+      }
+    },
+    "network": "disabled for candidate build and control test clients",
+    "physical_devices_opened": false
+  },
+  "software": {
+    "final_focused_precision": {
+      "passed": 34,
+      "note": "includes one test added after full runs; passed locally and in Ubuntu image"
+    },
+    "black": "PASS",
+    "pylint": "PASS, 10.00/10"
+  },
+  "isaac": {
+    "version": "6.0.1.0",
+    "scene_revision": "88fdf50",
+    "physics_hz": 240,
+    "fixture_engagement_speed_rad_s": 0.01,
+    "strict_stop_speed_rad_s": 0.00017453292519943296,
+    "duration_per_comparison_s": 24,
+    "algorithm": "PASS",
+    "strict_stop": "BLOCKED by legacy model; thresholds unchanged"
+  },
+  "comparison": {
+    "on4": {
+      "report": {
+        "passed": false,
+        "hardware_connected": false,
+        "measured_fixture_seed": {
+          "q": [
+            -0.0004304508911445737,
+            -1.8687176704406738,
+            -2.1085638999938965,
+            -0.7680679559707642,
+            1.5707846879959106,
+            8.116315939332708e-07
+          ],
+          "qd": [
+            0.0023697172291576862,
+            -0.005561987869441509,
+            -0.0006680751102976501,
+            -0.0018803590210154653,
+            0.00013436982408165932,
+            -5.9625190260703675e-06
+          ],
+          "timestamp": 8.912500464823097,
+          "received_ns": 1053865190732696,
+          "motion_allowed": true,
+          "motion_error": "Isaac owner is inactive",
+          "source_clock": "isaac_physics_simulation",
+          "gripper_position": 0.01074962317943573,
+          "gripper_open": true,
+          "finger_positions_m": [
+            0.024998534470796585,
+            0.024999357759952545
+          ],
+          "finger_velocities_m_s": [
+            4.166878716205247e-05,
+            -6.49651497042214e-07
+          ]
+        },
+        "samples": 2850,
+        "command_hz": 118.75993098253527,
+        "z_range_m": [
+          0.16531209045618073,
+          0.2547896362011031
+        ],
+        "gain_range": [
+          0.5,
+          1.0
+        ],
+        "maximum_pending_rad": 0.1663281403957978,
+        "maximum_correction_rad": 0.0035530699661549536,
+        "base_residual_travel_2_3_to_5s_rad": 0.13301565404981375,
+        "maximum_cycle_ms": 9.994579,
+        "coverage_passed": true,
+        "algorithm_passed": true,
+        "error": "ControlError: stop timed out: elapsed_s=4.002, budget_s=4, max_speed_rad_s=0.014072; Isaac owner is inactive",
+        "stop_state": "fault",
+        "last_feedback": {
+          "q": [
+            0.1639758199453354,
+            -1.8064002990722656,
+            -2.124837636947632,
+            -0.8447118401527405,
+            1.5613017082214355,
+            0.009558593854308128
+          ],
+          "qd": [
+            -0.0003823597216978669,
+            -0.0140717513859272,
+            -0.004664652515202761,
+            -0.004009593278169632,
+            -0.0003437342820689082,
+            -5.603033059742302e-08
+          ],
+          "timestamp": 36.42083523282781,
+          "received_ns": 1053893284917163,
+          "motion_allowed": true,
+          "motion_error": "Isaac owner is inactive",
+          "source_clock": "isaac_physics_simulation",
+          "gripper_position": 0.018358714878559113,
+          "gripper_open": true,
+          "finger_positions_m": [
+            0.024996396154165268,
+            0.02500000409781933
+          ],
+          "finger_velocities_m_s": [
+            7.424635987263173e-05,
+            -2.328953087271657e-06
+          ]
+        }
+      },
+      "base_command_reversal_delay_s": 0.02276109900000023,
+      "no_base_recoil_before_reversal": true
+    },
+    "off2": {
+      "report": {
+        "passed": false,
+        "hardware_connected": false,
+        "measured_fixture_seed": {
+          "q": [
+            -0.0003949022793676704,
+            -1.8687540292739868,
+            -2.1085660457611084,
+            -0.7680681943893433,
+            1.570776343345642,
+            1.4001296904098126e-06
+          ],
+          "qd": [
+            0.0020465857814997435,
+            -0.005304862279444933,
+            -0.0006905776099301875,
+            -0.0018891856307163835,
+            0.00026543947751633823,
+            -1.4703719898534473e-05
+          ],
+          "timestamp": 22.295834496151656,
+          "received_ns": 1054038661739972,
+          "motion_allowed": true,
+          "motion_error": "Isaac owner is inactive",
+          "source_clock": "isaac_physics_simulation",
+          "gripper_position": 0.014843903481960297,
+          "gripper_open": true,
+          "finger_positions_m": [
+            0.024997670203447342,
+            0.02499941922724247
+          ],
+          "finger_velocities_m_s": [
+            0.00010418798046885058,
+            -1.166979245681432e-06
+          ]
+        },
+        "samples": 2853,
+        "command_hz": 118.88049370042152,
+        "z_range_m": [
+          0.1652811762581951,
+          0.2547066109021925
+        ],
+        "gain_range": [
+          0.5,
+          1.0
+        ],
+        "maximum_pending_rad": 0.26552049323658977,
+        "maximum_correction_rad": 1.27675647831893e-15,
+        "base_residual_travel_2_3_to_5s_rad": 0.23176042176783085,
+        "maximum_cycle_ms": 10.166904,
+        "mapping_p99_ms": 0.202856,
+        "coverage_passed": true,
+        "algorithm_passed": true,
+        "error": "ControlError: follower peer disconnected",
+        "expected_fault_rejected": false,
+        "stop_state": "fault",
+        "last_feedback": {
+          "q": [
+            0.16239909827709198,
+            -1.8064767122268677,
+            -2.124824047088623,
+            -0.8446218967437744,
+            1.5612866878509521,
+            0.009558821097016335
+          ],
+          "qd": [
+            0.00030236237216740847,
+            -0.012129154987633228,
+            -0.003978823311626911,
+            -0.003568715415894985,
+            -0.00036997091956436634,
+            3.343415301060304e-06
+          ],
+          "timestamp": 49.05000255815685,
+          "received_ns": 1054065932127424,
+          "motion_allowed": true,
+          "motion_error": "Isaac owner is inactive",
+          "source_clock": "isaac_physics_simulation",
+          "gripper_position": 0.0191376730799675,
+          "gripper_open": true,
+          "finger_positions_m": [
+            0.024996262043714523,
+            0.024999985471367836
+          ],
+          "finger_velocities_m_s": [
+            3.966263830079697e-05,
+            -1.0634694262989797e-06
+          ]
+        }
+      },
+      "base_command_reversal_delay_s": 0.021710872999999964,
+      "no_base_recoil_before_reversal": true
+    },
+    "residual_reduction_fraction": 0.4260639800566812
+  },
+  "faults": {
+    "leader-loss": {
+      "rejection": "ControlError: leader input is stale",
+      "owner_released": true,
+      "strict_standstill": "NOT established by this fault test"
+    },
+    "feedback-loss": {
+      "rejection": "ControlError: precision feedback is stale or missing",
+      "owner_released": true,
+      "strict_standstill": "NOT established by this fault test"
+    }
+  },
+  "physical_control_sent": false,
+  "production_switched": false,
+  "real_camera_recording": "NOT RUN",
+  "evidence_sha256": "0c4aa7ce313b896ab592e8fe296acad83e24420a524c6a32e95848a3b4f62949",
+  "continuation": {
+    "date": "2026-10-07",
+    "source_revision": "1e63ca6 plus uncommitted feature and fixes",
+    "image": "ur12e-collection:precision-debug-20261007",
+    "image_id": "sha256:19e05e67923be1b01c8d1a602a6fb5af2d56c3e71b931c4d34b4e21a93c79b34",
+    "source_tree_sha256": "23df5c2bffbd14d9de5c9e0f7bdf88a238d0f94d4785270eac22a039cf161818",
+    "software": {
+      "local": {
+        "passed": 808,
+        "skipped": 5
+      },
+      "ubuntu_installed": {
+        "passed": 811,
+        "skipped": 2
+      },
+      "precision_focused_passed": 47,
+      "scene_openusd_passed": 7,
+      "black": "PASS",
+      "pylint": "PASS, 10.00/10"
+    },
+    "evidence_archive": "artifacts/precision-20261007/debug/checkpoint.tar.gz",
+    "evidence_sha256": "d485d8211656769183011ea13f74043fdad5eeea50026f7af24d3ffaef0cc9d2",
+    "evidence_size_bytes": 31118181,
+    "reports": {
+      "deep": {
+        "passed": false,
+        "error": "ControlError: actual joint speed exceeded test limit",
+        "expected_fault_rejected": false,
+        "strict_stop_passed": false,
+        "stop_seconds": 4.007780882,
+        "ownership_released": true,
+        "command_hz": 119.99951758787435,
+        "report_sha256": "87599efcca5d8c89fd35d392ea396e90719d81aa847b33e30cc22d16c0e4cb3c"
+      },
+      "deep-forces": {
+        "passed": true,
+        "error": "ControlError: actual joint speed exceeded test limit",
+        "expected_fault_rejected": false,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.408623823,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "contact_rejection_passed": true,
+        "command_hz": 119.99945409065441,
+        "report_sha256": "5ee9c9655f6f3aae0d5eca2360776a06126ab96e175030b8d684be6acf6c4572"
+      },
+      "deep-pgs-gravity": {
+        "passed": false,
+        "error": "ControlError: actual joint speed exceeded test limit",
+        "expected_fault_rejected": false,
+        "strict_stop_passed": false,
+        "stop_seconds": 4.008153386,
+        "ownership_released": true,
+        "command_hz": 119.99892580528152,
+        "report_sha256": "ecd56336266ffd60ff474fec324cc26dea4b386f3eafab9877accdfb98c6b613"
+      },
+      "deep-pgs64": {
+        "passed": false,
+        "error": "ControlError: actual joint speed exceeded test limit",
+        "expected_fault_rejected": false,
+        "strict_stop_passed": false,
+        "stop_seconds": 4.002451501,
+        "ownership_released": true,
+        "command_hz": 119.99951910177005,
+        "report_sha256": "32b50699fba38cf272e5f3d0065bdf6ee7d58cd44491fcd9dc88d3919d484141"
+      },
+      "deep-tgs": {
+        "passed": false,
+        "error": "RuntimeError: physics did not settle: qd=(0.0014691980322822928, 0.017414279282093048, 0.009349813684821129, 0.000868355855345726, -0.0010342488531023264, 8.084558430709876e-06)",
+        "expected_fault_rejected": false,
+        "ownership_released": true,
+        "report_sha256": "64ba54da6cf04b93bf59b7768684317389e873acfaf06404de6bbcff34e5a787"
+      },
+      "deep-tgs-gravity": {
+        "passed": false,
+        "error": "ControlError: actual joint speed exceeded test limit",
+        "expected_fault_rejected": false,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.763522836,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "command_hz": 119.99954423350674,
+        "report_sha256": "52c0d35a40db7d14a843f5d8ce6ea580162087513211831c9fea23aeb13fd47a"
+      },
+      "deep-tgs-repeat": {
+        "passed": true,
+        "error": "ControlError: actual joint speed exceeded test limit",
+        "expected_fault_rejected": false,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.232302578,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "contact_rejection_passed": true,
+        "command_hz": 119.99949023411942,
+        "report_sha256": "b7dc4b475015d33ae21a58edff786d9834bd6da033d216ffc5bcb7babbc050ac"
+      },
+      "deep-tgs480-gravity64": {
+        "passed": false,
+        "error": "ControlError: actual joint speed exceeded test limit",
+        "expected_fault_rejected": false,
+        "strict_stop_passed": false,
+        "stop_seconds": 4.001375108,
+        "ownership_released": true,
+        "command_hz": 119.99946814670231,
+        "report_sha256": "a463fd9a2cfac1b77ee915a81c029a67ca17539e6e7339031cb299b7bf29f5e1"
+      },
+      "deep-v0": {
+        "passed": true,
+        "algorithm_passed": true,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.214588768,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.9684845679286,
+        "report_sha256": "0c2d5f8377333cd0689e37601a3857e2e0c49f37ea176a129a560afaab7af326"
+      },
+      "feedback-loss-tgs": {
+        "passed": false,
+        "error": "ControlError: precision feedback is stale or missing",
+        "expected_fault_rejected": true,
+        "strict_stop_passed": false,
+        "stop_seconds": 4.002835422,
+        "ownership_released": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.99892872470271,
+        "report_sha256": "72a82e987bc7b1f09c3376b5eec545a8de0035fbbc65505a374bc9e3c473eb4f"
+      },
+      "leader-loss-forces": {
+        "passed": false,
+        "error": "ControlError: leader input is stale",
+        "expected_fault_rejected": true,
+        "strict_stop_passed": false,
+        "stop_seconds": 4.006490776,
+        "ownership_released": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.99900106454638,
+        "report_sha256": "d3d334720b3aa777699a32f2b4d9939184845444139b3c795d564fa303649774"
+      },
+      "leader-loss-no-gravity": {
+        "passed": false,
+        "error": "RuntimeError: physics did not settle: qd=(-9.820674762295312e-08, -0.00018065875337924808, -0.00020356825552880764, 9.82869096333161e-05, -2.5231955078197643e-05, -1.4456723596012466e-09)",
+        "expected_fault_rejected": false,
+        "ownership_released": true,
+        "contact_rejection_passed": false,
+        "report_sha256": "804e618e5eb317cc3e18698196c13aae5c433ac6e9e991b0cd729b5772141168"
+      },
+      "leader-loss-p4v0": {
+        "passed": true,
+        "error": "ControlError: leader input is stale",
+        "expected_fault_rejected": true,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.498008174,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.99905264270053,
+        "report_sha256": "db6468ae6d6b85d80a6e485eec3548f634dd0ec78b5655ec85ae818e760d2462"
+      },
+      "leader-loss-tgs": {
+        "passed": false,
+        "error": "ControlError: leader input is stale",
+        "expected_fault_rejected": true,
+        "strict_stop_passed": false,
+        "stop_seconds": 4.000450264,
+        "ownership_released": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.99913911554785,
+        "report_sha256": "d6fb4285956489a2c901c8035f7e715205bad3febf6fed907eac9bb99b8cc1f6"
+      },
+      "leader-loss-v0": {
+        "passed": false,
+        "error": "ControlError: leader input is stale",
+        "expected_fault_rejected": true,
+        "strict_stop_passed": false,
+        "stop_seconds": 4.008063445,
+        "ownership_released": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.99908513488425,
+        "report_sha256": "92ed8f63aeebf98358dbd3f85f6aecf0429e304ca73607eeeb840f5c9bda97ec"
+      },
+      "noise-tgs": {
+        "passed": true,
+        "algorithm_passed": true,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.214682527,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.9666772867798,
+        "report_sha256": "ba3bc2b5f12f6ed13920c048959ee9d3213cb629befc2acf9b1843ab7369a167"
+      },
+      "reversal-tgs": {
+        "passed": true,
+        "algorithm_passed": true,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.213961857,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.95797706506397,
+        "report_sha256": "1ea8ccd828e02707970f6bbaf6f116dbbd5975965b51be1c3d23a1a446e08e8a"
+      },
+      "sweep-off-tgs": {
+        "passed": true,
+        "algorithm_passed": true,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.215235613,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.9997739615615,
+        "report_sha256": "583ae725375aa17252368693bbefe2d9d74104f5eab8b885bd5fe5ec5db9efdd"
+      },
+      "sweep-tgs": {
+        "passed": true,
+        "algorithm_passed": true,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.215211399,
+        "ownership_released": true,
+        "post_release_hold_passed": true,
+        "contact_rejection_passed": false,
+        "command_hz": 119.96851063032071,
+        "report_sha256": "38178af07b552b1b47468a280332dbdceb5ed49f4efbe9578a029752814f309f"
+      },
+      "sweep2": {
+        "passed": true,
+        "algorithm_passed": true,
+        "strict_stop_passed": true,
+        "stop_seconds": 0.817429303,
+        "ownership_released": true,
+        "command_hz": 119.96849431038694,
+        "report_sha256": "3df3fd2f1c488f1110e42337727f26140fed41964c672c4c276bde56c51901a7"
+      }
+    },
+    "experimental_adapters": {
+      "physical-diagnose-gravity.py": "883eeb6bfd110bb2814c25db73264674f43e1099e8a1f163ec572768811b8a09",
+      "physical-fixed-forces.py": "a18944fda9263e64a02f0ddfb6153b8a631f51573d7241a6f4de26de294f4b7b",
+      "physical-fixed-gravity-v0.py": "85ac54c06365b34a7965b4479bb0e7360d95ab8167a7c02f9202c57bc9a7fed7",
+      "physical-fixed-gravity.py": "3a29c509f98a7b3fdc837e48233f8ee632a667365933ec525ccf2cb3e9c256a3",
+      "physical-fixed-gravity64.py": "7647f604214c8d7f47e94c4ea4bfc3aae171af72ef9914847a48043e8ebdd698",
+      "physical-fixed.py": "e7107b36c790218a0ed57ac20ed2c324ef3cb32e6b4ded0b76c152ff52c54c29",
+      "physical-gravity-forces-p4v0.py": "8f53317727ef0df2c67ba4131c9c7f63be2b4f0e77a62842015991746760d694",
+      "physical-gravity-forces-v0.py": "135f11e433b3582d857aef74aee93fc83d4a74bcf481fdd99ed245c7b2183401",
+      "physical-gravity-forces.py": "af795ac23ebfc9242063fa830a9fe5a3fa36ee657bdc2e1954d260a6defa9ce4",
+      "physical-gravity.py": "cf2fd00e02cb8cc6214d17118f0b485b6c1e8713e916af53ccbead86b00f008c",
+      "physical-single-gravity.py": "4b37271a8a441bb62ddfa5bdf4dcc0577bd8ce3d0c3f965a90775651c7a8f5d1",
+      "physical-view-no-gravity.py": "2c6d5aa1555a8591101d335b4dcd534564f013d3d993ebd183a86a1b2b98afc3"
+    },
+    "last_candidate": {
+      "adapter": "physical-gravity-forces-p4v0.py",
+      "solver": "TGS",
+      "step_hz": 240,
+      "position_iterations": 4,
+      "velocity_iterations": 0,
+      "gravity_feedforward": true,
+      "external_forces_every_iteration": true,
+      "passed": [
+        "leader-loss-p4v0"
+      ],
+      "not_run": [
+        "sweep",
+        "sweep-without-correction",
+        "reversal",
+        "noise",
+        "feedback-loss",
+        "deep",
+        "repeat-leader-loss"
+      ],
+      "promoted": false
+    },
+    "fixed_root_runtime_promoted": true,
+    "production_switched": false,
+    "physical_control_sent": false,
+    "owned_isaac_processes_stopped": true,
+    "next_action": "Run the complete matrix on the exact final candidate before selecting a solver profile."
+  },
+  "ordinary_gello_configuration": {
+    "date": "2026-10-07",
+    "switch": "precision.enabled",
+    "repository_ur_default": true,
+    "disabled_behavior": "Identical to omitted precision: ordinary relative mapping, no geometry load or height mapping.",
+    "local_profile_precedence": "unchanged; explicit station migration required",
+    "local_tests": {
+      "passed": 815,
+      "skipped": 5
+    },
+    "focused_tests_passed": 163,
+    "black": "PASS",
+    "pylint": "PASS",
+    "ubuntu_image_updated": false,
+    "production_switched": false,
+    "physical_acceptance": "NOT RUN"
+  }
+}

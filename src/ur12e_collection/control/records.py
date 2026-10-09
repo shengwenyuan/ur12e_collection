@@ -56,6 +56,7 @@ class Records:
             target.q if leader is None else leader.desired.q,
             None,
             None if leader is None else leader.evidence(),
+            None if leader is None else leader.mapping_state,
         )
 
     def sent(self, target: Target, sent_ns: int):

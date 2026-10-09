@@ -214,6 +214,7 @@ def test_feedback_cache_cannot_refresh_acquisition_on_repeated_solver_sample():
     }
     transport.frames.receive.return_value = [local.encode(packet)]
     first = transport.read()
+    assert first.motion_error == ""
     assert transport.read() is first
     packet["fault"] = "paused"
     transport.frames.receive.return_value = [local.encode(packet)]
@@ -269,6 +270,26 @@ def test_watchdog_uses_host_time_even_when_solver_runs_faster(engine):
     assert engine.fault == "physical owner heartbeat expired"
 
 
+def test_repeated_stop_and_release_preserve_loaded_hold_targets(engine):
+    engine.command("claim", {}, 0)
+    engine.command("servo", {"q": (0.1,) * 6}, 0)
+    engine.command("stop", {}, 0.1)
+    held_q, held_fingers = engine.planner.target, engine.holding_fingers
+    # A force-driven model can settle away from its position target under load.
+    engine.driver.sample = dataclasses.replace(
+        engine.driver.sample, q=(-0.01,) * 6, fingers=(0.02, 0.021)
+    )
+    engine.update(0.11)
+    for operation in ("stop", "release"):
+        engine.command(operation, {}, 0.12)
+        engine.hold()  # Service release also requests a hold.
+        engine.update(0.13)
+        assert engine.driver.targets[-1] == (held_q, held_fingers)
+        assert engine.q == (-0.01,) * 6
+    engine.command("claim", {}, 0.14)
+    assert engine.planner.target == engine.q
+
+
 @pytest.mark.parametrize("positions", [(), (0.02,), (float("nan"), 0.02)])
 def test_missing_or_invalid_physical_jaw_readback_is_rejected(positions):
     with pytest.raises(model.ControlError, match="jaw"):
@@ -292,6 +313,11 @@ def test_render_time_does_not_starve_fixed_solver_steps(monkeypatch):
     clock = [0.0]
     monkeypatch.setattr(
         physical_application.time, "monotonic", lambda: clock[0]
+    )
+    monkeypatch.setattr(
+        physical_application.time,
+        "monotonic_ns",
+        lambda: round(clock[0] * 1e9),
     )
     monkeypatch.setattr(
         physical_application.time,

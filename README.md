@@ -11,6 +11,16 @@ ur12e gello
 ur12e gello --output ~/another-dataset
 ```
 
+The repository UR profile enables height-aware fine motion with
+`"precision": {"enabled": true, ...}`. Set **`precision.enabled` to `false`**
+to restore ordinary relative teleoperation, including its original smoothing.
+The launcher prints the effective mode and configuration path. A station's
+`config/local/teleop.ur.json` takes precedence; change that file when present.
+Profiles without `precision` retain simple behavior. Restart the session after
+changing this setting; it is not a live toggle. The pinned FK model ships under
+`config/kinematics/`; an Isaac checkout is unnecessary. See the
+[algorithm and acceptance](docs/m06-control-motion/height-aware-fine-teleop.md).
+
 Before hardware connection, select a task from `config/task-routes.json`. Keys
 are full English descriptions and values are unique short directory names. Use
 `--task-routes PATH` for another table. The selected description is recorded in

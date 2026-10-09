@@ -136,7 +136,7 @@ class Engine:
         self.planner = kinematic.Engine(limits, now, gripper_speed)
         self.heartbeat_at = now
         self.invalidated = False
-        self.holding_fingers = self.sample.fingers
+        self.holding_fingers = None
         self.hold()
 
     @property
@@ -174,6 +174,8 @@ class Engine:
 
     def hold(self) -> None:
         """Latch measured arm and jaw targets; preserve feedback."""
+        if self.holding_fingers is not None:
+            return  # Repeated release must not move a loaded drive equilibrium.
         self.planner.q = self.q
         self.planner.gripper_position = self.gripper_position
         self.planner.hold()
@@ -189,6 +191,8 @@ class Engine:
         """Start at measured state; stop preserves residual speed."""
         if self.invalidated:
             raise model.ControlError(self.fault)
+        if operation in ("claim", "move"):
+            self.holding_fingers = None
         if operation in ("claim", "move", "stop", "release"):
             self.hold()
         # Target profiles use solver time; ownership expiry uses host time.

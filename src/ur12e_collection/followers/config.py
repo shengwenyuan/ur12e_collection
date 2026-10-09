@@ -4,7 +4,7 @@ import json
 import math
 import pathlib
 
-from ur12e_collection.control import model
+from ur12e_collection.control import model, precision
 from ur12e_collection.followers import physics
 from ur12e_collection.physical import config as physical_config
 
@@ -35,18 +35,9 @@ def load(path: pathlib.Path) -> dict:
     for key in ("lower", "upper", "ready"):
         limits[key] = tuple(limits[key])
     value["limits"] = model.Limits(**limits)
-    gripper = value["gripper"]
-    sign = gripper["closing_sign"]
-    speed = gripper.get("aperture_speed_m_s", 0.05)
-    if isinstance(sign, bool) or sign not in (-1, 1):
-        raise ValueError("gripper closing_sign must be -1 or 1")
-    if (
-        isinstance(speed, bool)
-        or not isinstance(speed, (int, float))
-        or not math.isfinite(speed)
-        or speed <= 0
-    ):
-        raise ValueError("gripper aperture speed must be positive and finite")
+    if "precision" in value:
+        value["precision"] = precision.load(value["precision"], path.parent)
+    _gripper(value["gripper"])
     value["leader"]["calibration"] = resolve(
         path.parent, value["leader"]["calibration"]
     )
@@ -82,3 +73,18 @@ def scene_paths(scene, base):
         scene[key] = location
     if not 1 <= scene["display_hz"] <= 60:
         raise ValueError("display_hz must be in [1, 60]")
+
+
+def _gripper(gripper):
+    """Validate the common raw direction and simulated aperture rate."""
+    sign = gripper["closing_sign"]
+    speed = gripper.get("aperture_speed_m_s", 0.05)
+    if isinstance(sign, bool) or sign not in (-1, 1):
+        raise ValueError("gripper closing_sign must be -1 or 1")
+    if (
+        isinstance(speed, bool)
+        or not isinstance(speed, (int, float))
+        or not math.isfinite(speed)
+        or speed <= 0
+    ):
+        raise ValueError("gripper aperture speed must be positive and finite")

@@ -14,5 +14,17 @@
     "assets/grippers/hande/hande.urdf": "9e697e7de506b47b777495b81dd6fe55df1fefc6d925714080839b8d8b5e183c",
     "assets/robots/ur12e/usd/ur12e/ur12e.usda": "1bc45772f0b6e74a5a0a335d53a20433c2357a948a7d44c42b42ed0d5d8e1bc7",
     "assets/grippers/hande/usd/hande/hande.usda": "da5ea037b9d965eb6d22d2511043343c31bd37f353891613f1d763c7eddeb0ef"
+  },
+  "fixed_base_checkpoint": {
+    "date": "2026-10-07",
+    "source_revision": "88fdf50 plus fixed-base correction",
+    "scope": "Only runtime root placement and its static regression are promoted; gravity and solver candidates remain diagnostic. Historical baseline file hashes above are unchanged.",
+    "files": {
+      "runtime/physical.py": "e7107b36c790218a0ed57ac20ed2c324ef3cb32e6b4ded0b76c152ff52c54c29",
+      "tests/test_physical.py": "f1a402ee32e6366360667f5eba2c34fb318e124db1545aaa2ca1c237ed2778e3",
+      "docs/native-fixed-base.md": "0226414c1280f21237131717ec0215160a86acb221613f49eb4fd06cd3673096"
+    },
+    "openusd_tests_passed": 7,
+    "complete_dynamics_acceptance": "PENDING"
   }
 }

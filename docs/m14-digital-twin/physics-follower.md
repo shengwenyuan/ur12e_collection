@@ -289,3 +289,30 @@ cd ~/ur12e-physics-dev
 Support the torque-off leader. First Space requests simulated HOME; wait for
 `ready`, then Space begins following. Space stops and holds; Ctrl+C exits.
 The client reads the physical leader and controls only the simulated follower.
+
+
+## Fixed-base and lifecycle checkpoint, 2026-10-07
+
+M14-A01 software passes after correcting the native scene articulation root to
+the world fixed joint and making repeated hold/release idempotent. New owners
+still capture measured initial state. The scheduler preserves phase without
+catch-up bursts. Local/Ubuntu full suites pass 808/811 tests respectively; the
+scene's seven OpenUSD topology/source-layer tests pass.
+
+See the [M06 departure checkpoint](../m06-control-motion/height-aware-fine-teleop.md#departure-checkpoint-2026-10-07)
+for actual solver results and immutable evidence hashes. Root-only stationary
+and nominal motion/stop pass. Deep contacts and source-loss poses expose a
+remaining solver-dependent residual-velocity issue. Compensated TGS candidates
+pass individual trajectories and fault cases, but no single final configuration
+has passed the complete matrix. The final 240 Hz, 4 position / 0 velocity
+iteration candidate stops after stale input in 0.498 seconds and holds after
+release; its remaining regression is NOT RUN.
+
+Only fixed-base topology is applied to the scene runtime. Gravity feedforward,
+external-force settings and alternative solver iterations remain diagnostic
+adapters. `config/teleop.isaac-physics.json` remains PGS. These experiments do not
+establish real UR dynamics, contact safety or a total actuator torque bound.
+Production selection and physical device configuration are unchanged. All owned
+Isaac processes are stopped for departure; evidence is available on Mac and PC.
+The next visit must complete the exact final candidate's full regression before
+promotion. Full dynamics/contact acceptance remains pending.

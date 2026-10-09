@@ -75,6 +75,11 @@ class Resources:
                 "verification_workers": 3,
             },
         }
+        if config.get("precision"):
+            context["control"]["leader_mapping"] = "height_relative_v1"
+            context["control"]["inputs"]["precision"] = config[
+                "precision"
+            ].document()
         self.recorder = recording.Recorder(value, context)
         self.readers = feedback.Feedback(value, "hardware")
         self.snapshot = None

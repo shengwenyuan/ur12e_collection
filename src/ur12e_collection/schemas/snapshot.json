@@ -247,7 +247,7 @@
           "maximum": 250000000
         },
         "leader_mapping": {
-          "const": "episode_relative_conditioned_v1"
+          "enum": ["episode_relative_conditioned_v1", "height_relative_v1"]
         },
         "inputs": {
           "type": "object"

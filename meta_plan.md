@@ -219,6 +219,22 @@ Acceptance targets: `M05-A01` raw request/feedback distinction; `M05-A02` health
 
 ## M06. Control Ownership, Limits, ZERO and READY
 
+Implemented, physical acceptance pending: [height-aware fine teleoperation](docs/m06-control-motion/height-aware-fine-teleop.md).
+Continuously reduce new leader displacement and following speed/acceleration
+limits toward 0.5 near the working surface, without a boundary pause. The user
+requests piecewise-linear gain knots at +7/+5/+3.5 cm (1.0/0.75/0.5). Adopt the
+existing 154 mm engineering reference, which already includes the historical
+5 mm margin; it is not a measured TCP tabletop height. The combined incremental
+mapping and pending-target correction use pinned nominal FK, preserve command
+continuity, and extend independent MCAP auditing. Enablement is explicit through
+the station's `precision` configuration; production configuration is unchanged.
+Software and isolated Isaac acceptance are recorded in the feature plan.
+The 2026-10-07 departure checkpoint passes software and representative motion
+cases; full fault/hold regression on one final solver profile remains pending.
+The repository UR profile now enables precision with a Boolean
+`precision.enabled=false` escape to simple teleoperation. Existing station-local
+profiles retain precedence; deployed production is not switched by this change.
+
 ### M06.1 Motion and ownership
 
 Use one application **READY/HOME**, with UR joint angles
@@ -533,8 +549,10 @@ physical motion acceptance.
 The [physical-drive increment](docs/m14-digital-twin/physics-follower.md) implements
 an optional native `isaac_physics` backend. Static/software validation passed on
 2026-09-12: measured solver feedback, separate finger state, physical scene
-composition and native ownership contracts. Actual solver startup, dynamics and
-contact acceptance remain pending. The accepted kinematic default and deployed
+composition and native ownership contracts. Solver startup and representative
+motion/stop cases now pass; the 2026-10-07 fixed-base correction and experimental
+fault-stop profiles are documented there. Full dynamics/contact acceptance
+requires the remaining regression on one exact configuration. The accepted kinematic default and deployed
 image remain unchanged; the development native protocol is version 3.
 
 Acceptance targets: `M14-A01` traceable commanded/measured trajectory distinction; `M14-A02` absent or stalled sinks cannot affect real control or recording.

@@ -4,6 +4,7 @@ import importlib.util
 import json
 import time
 
+from ur12e_collection import timing
 from ur12e_collection.followers import local, physics
 
 
@@ -37,7 +38,8 @@ def run(app, stage, config, args):
 def loop(app, driver, service, config, args):
     """Step once per cycle; never burst stale targets to catch up."""
     started = reported = rendered = time.monotonic()
-    dt = 1 / config["physics"].step_hz
+    period_ns = round(1e9 / config["physics"].step_hz)
+    deadline = time.monotonic_ns()
     while app.is_running():
         began = time.monotonic()
         if args.duration and began - started >= args.duration:
@@ -69,4 +71,7 @@ def loop(app, driver, service, config, args):
                 args.report.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result), flush=True)
             reported = now
-        time.sleep(max(0, dt - (time.monotonic() - began)))
+        deadline = timing.next_deadline(
+            deadline, time.monotonic_ns(), period_ns
+        )
+        time.sleep(max(0, (deadline - time.monotonic_ns()) / 1e9))

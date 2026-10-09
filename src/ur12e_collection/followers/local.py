@@ -165,7 +165,8 @@ class Transport:
                 value["time_s"],
                 acquired,
                 value["active"] and not value["fault"],
-                value["fault"] or "Isaac owner is inactive",
+                value["fault"]
+                or ("" if value["active"] else "Isaac owner is inactive"),
                 source_clock=(
                     "isaac_physics_simulation"
                     if self.backend == "isaac_physics"
